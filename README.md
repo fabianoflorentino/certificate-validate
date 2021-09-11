@@ -49,3 +49,60 @@ Ex. docker exec -it certificate_validate_google cat /app/certificate.log
      "type": "Normal certificate type"
 }
 ```
+
+## **actions**
+
+| **variable** | **description** |
+| ------------- | --------------- |
+| secrets.DOCKERHUB_USERNAME | Username of the dockerhub account |
+| secrets.DOCKERHUB_TOKEN | Token of the dockerhub account |
+| DOCKERHUB_RESPOSITORY | Repository of the dockerhub account |
+
+* [**secrets**](https://docs.github.com/en/actions/reference/encrypted-secrets)
+
+    "Encrypted secrets allow you to store sensitive information in your organization, repository, or repository environments."
+
+* [**Workflow syntax for GitHub Actions**](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
+
+    "A workflow is a configurable automated process made up of one or more jobs. You must create a YAML file to define your workflow configuration."
+
+```yaml
+---
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  DOCKERHUB_RESPOSITORY: "fabianosanflor/certificate"
+
+jobs:  
+  build:
+    name: Build and Push to Docker Hub
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Login to Docker Hub
+      - name: Login
+        run: docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+
+      # Build the image
+      - name: Build
+        run: |
+          docker build \
+          --no-cache \
+          --rm \
+          -t ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_RUN_NUMBER \
+          -f ./Dockerfile .
+      
+      # Push the image to Docker Hub
+      - name: Push
+        run: docker push ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_RUN_NUMBER
+```
