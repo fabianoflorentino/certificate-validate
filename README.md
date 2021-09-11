@@ -1,3 +1,5 @@
+![Docker Build](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CI?label=Docker%20Build) ![CodeQL](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CodeQL?label=CodeQL)
+
 # **certificate-validate**
 
 Validate some info in SSL/TLS Certificates
