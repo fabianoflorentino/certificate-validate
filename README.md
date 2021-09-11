@@ -2,6 +2,11 @@
 
 Validate some info in SSL/TLS Certificates
 
+## **prerequisites**
+
+* Docker
+* Internet Access
+
 ## **build**
 
 ```shell
