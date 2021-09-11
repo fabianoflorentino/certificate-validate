@@ -19,9 +19,10 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Login
-        run: docker login -u $DOCKERHUB_USERNAME --password-stdin $DOCKERHUB_TOKEN
+        run: docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
 
   build:
+    needs: login
     name: Build Image
     runs-on: ubuntu-latest
 
