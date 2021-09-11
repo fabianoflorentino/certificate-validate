@@ -4,17 +4,14 @@ name: CI
 on:
   push:
   pull_request:
-env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:  
   login:
     name: Login to Docker Hub
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      
-      - shell: bash
-        run: |
-          echo -e "$DOCKERHUB_USERNAME"
+      - name: login
+        uses: docker/login-action@1.10.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
