@@ -36,8 +36,8 @@ jobs:
           docker build \
           --no-cache \
           --rm \
-          -t $DOCKERHUB_USERNAME/$REPOSITORY_NAME:v$GITHUB_JOB \
+          -t "$DOCKERHUB_USERNAME/$REPOSITORY_NAME:v$GITHUB_JOB" \
           -f ./Dockerfile .
       
       - name: Push
-        run: docker push $DOCKERHUB_USERNAME/$REPOSITORY_NAME:v$GITHUB_JOB
+        run: docker push "$DOCKERHUB_USERNAME/$REPOSITORY_NAME:v$GITHUB_JOB"
