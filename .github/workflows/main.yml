@@ -8,6 +8,7 @@ on:
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  DOCKERHUB_RESPOSITORY: "fabianosanflor/certificate"
 
 jobs:  
   login:
@@ -32,13 +33,11 @@ jobs:
 
       - name: Build
         run: |
-          set REPOSITORY_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
-          
           docker build \
           --no-cache \
           --rm \
-          -t "$DOCKERHUB_USERNAME/$REPOSITORY_NAME:v$GITHUB_JOB" \
+          -t ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_JOB \
           -f ./Dockerfile .
       
       - name: Push
-        run: docker push "$DOCKERHUB_USERNAME/$REPOSITORY_NAME:v$GITHUB_JOB"
+        run: docker push ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_JOB
