@@ -8,7 +8,7 @@ on:
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  DOCKERHUB_RESPOSITORY: "fabianosanflor/certificate"
+  DOCKERHUB_RESPOSITORY: ${{ secrets.DOCKERHUB_RESPOSITORY }}
 
 jobs:  
   build:
