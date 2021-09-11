@@ -8,7 +8,6 @@ on:
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  REPOSITORY_NAME: $( echo ${{ github.repository }} | cut -d '/' -f 2 )
 
 jobs:  
   login:
@@ -33,6 +32,8 @@ jobs:
 
       - name: Build
         run: |
+          set REPOSITORY_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          
           docker build \
           --no-cache \
           --rm \
