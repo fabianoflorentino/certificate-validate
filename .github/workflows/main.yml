@@ -27,8 +27,8 @@ jobs:
           docker build \
           --no-cache \
           --rm \
-          -t ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_JOB \
+          -t ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_RUN_NUMBER \
           -f ./Dockerfile .
       
       - name: Push
-        run: docker push ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_JOB
+        run: docker push ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_RUN_NUMBER
