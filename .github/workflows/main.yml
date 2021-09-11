@@ -11,8 +11,8 @@ env:
   DOCKERHUB_RESPOSITORY: "fabianosanflor/certificate"
 
 jobs:  
-  login:
-    name: Login to Docker Hub
+  build:
+    name: Build and Push to Docker Hub
     runs-on: ubuntu-latest
 
     steps:
@@ -21,15 +21,6 @@ jobs:
 
       - name: Login
         run: docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
-
-  build:
-    needs: login
-    name: Build Image
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
 
       - name: Build
         run: |
