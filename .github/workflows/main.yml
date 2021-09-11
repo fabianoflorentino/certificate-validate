@@ -35,7 +35,7 @@ jobs:
           docker build \
           --no-cache \
           --rm \
-          -t $DOCKERHUB_USERNAME/$GITHUB_REPOSITORY:$GITHUB_SHA \
+          -t $DOCKERHUB_USERNAME:$GITHUB_SHA \
           -f ./Dockerfile .
   
   push:
@@ -46,6 +46,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        
+
       - name: Push
-        run: docker push $DOCKERHUB_USERNAME/$GITHUB_REPOSITORY:$GITHUB_SHA
+        run: docker push $DOCKERHUB_USERNAME:$GITHUB_SHA
