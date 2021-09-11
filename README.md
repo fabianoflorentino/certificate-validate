@@ -1,4 +1,4 @@
-![CI](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CI?label=Docker%20Build) ![CodeQL](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CodeQL?label=CodeQL)
+![CI](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CI?label=CI) ![CodeQL](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CodeQL?label=CodeQL)
 
 # **certificate-validate**
 
