@@ -11,6 +11,6 @@ jobs:
     steps:
       - shell: bash
         env: 
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_USERNAME: "NAO FUNCIONA"
         run: |
           echo -e "$DOCKERHUB_USERNAME"
