@@ -37,15 +37,6 @@ jobs:
           --rm \
           -t $DOCKERHUB_USERNAME:$GITHUB_SHA \
           -f ./Dockerfile .
-  
-  push:
-    needs: [login, build]
-    name: Push Image to Docker Hub
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
+      
       - name: Push
         run: docker push $DOCKERHUB_USERNAME:$GITHUB_SHA
