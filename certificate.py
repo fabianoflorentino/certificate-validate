@@ -1,18 +1,23 @@
+"""
+requires a recent enough python with idna support in socket
+pyopenssl, cryptography and idna
+"""
 # -*- encoding: utf-8 -*-
-# requires a recent enough python with idna support in socket
-# pyopenssl, cryptography and idna
-import idna
+
 import concurrent.futures
 import sys
 import json
 import logging
 
-from OpenSSL import SSL
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-from socket import socket
 from collections import namedtuple
-from time import sleep, time
+from time import sleep
+from socket import socket
+from cryptography.x509.oid import NameOID
+from cryptography import x509
+from OpenSSL import SSL
+
+import idna
+
 
 HostInfo = namedtuple(
     field_names='cert hostname peername', typename='HostInfo')
@@ -22,14 +27,17 @@ HOSTS = [
 ]
 
 
-def verify_cert(cert, hostname):
-    # verify notAfter/notBefore, CA trusted, servername/sni/hostname
+def verify_cert(cert):
+    """
+    verify notAfter/notBefore, CA trusted, servername/sni/hostname
+    service_identity.pyopenssl.verify_hostname(client_ssl, hostname)
+    issuer
+    """
     return cert.has_expired()
-    # service_identity.pyopenssl.verify_hostname(client_ssl, hostname)
-    # issuer
 
 
 def get_certificate(hostname, port):
+    """ Get certificate from hostname:port """
     hostname_idna = idna.encode(hostname)
     sock = socket()
 
@@ -52,6 +60,7 @@ def get_certificate(hostname, port):
 
 
 def get_alt_names(cert):
+    """ Get alt names from certificate """
     try:
         ext = cert.extensions.get_extension_for_class(
             x509.SubjectAlternativeName)
@@ -61,6 +70,7 @@ def get_alt_names(cert):
 
 
 def get_common_name(cert):
+    """ Get common name from certificate """
     try:
         names = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
         return names[0].value
@@ -69,6 +79,7 @@ def get_common_name(cert):
 
 
 def get_issuer(cert):
+    """ Get issuer from certificate """
     try:
         names = cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME)
         return names[0].value
@@ -77,6 +88,7 @@ def get_issuer(cert):
 
 
 def cert_type(cert):
+    """ Get certificate type """
     for ext in cert.extensions:
         if ext.oid.dotted_string == '2.23.140.1.2.1':
             return 'DV type'
@@ -87,35 +99,39 @@ def cert_type(cert):
         return 'Normal certificate type'
 
 
-def time_to_wait(time_to_wait=86400):
-    sleep(time_to_wait)
+def time_to_wait(waiting=86400):
+    """ Sleep for time_to_wait seconds """
+    sleep(waiting)
     return time_to_wait
 
 
-def print_basic_info(hostinfo):
-    s = {
-        "commonName": f'{get_common_name(hostinfo.cert)}',
-        "SAN": f'{get_alt_names(hostinfo.cert)}',
-        "issuer": f'{get_issuer(hostinfo.cert)}',
-        "notBefore": f'{hostinfo.cert.not_valid_before}',
-        "notAfter": f'{hostinfo.cert.not_valid_after}',
-        "type": f'{cert_type(hostinfo.cert)}',
+def print_basic_info(host_basic_info):
+    """ Print basic info from certificate """
+    out_info = {
+        "commonName": f'{get_common_name(host_basic_info.cert)}',
+        "SAN": f'{get_alt_names(host_basic_info.cert)}',
+        "issuer": f'{get_issuer(host_basic_info.cert)}',
+        "notBefore": f'{host_basic_info.cert.not_valid_before}',
+        "notAfter": f'{host_basic_info.cert.not_valid_after}',
+        "type": f'{cert_type(host_basic_info.cert)}',
     }
     # print(json.dumps(s, indent=5))
-    return json.dumps(s, indent=5)
+    return json.dumps(out_info, indent=5)
 
 
 def check_it_out(hostname, port):
-    hostinfo = get_certificate(hostname, port)
-    return print_basic_info(hostinfo)
+    """ Check certificate """
+    info_from_host = get_certificate(hostname, port)
+    return print_basic_info(info_from_host)
 
 
-def log_it_out(hostinfo):
-    log_path = '/app/certificate.log'
+def log_it_out(host_log_info):
+    """ Log certificate """
+    log_path = './certificate.log'
     logging.basicConfig(filename=f'{log_path}', level=logging.INFO,
                         format='%(levelname)s:%(asctime)s\n%(message)s',
                         datefmt='%d:%m:%y:%H:%M:%S')
-    return logging.info(print_basic_info(hostinfo))
+    return logging.info(print_basic_info(host_log_info))
 
 
 if __name__ == '__main__':
@@ -133,5 +149,5 @@ if __name__ == '__main__':
                         print(print_basic_info(hostinfo))
                         time_to_wait()
             except KeyboardInterrupt:
-                print(f'Terminated!')
-                quit()
+                print('Terminated!')
+                sys.exit()
