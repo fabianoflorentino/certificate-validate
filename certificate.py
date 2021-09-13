@@ -26,6 +26,15 @@ HOSTS = [
     (sys.argv[1], sys.argv[2]),
 ]
 
+OIDS = {
+    "2.23.140.1.1": "Extended Validation (EV) Web Server SSL Digital Certificate",
+    "2.16.840.1.114404.1.1.2.4.1": "Extended Validation (EV) Web Server SSL Digital Certificate",
+    "2.23.140.1.2.1": "Domain Validation (DV) Web Server SSL Digital Certificate",
+    "2.23.140.1.2.2": "Organization Validation (OV) Web Server SSL Digital Certificate",
+    "2.23.140.1.2.3": "Organization Validation (OV) Web Server SSL Digital Certificate",
+    "2.23.140.1.4.1": "Organization Validation (OV) Code Signing Certificate",
+}
+
 
 def verify_cert(cert):
     """
@@ -107,14 +116,16 @@ def get_issuer(cert):
 
 def cert_type(cert):
     """ Get certificate type """
-    for ext in cert.extensions:
-        if ext.oid.dotted_string == '2.23.140.1.2.1':
-            return 'DV type'
-        if ext.oid.dotted_string == '2.23.140.1.2.2':
-            return 'OV type'
-        if ext.oid.dotted_string == '2.23.140.1.1':
-            return 'EV type'
-        return 'Normal certificate type'
+    ext = cert.extensions.get_extension_for_oid(
+        ExtensionOID.CERTIFICATE_POLICIES)
+    for oid in ext.value:
+        oid_num = oid.policy_identifier.dotted_string
+
+    for oid, desc in OIDS.items():
+        if oid_num in oid:
+            description =  desc
+
+    return description
 
 
 def time_to_wait(waiting=86400):
