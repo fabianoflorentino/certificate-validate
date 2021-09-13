@@ -60,9 +60,9 @@ def get_certificate(hostname, port):
         return HostInfo(cert=crypto_cert, peername=peername, hostname=hostname)
 
     except ConnectionRefusedError:
-        return sys.exit(f"\nThe host is not responding or don't exist\n")
+        return sys.exit("\nThe host is not responding or don't exist\n")
     except gaierror:
-        return sys.exit(f"\nThe hostname is not valid\n")
+        return sys.exit("\nThe hostname is not valid\n")
 
 
 def get_crl(cert):
