@@ -12,7 +12,7 @@ import logging
 from collections import namedtuple
 from time import sleep
 from socket import socket
-from cryptography.x509.oid import NameOID
+from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography import x509
 from OpenSSL import SSL
 
@@ -57,6 +57,18 @@ def get_certificate(hostname, port):
     sock.close()
 
     return HostInfo(cert=crypto_cert, peername=peername, hostname=hostname)
+
+
+def get_crl(cert):
+    """ Get CRL URLs from certificate """
+    crl = []
+    ext = cert.extensions.get_extension_for_oid(
+        ExtensionOID.CRL_DISTRIBUTION_POINTS)
+    crl_urls = ext.value
+    for get_url in crl_urls:
+        for url in get_url.full_name:
+            crl.append(url.value)
+    return crl
 
 
 def get_alt_names(cert):
@@ -107,16 +119,20 @@ def time_to_wait(waiting=86400):
 
 def print_basic_info(host_basic_info):
     """ Print basic info from certificate """
-    out_info = {
-        "commonName": f'{get_common_name(host_basic_info.cert)}',
-        "SAN": f'{get_alt_names(host_basic_info.cert)}',
-        "issuer": f'{get_issuer(host_basic_info.cert)}',
-        "notBefore": f'{host_basic_info.cert.not_valid_before}',
-        "notAfter": f'{host_basic_info.cert.not_valid_after}',
-        "type": f'{cert_type(host_basic_info.cert)}',
-    }
-    # print(json.dumps(s, indent=5))
-    return json.dumps(out_info, indent=5)
+    try:
+        out_info = {
+            "commonName": f'{get_common_name(host_basic_info.cert)}',
+            "SAN": f'{get_alt_names(host_basic_info.cert)}',
+            "issuer": f'{get_issuer(host_basic_info.cert)}',
+            "crl": f'{get_crl(host_basic_info.cert)}',
+            "notBefore": f'{host_basic_info.cert.not_valid_before}',
+            "notAfter": f'{host_basic_info.cert.not_valid_after}',
+            "type": f'{cert_type(host_basic_info.cert)}',
+        }
+        # print(json.dumps(s, indent=5))
+        return json.dumps(out_info, indent=5)
+    except AttributeError:
+        return host_basic_info
 
 
 def check_it_out(hostname, port):
