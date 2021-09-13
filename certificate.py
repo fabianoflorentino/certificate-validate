@@ -11,7 +11,7 @@ import logging
 
 from collections import namedtuple
 from time import sleep
-from socket import socket
+from socket import socket, gaierror
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography import x509
 from OpenSSL import SSL
@@ -38,25 +38,31 @@ def verify_cert(cert):
 
 def get_certificate(hostname, port):
     """ Get certificate from hostname:port """
-    hostname_idna = idna.encode(hostname)
-    sock = socket()
+    try:
+        hostname_idna = idna.encode(hostname)
+        sock = socket()
 
-    sock.connect((hostname, port))
-    peername = sock.getpeername()
-    ctx = SSL.Context(SSL.SSLv23_METHOD)  # most compatible
-    ctx.check_hostname = False
-    ctx.verify_mode = SSL.VERIFY_NONE
+        sock.connect((hostname, port))
+        peername = sock.getpeername()
+        ctx = SSL.Context(SSL.SSLv23_METHOD)  # most compatible
+        ctx.check_hostname = False
+        ctx.verify_mode = SSL.VERIFY_NONE
 
-    sock_ssl = SSL.Connection(ctx, sock)
-    sock_ssl.set_connect_state()
-    sock_ssl.set_tlsext_host_name(hostname_idna)
-    sock_ssl.do_handshake()
-    cert = sock_ssl.get_peer_certificate()
-    crypto_cert = cert.to_cryptography()
-    sock_ssl.close()
-    sock.close()
+        sock_ssl = SSL.Connection(ctx, sock)
+        sock_ssl.set_connect_state()
+        sock_ssl.set_tlsext_host_name(hostname_idna)
+        sock_ssl.do_handshake()
+        cert = sock_ssl.get_peer_certificate()
+        crypto_cert = cert.to_cryptography()
+        sock_ssl.close()
+        sock.close()
 
-    return HostInfo(cert=crypto_cert, peername=peername, hostname=hostname)
+        return HostInfo(cert=crypto_cert, peername=peername, hostname=hostname)
+
+    except ConnectionRefusedError:
+        return sys.exit(f"\nThe host is not responding or don't exist\n")
+    except gaierror:
+        return sys.exit(f"\nThe hostname is not valid\n")
 
 
 def get_crl(cert):
@@ -156,6 +162,10 @@ if __name__ == '__main__':
             try:
                 for hostinfo in e.map(lambda x: get_certificate(x[0], int(x[1])), HOSTS):
                     try:
+                        if "--exit" in sys.argv[3]:
+                            print(print_basic_info(hostinfo))
+                            log_it_out(hostinfo)
+                            sys.exit(0)
                         if sys.argv[3]:
                             time_to_wait(int(sys.argv[3]))
                             print(print_basic_info(hostinfo))
@@ -166,4 +176,4 @@ if __name__ == '__main__':
                         time_to_wait()
             except KeyboardInterrupt:
                 print('Terminated!')
-                sys.exit()
+                sys.exit(0)
