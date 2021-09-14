@@ -76,13 +76,9 @@ on:
   push:
   pull_request:
 
-env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  DOCKERHUB_RESPOSITORY: "fabianosanflor/certificate"
-
 jobs:  
   build:
+    environment: DOCKERHUB
     name: Build and Push to Docker Hub
     runs-on: ubuntu-latest
 
@@ -93,7 +89,7 @@ jobs:
 
       # Login to Docker Hub
       - name: Login
-        run: docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Build the image
       - name: Build
@@ -101,10 +97,10 @@ jobs:
           docker build \
           --no-cache \
           --rm \
-          -t ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_RUN_NUMBER \
+          -t $GITHUB_REPOSITORY:latest \
           -f ./Dockerfile .
       
       # Push the image to Docker Hub
       - name: Push
-        run: docker push ${{ env.DOCKERHUB_RESPOSITORY }}:v0.0.$GITHUB_RUN_NUMBER
+        run: docker push $GITHUB_REPOSITORY:latest
 ```
