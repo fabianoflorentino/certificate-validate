@@ -54,11 +54,19 @@ Ex. docker exec -it certificate_validate_google cat /app/certificate.log
 
 ## **actions**
 
+| **environment** | **description** |
+| --------------- | ---------------- |
+| DOCKERHUB | Environment configured on Github |
+
+[**Environments**](https://docs.github.com/en/actions/reference/environments)
+
+* [**Creating**](https://docs.github.com/en/actions/reference/environments#creating-an-environment)
+
 | **variable** | **description** |
 | ------------- | --------------- |
 | secrets.DOCKERHUB_USERNAME | Username of the dockerhub account |
 | secrets.DOCKERHUB_TOKEN | Token of the dockerhub account |
-| DOCKERHUB_RESPOSITORY | Repository of the dockerhub account |
+| GITHUB_REPOSITORY | Your GitHub repository needs to have the same name of Dockerhub Repository |
 
 * [**secrets**](https://docs.github.com/en/actions/reference/encrypted-secrets)
 
