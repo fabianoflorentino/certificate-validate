@@ -1,6 +1,14 @@
 name: Pylint
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'docs/**'
+      - '.github/**'
 
 jobs:
   build:
