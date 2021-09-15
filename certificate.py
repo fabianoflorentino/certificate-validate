@@ -77,13 +77,16 @@ def get_certificate(hostname, port):
 def get_crl(cert):
     """ Get CRL URLs from certificate """
     crl = []
-    ext = cert.extensions.get_extension_for_oid(
-        ExtensionOID.CRL_DISTRIBUTION_POINTS)
-    crl_urls = ext.value
-    for get_url in crl_urls:
-        for url in get_url.full_name:
-            crl.append(url.value)
-    return crl
+    try:
+        ext = cert.extensions.get_extension_for_oid(
+            ExtensionOID.CRL_DISTRIBUTION_POINTS)
+        crl_urls = ext.value
+        for get_url in crl_urls:
+            for url in get_url.full_name:
+                crl.append(url.value)
+        return crl
+    except x509.ExtensionNotFound:
+        return "CRL not found for this certificate!"
 
 
 def get_alt_names(cert):
@@ -116,16 +119,18 @@ def get_issuer(cert):
 
 def cert_type(cert):
     """ Get certificate type """
-    ext = cert.extensions.get_extension_for_oid(
-        ExtensionOID.CERTIFICATE_POLICIES)
-    for oid in ext.value:
-        oid_num = oid.policy_identifier.dotted_string
+    try:
+        ext = cert.extensions.get_extension_for_oid(
+            ExtensionOID.CERTIFICATE_POLICIES)
+        for oid in ext.value:
+            oid_num = oid.policy_identifier.dotted_string
 
-    for oid, desc in OIDS.items():
-        if oid_num in oid:
-            description =  desc
-
-    return description
+        for oid, desc in OIDS.items():
+            if oid_num in oid:
+                description = desc
+        return description
+    except UnboundLocalError:
+        return "Type not found for this certificate!"
 
 
 def time_to_wait(waiting=86400):
