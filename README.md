@@ -60,12 +60,15 @@ python /app/certificate.py github.com 443 --exit
 | **fields** | **description** |
 | ------------- | --------------- |
 | "commonName" | Common Name of the certificate |
-| "SAN" | Subject Alternative Name of the certificate |
+| "subjectAltName" | Subject Alternative Name of the certificate |
 | "issuer" | Issuer of the certificate |
-| "crl" | Certificate Revocation List of the certificate |
+| "type" | Type of the certificate |
 | "notBefore" | Not Before of the certificate |
 | "notAfter" | Not After of the certificate |
-| "type" | Type of the certificate |
+| "daysLeft" | Days left to expire the certificate |
+| "crl" | Certificate Revocation List of the certificate |
+
+**OBS**: daysLeft is not part of the RFC, it is calculated based on the notBefore and notAfter fields.
 
 ```shell
 docker exec -it <CONTAINER NAME> cat /app/certificate.log
@@ -74,12 +77,13 @@ docker exec -it <CONTAINER NAME> cat /app/certificate.log
 ```shell
 {
      "commonName": "www.github.com",
-     "SAN": "['www.github.com', '*.github.com', 'github.com', '*.github.io', 'github.io', '*.githubusercontent.com', 'githubusercontent.com']",
+     "subjectAltName": "['www.github.com', '*.github.com', 'github.com', '*.github.io', 'github.io', '*.githubusercontent.com', 'githubusercontent.com']",
      "issuer": "DigiCert SHA2 High Assurance Server CA",
-     "crl": "['http://crl3.digicert.com/sha2-ha-server-g6.crl', 'http://crl4.digicert.com/sha2-ha-server-g6.crl']",
+     "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
      "notBefore": "2020-05-06 00:00:00",
      "notAfter": "2022-04-14 12:00:00",
-     "type": "Organization Validation (OV) Web Server SSL Digital Certificate"
+     "daysLeft": "708",
+     "crl": "['http://crl3.digicert.com/sha2-ha-server-g6.crl', 'http://crl4.digicert.com/sha2-ha-server-g6.crl']"
 }
 ```
 
