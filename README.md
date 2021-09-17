@@ -24,7 +24,7 @@ docker build --no-cache --rm -t <NAME_OF_IMAGE> -f ./Dockerfile .
 | CERTIFICATE_TIME_TO_WAIT | Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400** |
 
 ```shell
-docker run -d --name certificate_validate_google \
+docker run -d --name certificate_validate \
 -e CERTIFICATE_URL=google.com \
 -e CERTIFICATE_PORT=443 \
 <NAME_OF_IMAGE>
@@ -34,13 +34,13 @@ docker run -d --name certificate_validate_google \
 docker ps
 
 CONTAINER ID   IMAGE                                 COMMAND                CREATED          STATUS          PORTS     NAMES
-e3b9598147db   fabianoflorentino/certificate:latest   "/app/entrypoint.sh"   29 minutes ago   Up 29 minutes             certificate_validate
+e3b9598147db   fabianoflorentino/certificate-validate:latest   "/app/entrypoint.sh"   29 minutes ago   Up 29 minutes             certificate_validate
 ```
 
 ```shell
 docker exec -it <CONTAINER NAME> cat /app/certificate.log
 
-Ex. docker exec -it certificate_validate_google cat /app/certificate.log
+Ex. docker exec -it certificate_validate cat /app/certificate.log
 
 {
      "commonName": "www.github.com",
