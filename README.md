@@ -23,25 +23,55 @@ docker build --no-cache --rm -t <NAME_OF_IMAGE> -f ./Dockerfile .
 | CERTIFICATE_PORT | Port of the certificate to validate |
 | CERTIFICATE_TIME_TO_WAIT | Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400** |
 
+### **daemon**
+
 ```shell
 docker run -d --name certificate_validate \
 -e CERTIFICATE_URL=google.com \
 -e CERTIFICATE_PORT=443 \
+-e CERTIFICATE_TIME_TO_WAIT=6300 \
 <NAME_OF_IMAGE>
 ```
 
+#### **status**
+
 ```shell
 docker ps
+```
 
+```shell
 CONTAINER ID   IMAGE                                 COMMAND                CREATED          STATUS          PORTS     NAMES
 e3b9598147db   fabianoflorentino/certificate-validate:latest   "/app/entrypoint.sh"   29 minutes ago   Up 29 minutes             certificate_validate
 ```
 
+### **once**
+
+```shell
+docker run -it --name certificate_validate_test \
+--entrypoint "" \
+<NAME_OF_IMAGE> \
+python /app/certificate.py github.com 443 --exit
+```
+
+### **logs**
+
+**RFC (Request for Comments):** [Internet X.509 Public Key Infrastructure Certificate and CRL Profile](https://www.rfc-editor.org/rfc/rfc2459#section-4.1)
+
+| **fields** | **description** |
+| ------------- | --------------- |
+| "commonName" | Common Name of the certificate |
+| "SAN" | Subject Alternative Name of the certificate |
+| "issuer" | Issuer of the certificate |
+| "crl" | Certificate Revocation List of the certificate |
+| "notBefore" | Not Before of the certificate |
+| "notAfter" | Not After of the certificate |
+| "type" | Type of the certificate |
+
 ```shell
 docker exec -it <CONTAINER NAME> cat /app/certificate.log
+```
 
-Ex. docker exec -it certificate_validate cat /app/certificate.log
-
+```shell
 {
      "commonName": "www.github.com",
      "SAN": "['www.github.com', '*.github.com', 'github.com', '*.github.io', 'github.io', '*.githubusercontent.com', 'githubusercontent.com']",
@@ -87,6 +117,11 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'docs/**'
+      - '.github/**'
 
 jobs:  
   build:
@@ -123,7 +158,15 @@ jobs:
 ```yaml
 name: Pylint
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'docs/**'
+      - '.github/**'
 
 jobs:
   build:
@@ -150,27 +193,17 @@ jobs:
 ### **CodeQL**
 
 ```yaml
-# For most projects, this workflow file will not need changing; you simply need
-# to commit it to your repository.
-#
-# You may wish to alter this file to override the set of languages analyzed,
-# or to provide custom queries or build logic.
-#
-# ******** NOTE ********
-# We have attempted to detect the languages in your repository. Please check
-# the `language` matrix defined below to confirm you have the correct set of
-# supported CodeQL languages.
-#
 name: "CodeQL"
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ main ]
-  schedule:
-    - cron: '17 23 * * 2'
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'docs/**'
+      - '.github/**'
 
 jobs:
   analyze:
@@ -185,9 +218,6 @@ jobs:
       fail-fast: false
       matrix:
         language: [ 'python' ]
-        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python' ]
-        # Learn more:
-        # https://docs.github.com/en/free-pro-team@latest/github/finding-security-vulnerabilities-and-errors-in-your-code/configuring-code-scanning#changing-the-languages-that-are-analyzed
 
     steps:
     - name: Checkout repository
@@ -198,26 +228,9 @@ jobs:
       uses: github/codeql-action/init@v1
       with:
         languages: ${{ matrix.language }}
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
-        # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
-    # If this step fails, then you should remove it and run the build manually (see below)
     - name: Autobuild
       uses: github/codeql-action/autobuild@v1
-
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 https://git.io/JvXDl
-
-    # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
-    #    and modify them (or add more) to build your code if your project
-    #    uses a compiled language
-
-    #- run: |
-    #   make bootstrap
-    #   make release
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
