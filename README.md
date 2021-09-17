@@ -34,7 +34,7 @@ docker run -d --name certificate_validate_google \
 docker ps
 
 CONTAINER ID   IMAGE                                 COMMAND                CREATED          STATUS          PORTS     NAMES
-e3b9598147db   fabianosanflor/certificate:validate   "/app/entrypoint.sh"   29 minutes ago   Up 29 minutes             certificate_validate_google
+e3b9598147db   fabianoflorentino/certificate:latest   "/app/entrypoint.sh"   29 minutes ago   Up 29 minutes             certificate_validate
 ```
 
 ```shell
@@ -43,12 +43,13 @@ docker exec -it <CONTAINER NAME> cat /app/certificate.log
 Ex. docker exec -it certificate_validate_google cat /app/certificate.log
 
 {
-     "commonName": "*.google.com",
-     "SAN": "['*.google.com', '*.appengine.google.com', '*.bdn.dev', '*.cloud.google.com', '*.crowdsource.google.com', '*.datacompute.google.com', '*.google.ca', '*.google.cl', '*.google.co.in', '*.google.co.jp', '*.google.co.uk', '*.google.com.ar', '*.google.com.au', '*.google.com.br', '*.google.com.co', '*.google.com.mx', '*.google.com.tr', '*.google.com.vn', '*.google.de', '*.google.es', '*.google.fr', '*.google.hu', '*.google.it', '*.google.nl', '*.google.pl', '*.google.pt', '*.googleadapis.com', '*.googleapis.cn', '*.googlevideo.com', '*.gstatic.cn', '*.gstatic-cn.com', '*.gstaticcnapps.cn', 'googlecnapps.cn', '*.googlecnapps.cn', 'googleapps-cn.com', '*.googleapps-cn.com', 'gkecnapps.cn', '*.gkecnapps.cn', 'googledownloads.cn', '*.googledownloads.cn', 'recaptcha.net.cn', '*.recaptcha.net.cn', 'widevine.cn', '*.widevine.cn', 'ampproject.org.cn', '*.ampproject.org.cn', 'ampproject.net.cn', '*.ampproject.net.cn', 'google-analytics-cn.com', '*.google-analytics-cn.com', 'googleadservices-cn.com', '*.googleadservices-cn.com', 'googlevads-cn.com', '*.googlevads-cn.com', 'googleapis-cn.com', '*.googleapis-cn.com', 'googleoptimize-cn.com', '*.googleoptimize-cn.com', 'doubleclick-cn.net', '*.doubleclick-cn.net', '*.fls.doubleclick-cn.net', '*.g.doubleclick-cn.net', 'doubleclick.cn', '*.doubleclick.cn', '*.fls.doubleclick.cn', '*.g.doubleclick.cn', 'dartsearch-cn.net', '*.dartsearch-cn.net', 'googletraveladservices-cn.com', '*.googletraveladservices-cn.com', 'googletagservices-cn.com', '*.googletagservices-cn.com', 'googletagmanager-cn.com', '*.googletagmanager-cn.com', 'googlesyndication-cn.com', '*.googlesyndication-cn.com', '*.safeframe.googlesyndication-cn.com', 'app-measurement-cn.com', '*.app-measurement-cn.com', 'gvt1-cn.com', '*.gvt1-cn.com', 'gvt2-cn.com', '*.gvt2-cn.com', '2mdn-cn.net', '*.2mdn-cn.net', 'googleflights-cn.net', '*.googleflights-cn.net', 'admob-cn.com', '*.admob-cn.com', '*.gstatic.com', '*.metric.gstatic.com', '*.gvt1.com', '*.gcpcdn.gvt1.com', '*.gvt2.com', '*.gcp.gvt2.com', '*.url.google.com', '*.youtube-nocookie.com', '*.ytimg.com', 'android.com', '*.android.com', '*.flash.android.com', 'g.cn', '*.g.cn', 'g.co', '*.g.co', 'goo.gl', 'www.goo.gl', 'google-analytics.com', '*.google-analytics.com', 'google.com', 'googlecommerce.com', '*.googlecommerce.com', 'ggpht.cn', '*.ggpht.cn', 'urchin.com', '*.urchin.com', 'youtu.be', 'youtube.com', '*.youtube.com', 'youtubeeducation.com', '*.youtubeeducation.com', 'youtubekids.com', '*.youtubekids.com', 'yt.be', '*.yt.be', 'android.clients.google.com', 'developer.android.google.cn', 'developers.android.google.cn', 'source.android.google.cn']",
-     "issuer": "GTS CA 1C3",
-     "notBefore": "2021-08-23 01:38:08",
-     "notAfter": "2021-11-15 01:38:07",
-     "type": "Normal certificate type"
+     "commonName": "www.github.com",
+     "SAN": "['www.github.com', '*.github.com', 'github.com', '*.github.io', 'github.io', '*.githubusercontent.com', 'githubusercontent.com']",
+     "issuer": "DigiCert SHA2 High Assurance Server CA",
+     "crl": "['http://crl3.digicert.com/sha2-ha-server-g6.crl', 'http://crl4.digicert.com/sha2-ha-server-g6.crl']",
+     "notBefore": "2020-05-06 00:00:00",
+     "notAfter": "2022-04-14 12:00:00",
+     "type": "Organization Validation (OV) Web Server SSL Digital Certificate"
 }
 ```
 
@@ -76,13 +77,16 @@ Ex. docker exec -it certificate_validate_google cat /app/certificate.log
 
     "A workflow is a configurable automated process made up of one or more jobs. You must create a YAML file to define your workflow configuration."
 
+### **CI**
+
 ```yaml
 ---
 name: CI
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
 
 jobs:  
   build:
@@ -111,4 +115,110 @@ jobs:
       # Push the image to Docker Hub
       - name: Push
         run: docker push $GITHUB_REPOSITORY:latest
+
+```
+
+### **Pylint**
+
+```yaml
+name: Pylint
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -r ./requirements.txt
+        pip install pylint
+    - name: Analysing the code with pylint
+      run: |
+        pylint `ls -R|grep .py$|xargs`
+
+```
+
+### **CodeQL**
+
+```yaml
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ main ]
+  schedule:
+    - cron: '17 23 * * 2'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python' ]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python' ]
+        # Learn more:
+        # https://docs.github.com/en/free-pro-team@latest/github/finding-security-vulnerabilities-and-errors-in-your-code/configuring-code-scanning#changing-the-languages-that-are-analyzed
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v1
+      with:
+        languages: ${{ matrix.language }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+        # queries: ./path/to/local/query, your-org/your-repo/queries@main
+
+    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
+    # If this step fails, then you should remove it and run the build manually (see below)
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v1
+
+    # ℹ️ Command-line programs to run using the OS shell.
+    # 📚 https://git.io/JvXDl
+
+    # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
+    #    and modify them (or add more) to build your code if your project
+    #    uses a compiled language
+
+    #- run: |
+    #   make bootstrap
+    #   make release
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v1
 ```
