@@ -133,6 +133,12 @@ def cert_type(cert):
         return "Type not found for this certificate!"
 
 
+def days_left(cert):
+    """ Get days left from certificate """
+    days = cert.not_valid_after - cert.not_valid_before
+    return days.days
+
+
 def time_to_wait(waiting=86400):
     """ Sleep for time_to_wait seconds """
     sleep(waiting)
@@ -144,14 +150,15 @@ def print_basic_info(host_basic_info):
     try:
         out_info = {
             "commonName": f'{get_common_name(host_basic_info.cert)}',
-            "SAN": f'{get_alt_names(host_basic_info.cert)}',
+            "subjectAltName": f'{get_alt_names(host_basic_info.cert)}',
             "issuer": f'{get_issuer(host_basic_info.cert)}',
-            "crl": f'{get_crl(host_basic_info.cert)}',
+            "type": f'{cert_type(host_basic_info.cert)}',
             "notBefore": f'{host_basic_info.cert.not_valid_before}',
             "notAfter": f'{host_basic_info.cert.not_valid_after}',
-            "type": f'{cert_type(host_basic_info.cert)}',
+            "daysLeft": f'{days_left(host_basic_info.cert)}',
+            "crl": f'{get_crl(host_basic_info.cert)}',
         }
-        # print(json.dumps(s, indent=5))
+
         return json.dumps(out_info, indent=5)
     except AttributeError:
         return host_basic_info
@@ -165,7 +172,7 @@ def check_it_out(hostname, port):
 
 def log_it_out(host_log_info):
     """ Log certificate """
-    log_path = '/app/certificate.log'
+    log_path = './certificate.log'
     logging.basicConfig(filename=f'{log_path}', level=logging.INFO,
                         format='%(levelname)s:%(asctime)s\n%(message)s',
                         datefmt='%d:%m:%y:%H:%M:%S')
