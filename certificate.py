@@ -165,7 +165,7 @@ def check_it_out(hostname, port):
 
 def log_it_out(host_log_info):
     """ Log certificate """
-    log_path = './certificate.log'
+    log_path = '/app/certificate.log'
     logging.basicConfig(filename=f'{log_path}', level=logging.INFO,
                         format='%(levelname)s:%(asctime)s\n%(message)s',
                         datefmt='%d:%m:%y:%H:%M:%S')
