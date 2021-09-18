@@ -7,6 +7,7 @@ pyopenssl, cryptography and idna
 import concurrent.futures
 import sys
 import json
+import os
 import logging
 
 from collections import namedtuple
@@ -145,6 +146,22 @@ def time_to_wait(waiting=86400):
     return time_to_wait
 
 
+def check_it_out(hostname, port):
+    """ Check certificate """
+    info_from_host = get_certificate(hostname, port)
+    return print_basic_info(info_from_host)
+
+
+def log_it_out(host_log_info):
+    """ Log certificate """
+    dir_log = os.path.dirname(os.path.abspath(__file__))
+    log_path = f'{dir_log}/{os.path.basename(__file__).rsplit(".", 1)[0]}.log'
+    logging.basicConfig(filename=f'{log_path}', level=logging.INFO,
+                        format='%(levelname)s:%(asctime)s\n%(message)s',
+                        datefmt='%d:%m:%y:%H:%M:%S', force=True)
+    return logging.info(print_basic_info(host_log_info))
+
+
 def print_basic_info(host_basic_info):
     """ Print basic info from certificate """
     try:
@@ -162,21 +179,6 @@ def print_basic_info(host_basic_info):
         return json.dumps(out_info, indent=5)
     except AttributeError:
         return host_basic_info
-
-
-def check_it_out(hostname, port):
-    """ Check certificate """
-    info_from_host = get_certificate(hostname, port)
-    return print_basic_info(info_from_host)
-
-
-def log_it_out(host_log_info):
-    """ Log certificate """
-    log_path = './certificate.log'
-    logging.basicConfig(filename=f'{log_path}', level=logging.INFO,
-                        format='%(levelname)s:%(asctime)s\n%(message)s',
-                        datefmt='%d:%m:%y:%H:%M:%S')
-    return logging.info(print_basic_info(host_log_info))
 
 
 if __name__ == '__main__':
