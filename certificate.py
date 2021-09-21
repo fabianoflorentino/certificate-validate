@@ -10,22 +10,21 @@ import json
 import os
 import logging
 
+
 from collections import namedtuple
-from time import sleep
 from socket import socket, gaierror
+from time import sleep
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography import x509
 from OpenSSL import SSL
 
 import idna
 
+from settings import read_hosts
+
 
 HostInfo = namedtuple(
     field_names='cert hostname peername', typename='HostInfo')
-
-HOSTS = [
-    (sys.argv[1], sys.argv[2]),
-]
 
 OIDS = {
     "2.23.140.1.1": "Extended Validation (EV) Web Server SSL Digital Certificate",
@@ -165,6 +164,7 @@ def log_it_out(host_log_info):
 def print_basic_info(host_basic_info):
     """ Print basic info from certificate """
     try:
+
         out_info = {
             "commonName": f'{get_common_name(host_basic_info.cert)}',
             "subjectAltName": f'{get_alt_names(host_basic_info.cert)}',
@@ -177,28 +177,34 @@ def print_basic_info(host_basic_info):
         }
 
         return json.dumps(out_info, indent=5)
+
     except AttributeError:
         return host_basic_info
 
 
+def main():
+    """ Main function """
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            for hostinfo in executor.map(lambda x: get_certificate(x[0], int(x[1])), read_hosts()):
+                cert_infos = print(print_basic_info(hostinfo))
+
+        return cert_infos
+    except KeyboardInterrupt:
+        sys.exit("\nExiting...")
+
+
 if __name__ == '__main__':
     while True:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as e:
-            try:
-                for hostinfo in e.map(lambda x: get_certificate(x[0], int(x[1])), HOSTS):
-                    try:
-                        if "--exit" in sys.argv[3]:
-                            print(print_basic_info(hostinfo))
-                            log_it_out(hostinfo)
-                            sys.exit(0)
-                        if sys.argv[3]:
-                            time_to_wait(int(sys.argv[3]))
-                            print(print_basic_info(hostinfo))
-                            log_it_out(hostinfo)
-                    except IndexError as e:
-                        log_it_out(hostinfo)
-                        print(print_basic_info(hostinfo))
-                        time_to_wait()
-            except KeyboardInterrupt:
-                print('Terminated!')
-                sys.exit(0)
+        try:
+            if "--check_time" in sys.argv[1]:
+                main()
+                sleep(86400)
+        except ConnectionRefusedError:
+            sys.exit("\nThe host is not responding or don't exist\n")
+        except gaierror:
+            sys.exit("\nThe hostname is not valid\n")
+        except IndexError:
+            sys.exit("\nPlease add --check_time to check certificate\n")
+        except KeyboardInterrupt:
+            sys.exit("\nExiting...")

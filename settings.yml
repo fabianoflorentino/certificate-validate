@@ -1,0 +1,13 @@
+---
+check_time: 10
+
+hosts:
+  - name: "github.com"
+    url: 'github.com'
+    port: '443'
+  - name: "gitlab"
+    url: 'gitlab.com'
+    port: '443'
+  - name: "twitter"
+    url: 'twitter.com'
+    port: '443'
