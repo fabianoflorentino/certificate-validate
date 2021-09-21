@@ -1,0 +1,7 @@
+---
+check_time: 30
+
+hosts:
+  - name: "github.com"
+    url: 'github.com'
+    port: '443'

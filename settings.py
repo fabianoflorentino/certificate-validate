@@ -6,7 +6,7 @@ import yaml
 
 def read_hosts():
     """ Reads the hosts from the settings.yml file """
-    with open('settings.yml', 'r', encoding='utf-8') as file:
+    with open('config/settings.yml', 'r', encoding='utf-8') as file:
         list_hosts = []
         host_info = yaml.load(file, Loader=yaml.Loader)
         hosts = host_info['hosts']
@@ -21,7 +21,7 @@ def read_hosts():
 
 def read_check_time():
     """ Reads the check time from the settings.yml file """
-    with open('settings.yml', 'r', encoding='utf-8') as file:
+    with open('config/settings.yml', 'r', encoding='utf-8') as file:
         settings = yaml.load(file, Loader=yaml.Loader)
         check_time = settings['check_time']
 
