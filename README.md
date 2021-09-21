@@ -15,43 +15,141 @@ Validate some info in SSL/TLS Certificates
 docker build --no-cache --rm -t <NAME_OF_IMAGE> -f ./Dockerfile .
 ```
 
-## **run**
+## **configuration**
+
+Create directory for the configuration file:
+
+```shell
+mkdir -p <PATH TO DIRECTORY>
+```
+
+Create a file named **settings.yml**
+
+Copy the **settings.yml** on directory you create before:
+
+```shell
+cp settings.yml <PATH TO DIRECTORY>
+```
+
+### **settings.yml**
 
 | **variable** | **description** |
 | ------------- | --------------- |
-| CERTIFICATE_URL | URL of the certificate to validate |
-| CERTIFICATE_PORT | Port of the certificate to validate |
-| CERTIFICATE_TIME_TO_WAIT | Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400** |
+| check_time | Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400** |
+| name | Name of the certificate to validate |
+| url | URL of the certificate to validate |
+| port | Port of the certificate to validate |
 
-### **daemon**
+```yml
+---
+check_time: 86400
 
-```shell
-docker run -d --name certificate_validate \
--e CERTIFICATE_URL=google.com \
--e CERTIFICATE_PORT=443 \
--e CERTIFICATE_TIME_TO_WAIT=6300 \
-<NAME_OF_IMAGE>
+hosts:
+  - name: "github"
+    url: "github.com"
+    port: '443'
 ```
 
-#### **status**
+**OBS:**
 
-```shell
-docker ps
+For validate more than one certificate, you can add more hosts in the **settings.yml** file.
+
+```yml
+hosts:
+  - name: "github"
+    url: "github.com"
+    port: '443'
+  - name: "gitlab"
+    url: "gitlab.com"
+    port: '443'
+  - name: "twitter"
+    url: "twitter.com"
+    port: '443'
 ```
 
-```shell
-CONTAINER ID   IMAGE                                 COMMAND                CREATED          STATUS          PORTS     NAMES
-e3b9598147db   fabianoflorentino/certificate-validate:latest   "/app/entrypoint.sh"   29 minutes ago   Up 29 minutes             certificate_validate
-```
-
-### **once**
+### **volume**
 
 ```shell
-docker run -it --name certificate_validate_test \
---entrypoint "" \
-<NAME_OF_IMAGE> \
-python /app/certificate.py github.com 443 --exit
+docker volume create --driver local -o o=bind -o type=none -o device=<DIR TO BIND> <NAME OF VOLUME>
 ```
+
+**Example:**
+
+```shell
+docker volume create --driver local -o o=bind -o type=none -o device=/tmp/volume/certificate-validate certificate-validate
+```
+
+### **permissions**
+
+```shell
+chown -R 1000:1000 <DIR TO BIND ON VOLUME>
+```
+
+**Example:**
+
+```shell
+chown -R 1000:1000 /tmp/volume/certificate-validate
+```
+
+### **run**
+
+```shell
+docker run -d --name certificate_validate_test \
+-v <NAME OF VOLUME>:/app/config \
+fabianoflorentino/certificate-validate:test --check_time
+```
+
+**Example:**
+
+```shell
+docker run -d --name certificate_validate_test \
+-v certificate-validate:/app/config \
+fabianoflorentino/certificate-validate:test --check_time
+```
+
+### **status**
+
+```shell
+CONTAINER ID   IMAGE                                         COMMAND                  CREATED          STATUS          PORTS         NAMES
+d33be85a9e6b   fabianoflorentino/certificate-validate:test   "/app/entrypoint.sh …"   27 minutes ago   Up 27 minutes                 certificate_validate_test
+```
+
+#### **output**
+
+```json
+{
+     "commonName": "github.com",
+     "subjectAltName": "['github.com', 'www.github.com']",
+     "issuer": "DigiCert High Assurance TLS Hybrid ECC SHA256 2020 CA1",
+     "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
+     "notBefore": "2021-03-25 00:00:00",
+     "notAfter": "2022-03-30 23:59:59",
+     "daysLeft": "370",
+     "crl": "['http://crl3.digicert.com/DigiCertHighAssuranceTLSHybridECCSHA2562020CA1.crl', 'http://crl4.digicert.com/DigiCertHighAssuranceTLSHybridECCSHA2562020CA1.crl']"
+}
+{
+     "commonName": "gitlab.com",
+     "subjectAltName": "['gitlab.com', 'auth.gitlab.com', 'customers.gitlab.com', 'email.customers.gitlab.com', 'gprd.gitlab.com', 'www.gitlab.com']",
+     "issuer": "Sectigo RSA Domain Validation Secure Server CA",
+     "type": "Domain Validation (DV) Web Server SSL Digital Certificate",
+     "notBefore": "2021-04-12 00:00:00",
+     "notAfter": "2022-05-11 23:59:59",
+     "daysLeft": "394",
+     "crl": "CRL not found for this certificate!"
+}
+{
+     "commonName": "twitter.com",
+     "subjectAltName": "['twitter.com', 'www.twitter.com']",
+     "issuer": "DigiCert TLS RSA SHA256 2020 CA1",
+     "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
+     "notBefore": "2021-02-09 00:00:00",
+     "notAfter": "2022-02-07 23:59:59",
+     "daysLeft": "363",
+     "crl": "['http://crl3.digicert.com/DigiCertTLSRSASHA2562020CA1.crl', 'http://crl4.digicert.com/DigiCertTLSRSASHA2562020CA1.crl']"
+}
+```
+
+**OBS:** Outputs are in **json** format.
 
 ### **logs**
 
@@ -72,19 +170,6 @@ python /app/certificate.py github.com 443 --exit
 
 ```shell
 docker exec -it <CONTAINER NAME> cat /app/certificate.log
-```
-
-```shell
-{
-     "commonName": "www.github.com",
-     "subjectAltName": "['www.github.com', '*.github.com', 'github.com', '*.github.io', 'github.io', '*.githubusercontent.com', 'githubusercontent.com']",
-     "issuer": "DigiCert SHA2 High Assurance Server CA",
-     "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
-     "notBefore": "2020-05-06 00:00:00",
-     "notAfter": "2022-04-14 12:00:00",
-     "daysLeft": "708",
-     "crl": "['http://crl3.digicert.com/sha2-ha-server-g6.crl', 'http://crl4.digicert.com/sha2-ha-server-g6.crl']"
-}
 ```
 
 ## **actions**

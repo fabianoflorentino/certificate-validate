@@ -20,7 +20,7 @@ from OpenSSL import SSL
 
 import idna
 
-from settings import read_hosts
+from settings import read_hosts, read_check_time
 
 
 HostInfo = namedtuple(
@@ -187,6 +187,7 @@ def main():
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             for hostinfo in executor.map(lambda x: get_certificate(x[0], int(x[1])), read_hosts()):
+                log_it_out(hostinfo)
                 cert_infos = print(print_basic_info(hostinfo))
 
         return cert_infos
@@ -199,7 +200,7 @@ if __name__ == '__main__':
         try:
             if "--check_time" in sys.argv[1]:
                 main()
-                sleep(86400)
+                sleep(read_check_time())
         except ConnectionRefusedError:
             sys.exit("\nThe host is not responding or don't exist\n")
         except gaierror:
