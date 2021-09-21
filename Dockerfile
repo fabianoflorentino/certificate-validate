@@ -20,6 +20,8 @@ RUN adduser --disabled-password --gecos "" python \
     && chown -R python:python /app \
     && chmod +x /app/entrypoint.sh
 
+COPY config/settings.yml /app/config/settings.yml
+
 USER python
 
 VOLUME ["/app/config"]
