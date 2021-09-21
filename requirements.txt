@@ -1,10 +1,15 @@
 astroid==2.7.3
 autopep8==1.5.7
 cffi==1.14.6
+click==8.0.1
 cryptography==3.3.2
+Flask==2.0.1
 idna==3.2
 isort==5.9.3
+itsdangerous==2.0.1
+Jinja2==3.0.1
 lazy-object-proxy==1.6.0
+MarkupSafe==2.0.1
 mccabe==0.6.1
 platformdirs==2.3.0
 pycodestyle==2.7.0
@@ -13,4 +18,5 @@ pylint==2.10.2
 pyOpenSSL==20.0.1
 six==1.16.0
 toml==0.10.2
+Werkzeug==2.0.1
 wrapt==1.12.1
