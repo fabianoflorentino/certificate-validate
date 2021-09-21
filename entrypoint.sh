@@ -1,6 +1,5 @@
 #!/bin/sh
+cd /app
 
-/usr/local/bin/python3 /app/certificate.py \
-    $CERTIFICATE_URL \
-    $CERTIFICATE_PORT \
-    $CERTIFICATE_TIME_TO_WAIT
+/bin/echo -e "Starting the application\n"
+/usr/local/bin/python certificate.py $1
