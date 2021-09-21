@@ -1,7 +1,7 @@
 
 FROM python:3.9-alpine as build
 
-COPY certificate.py api.py settings.py settings.yml requirements.txt entrypoint.sh /app/
+COPY certificate.py api.py settings.py requirements.txt entrypoint.sh /app/
 
 RUN adduser --disabled-password --gecos "" python \
     && apk add --no-cache \
