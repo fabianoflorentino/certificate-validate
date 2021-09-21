@@ -1,26 +1,28 @@
+""" settings"""
+# -*- encoding: utf-8 -*-
+
 import yaml
 
 
 def read_hosts():
-    with open('settings.yml', 'r') as file:
+    """ Reads the hosts from the settings.yml file """
+    with open('settings.yml', 'r', encoding='utf-8') as file:
         list_hosts = []
         host_info = yaml.load(file, Loader=yaml.Loader)
         hosts = host_info['hosts']
 
         for values in hosts:
-            TMP = list_hosts.append([values['url'], values['port']])
+            list_hosts.append([values['url'], values['port']])
 
-        HOSTS = list_hosts
+        hosts = list_hosts
 
-    return HOSTS
+    return hosts
 
 
 def read_check_time():
-    with open('settings.yml', 'r') as file:
+    """ Reads the check time from the settings.yml file """
+    with open('settings.yml', 'r', encoding='utf-8') as file:
         settings = yaml.load(file, Loader=yaml.Loader)
         check_time = settings['check_time']
 
     return check_time
-
-# print(read_hosts())
-# print(read_check_time())
