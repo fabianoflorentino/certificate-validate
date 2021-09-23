@@ -1,20 +1,46 @@
 #!/bin/sh
+set -e
+
 cd $PWD
 
-case "$1" in
-    "--local")
+HELP="
+usage: 
+
+export API_HOST_ADDRESS=<hostname> or export API_HOST_ADDRESS=<ip>
+export API_PORT=<port>
+
+./entrypoint.sh [OPTIONS] [ARGUMENTS]
+
+Ex. ./entrypoint.sh -i dev || ./entrypoint.sh -i prod || ./entrypoint.sh -h
+
+optional arguments:
+    -v, --version       show program's version number and exit
+    -l, --local         run the program locally
+    -i, --api           run the program on the API
+        dev             run the program locally on the development environment
+        prod            run the program on the production environment
+    -h, --help          show this help message and exit
+"
+
+case $1 in
+    "--local"|"-l")
         /bin/echo -e "\nStarting the application\n"
         /usr/local/bin/python certificate.py $2
         ;;
-    "--api")
-        /bin/echo -e "\nStarting the api\n"
-        /usr/local/bin/python api.py
+    "--api"|"-i")
+        if [ $2 == "dev" ]; then
+            /bin/echo -e "\nStarting the api Development\n"
+            /usr/local/bin/python api.py
+        fi
+        if [ $2 == "prod" ]; then
+            /bin/echo -e "\nStarting the api Production\n"
+            /usr/local/bin/gunicorn -w 4 -b $API_HOST_ADDRESS:$API_PORT -c api.py api:app
+        fi
         ;;
-    "--help")
-        /bin/echo -e "\nUsage: $0 [--local|--api]\n"
+    "--help"|"-h")
+        /bin/echo -e "${HELP}"
         ;;
     *)
-        /bin/echo -e "\nUsage: $0 [--local|--api]\n"
-        exit 0
+        /bin/echo -e "${HELP}"
         ;;
 esac
