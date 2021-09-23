@@ -91,7 +91,7 @@ chown -R 1000:1000 <DIR TO BIND ON VOLUME>
 chown -R 1000:1000 /tmp/volume/certificate-validate
 ```
 
-### **run**
+### **run local**
 
 ```shell
 docker run -d --name certificate_validate_test \
@@ -113,6 +113,33 @@ fabianoflorentino/certificate-validate:test --check_time
 CONTAINER ID   IMAGE                                         COMMAND                  CREATED          STATUS          PORTS         NAMES
 d33be85a9e6b   fabianoflorentino/certificate-validate:test   "/app/entrypoint.sh …"   27 minutes ago   Up 27 minutes                 certificate_validate_test
 ```
+
+### **run api**
+
+```shell
+docker run -d --name certificate_validate_test \
+-p 5000:5000 \
+-v <NAME OF VOLUME>:/app/config \
+fabianoflorentino/certificate-validate:test --api
+```
+
+**Example:**
+
+```shell
+docker run -d --name certificate_validate_test \
+-v certificate-validate:/app/config \
+fabianoflorentino/certificate-validate:test --api
+```
+
+**OBS:**
+The **api** option will run the application in **api mode**, the **check_time** option will be ignored.
+Certificate information will be validated on time consult. If you want to validate the certificate periodically, you can use the **cron** option.
+
+### **endpoints**
+
+| **endpoints** | **description** |
+| ------------- | --------------- |
+| /api/v1/cert/info | Get the certificate informations |
 
 #### **output**
 
