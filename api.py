@@ -7,10 +7,16 @@ import flask
 
 
 from flask.wrappers import Response
+from settings import read_app_configs
 from certificate import get_certificate, read_hosts, print_basic_info
 
 
 app = flask.Flask(__name__)
+
+for values in read_app_configs():
+    # app.config['SERVER_NAME'] = f'{values[1]}:{values[2]}'
+    app.config['ENV'] = values[3]
+    app.config['DEBUG'] = values[4]
 
 
 @app.route('/api/v1/cert/info', methods=['GET'])
@@ -28,4 +34,5 @@ def api_cert_info():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=False, processes=4)
+    app.run(host='0.0.0.0', port=5000, threaded=False, processes=1)
+    # app.run()

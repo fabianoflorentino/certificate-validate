@@ -26,3 +26,22 @@ def read_check_time():
         check_time = settings['check_time']
 
     return check_time
+
+
+def read_app_configs():
+    """ Reads the app configs from the settings.yml file """
+    with open('config/settings.yml', 'r', encoding='utf-8') as file:
+        list_app_configs = []
+        settings = yaml.load(file, Loader=yaml.Loader)
+        app_configs = settings['app_configs']
+
+        for values in app_configs:
+            list_app_configs.append([
+                values['name'],
+                values['host'],
+                values['port'],
+                values['environment'],
+                values['debug'],
+            ])
+
+    return list_app_configs
