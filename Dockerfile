@@ -24,6 +24,8 @@ COPY config/settings.yml /app/config/settings.yml
 
 USER python
 
+WORKDIR /app
+
 VOLUME ["/app/config"]
 
 ENTRYPOINT ["/app/entrypoint.sh"]

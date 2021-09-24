@@ -42,11 +42,18 @@ cp settings.yml <PATH TO DIRECTORY>
 
 ```yml
 ---
-check_time: 86400
+check_time: 30
+
+app_configs:
+  - name: 'certificate-validate'
+    host: '0.0.0.0'
+    port: '5000'
+    environment: 'development'
+    debug: True 
 
 hosts:
-  - name: "github"
-    url: "github.com"
+  - name: "github.com"
+    url: 'github.com'
     port: '443'
 ```
 
@@ -91,12 +98,35 @@ chown -R 1000:1000 <DIR TO BIND ON VOLUME>
 chown -R 1000:1000 /tmp/volume/certificate-validate
 ```
 
+### **entrypoint**
+
+```shell
+"
+usage: 
+
+export API_HOST_ADDRESS=<hostname> or export API_HOST_ADDRESS=<ip>
+export API_PORT=<port>
+
+./entrypoint.sh [OPTIONS] [ARGUMENTS]
+
+Ex. ./entrypoint.sh -i dev || ./entrypoint.sh -i prod || ./entrypoint.sh -h
+
+optional arguments:
+    -v, --version       show program's version number and exit
+    -l, --local         run the program locally
+    -i, --api           run the program on the API
+        dev             run the program locally on the development environment
+        prod            run the program on the production environment
+    -h, --help          show this help message and exit
+"
+```
+
 ### **run local**
 
 ```shell
 docker run -d --name certificate_validate_test \
 -v <NAME OF VOLUME>:/app/config \
-fabianoflorentino/certificate-validate:test --check_time
+fabianoflorentino/certificate-validate:test --local --check_time
 ```
 
 **Example:**
@@ -104,7 +134,7 @@ fabianoflorentino/certificate-validate:test --check_time
 ```shell
 docker run -d --name certificate_validate_test \
 -v certificate-validate:/app/config \
-fabianoflorentino/certificate-validate:test --check_time
+fabianoflorentino/certificate-validate:test --local --check_time
 ```
 
 ### **status**
@@ -116,11 +146,24 @@ d33be85a9e6b   fabianoflorentino/certificate-validate:test   "/app/entrypoint.sh
 
 ### **run api**
 
+#### **dev**
+
 ```shell
 docker run -d --name certificate_validate_test \
 -p 5000:5000 \
 -v <NAME OF VOLUME>:/app/config \
-fabianoflorentino/certificate-validate:test --api
+fabianoflorentino/certificate-validate:test --api dev
+```
+
+#### **prod**
+
+```shell
+docker run -d --name certificate_validate_test \
+-p 5000:5000 \
+-e API_HOST_ADDRESS=<hostname> \
+-e API_PORT=<port> \
+-v <NAME OF VOLUME>:/app/config \
+fabianoflorentino/certificate-validate:test --api prod
 ```
 
 **Example:**
@@ -128,7 +171,7 @@ fabianoflorentino/certificate-validate:test --api
 ```shell
 docker run -d --name certificate_validate_test \
 -v certificate-validate:/app/config \
-fabianoflorentino/certificate-validate:test --api
+fabianoflorentino/certificate-validate:test --api dev
 ```
 
 **OBS:**

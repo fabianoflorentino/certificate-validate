@@ -1,8 +1,6 @@
 #!/bin/sh
 set -e
 
-cd $PWD
-
 HELP="
 usage: 
 
@@ -24,7 +22,7 @@ optional arguments:
 
 case $1 in
     "--local"|"-l")
-        /bin/echo -e "\nStarting the application\n"
+        /bin/echo -e "\nStarting the application Local\n"
         /usr/local/bin/python certificate.py $2
         ;;
     "--api"|"-i")
