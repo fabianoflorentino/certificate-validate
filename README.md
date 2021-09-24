@@ -121,6 +121,9 @@ Ex. ./entrypoint.sh -i dev || ./entrypoint.sh -i prod || ./entrypoint.sh -h
 optional arguments:
     -v, --version       show program's version number and exit
     -l, --local         run the program locally
+        --check_time    Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400**
+                        this time is configured in the **settings.yml** file
+        --exit          Consult once and exit
     -i, --api           run the program on the API
         dev             run the program locally on the development environment
         prod            run the program on the production environment

@@ -201,6 +201,9 @@ if __name__ == '__main__':
             if "--check_time" in sys.argv[1]:
                 main()
                 sleep(read_check_time())
+            if "--exit" in sys.argv[1]:
+                main()
+                sys.exit()
         except ConnectionRefusedError:
             sys.exit("\nThe host is not responding or don't exist\n")
         except gaierror:
