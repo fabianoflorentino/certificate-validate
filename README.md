@@ -36,6 +36,13 @@ cp settings.yml <PATH TO DIRECTORY>
 | **variable** | **description** |
 | ------------- | --------------- |
 | check_time | Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400** |
+| app_configs |
+| name | Name of the application |
+| host | IP or DNS name of the application |
+| port | Port of the application |
+| environment | Environment of the application |
+| debug | Debug mode of the application |
+| hosts |
 | name | Name of the certificate to validate |
 | url | URL of the certificate to validate |
 | port | Port of the certificate to validate |
