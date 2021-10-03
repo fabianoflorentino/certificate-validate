@@ -197,7 +197,7 @@ Certificate information will be validated on time consult. If you want to valida
 #### **output**
 
 ```json
-{{
+{
      "commonName": "github.com",
      "subjectAltName": "['github.com', 'www.github.com']",
      "issuer": "DigiCert High Assurance TLS Hybrid ECC SHA256 2020 CA1",
