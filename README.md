@@ -197,14 +197,14 @@ Certificate information will be validated on time consult. If you want to valida
 #### **output**
 
 ```json
-{
+{{
      "commonName": "github.com",
      "subjectAltName": "['github.com', 'www.github.com']",
      "issuer": "DigiCert High Assurance TLS Hybrid ECC SHA256 2020 CA1",
      "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
      "notBefore": "2021-03-25 00:00:00",
      "notAfter": "2022-03-30 23:59:59",
-     "daysLeft": "370",
+     "daysLeft": "178",
      "crl": "['http://crl3.digicert.com/DigiCertHighAssuranceTLSHybridECCSHA2562020CA1.crl', 'http://crl4.digicert.com/DigiCertHighAssuranceTLSHybridECCSHA2562020CA1.crl']"
 }
 {
@@ -214,7 +214,7 @@ Certificate information will be validated on time consult. If you want to valida
      "type": "Domain Validation (DV) Web Server SSL Digital Certificate",
      "notBefore": "2021-04-12 00:00:00",
      "notAfter": "2022-05-11 23:59:59",
-     "daysLeft": "394",
+     "daysLeft": "220",
      "crl": "CRL not found for this certificate!"
 }
 {
@@ -224,7 +224,7 @@ Certificate information will be validated on time consult. If you want to valida
      "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
      "notBefore": "2021-02-09 00:00:00",
      "notAfter": "2022-02-07 23:59:59",
-     "daysLeft": "363",
+     "daysLeft": "127",
      "crl": "['http://crl3.digicert.com/DigiCertTLSRSASHA2562020CA1.crl', 'http://crl4.digicert.com/DigiCertTLSRSASHA2562020CA1.crl']"
 }
 ```
