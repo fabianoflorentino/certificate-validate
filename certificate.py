@@ -10,7 +10,7 @@ import json
 import os
 import logging
 
-
+from datetime import datetime
 from collections import namedtuple
 from socket import socket, gaierror
 from time import sleep
@@ -135,8 +135,11 @@ def cert_type(cert):
 
 def days_left(cert):
     """ Get days left from certificate """
-    days = cert.not_valid_after - cert.not_valid_before
-    return days.days
+    days_after = datetime.strftime(cert.not_valid_after, "%Y-%m-%d %H:%M:%S")
+    today = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
+    return abs(
+        (datetime.strptime(days_after, "%Y-%m-%d %H:%M:%S") -
+         datetime.strptime(today, "%Y-%m-%d %H:%M:%S")).days)
 
 
 def time_to_wait(waiting=86400):
