@@ -25,10 +25,10 @@ mkdir -p <PATH TO DIRECTORY>
 
 Create a file named **settings.yml**
 
-Copy the **settings.yml** on directory you create before:
+Copy the **config/settings.yml** on directory you create before:
 
 ```shell
-cp settings.yml <PATH TO DIRECTORY>
+cp config/settings.yml <PATH TO DIRECTORY>
 ```
 
 ### **settings.yml**
@@ -246,7 +246,7 @@ Certificate information will be validated on time consult. If you want to valida
 | "daysLeft" | Days left to expire the certificate |
 | "crl" | Certificate Revocation List of the certificate |
 
-**OBS**: daysLeft is not part of the RFC, it is calculated based on the notBefore and notAfter fields.
+**OBS**: daysLeft is not part of the RFC, it is calculated based on the current date and notAfter field.
 
 ```shell
 docker exec -it <CONTAINER NAME> cat /app/certificate.log
