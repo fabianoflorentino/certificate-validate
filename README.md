@@ -180,6 +180,7 @@ fabianoflorentino/certificate-validate:test --api prod
 
 ```shell
 docker run -d --name certificate_validate_test \
+-p 5000:5000 \
 -v certificate-validate:/app/config \
 fabianoflorentino/certificate-validate:test --api dev
 ```
