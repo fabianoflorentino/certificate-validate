@@ -13,6 +13,7 @@ from certificate import get_certificate, log_it_out, read_hosts, print_basic_inf
 
 app = flask.Flask(__name__)
 
+
 @app.route('/api/v1/cert/info', methods=['GET'])
 def api_cert_info():
     """ Return a JSON with the certificate info """
@@ -35,6 +36,6 @@ if __name__ == '__main__':
         app.config['PORT'] = values[2]
         app.config['ENV'] = values[3]
         app.config['DEBUG'] = values[4]
-        
+
         app.run(host=app.config['HOST'], port=app.config['PORT'],
                 threaded=False, processes=1, debug=app.config['DEBUG'])
