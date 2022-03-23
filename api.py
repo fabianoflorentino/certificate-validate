@@ -8,7 +8,7 @@ import flask
 
 from flask.wrappers import Response
 from settings import read_app_configs
-from certificate import get_certificate, read_hosts, print_basic_info
+from certificate import get_certificate, log_it_out, read_hosts, print_basic_info
 
 
 app = flask.Flask(__name__)
@@ -22,6 +22,7 @@ def api_cert_info():
                                      get_certificate(x[0], int(x[1])),
                                      read_hosts()):
             cert_list.append(json.loads(print_basic_info(hostinfo)))
+            log_it_out(hostinfo)
 
     return Response(json.dumps(cert_list, indent=4, default=str),
                     mimetype='application/json', status=200)
@@ -34,5 +35,6 @@ if __name__ == '__main__':
         app.config['PORT'] = values[2]
         app.config['ENV'] = values[3]
         app.config['DEBUG'] = values[4]
+        
         app.run(host=app.config['HOST'], port=app.config['PORT'],
                 threaded=False, processes=1, debug=app.config['DEBUG'])
