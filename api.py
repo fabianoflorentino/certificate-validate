@@ -14,7 +14,7 @@ from certificate import get_certificate, log_it_out, read_hosts, print_basic_inf
 app = flask.Flask(__name__)
 
 
-@app.route('/api/v1/cert/info', methods=['GET'])
+@app.route('/api/v1/cert/info/all', methods=['GET'])
 def api_cert_info():
     """ Return a JSON with the certificate info """
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -26,6 +26,52 @@ def api_cert_info():
             log_it_out(hostinfo)
 
     return Response(json.dumps(cert_list, indent=4, default=str),
+                    mimetype='application/json', status=200)
+
+
+@app.route('/api/v1/cert/info/<hostname>', methods=['GET'])
+def api_cert_info_hostname(hostname):
+    """ Return a JSON with the certificate info from hostname """
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        cert_uniq = []
+        for hostinfo in executor.map(lambda x:
+                                     get_certificate(x[0], int(x[1])),
+                                     read_hosts()):
+            if hostinfo.hostname == hostname:
+                cert_uniq.append(json.loads(print_basic_info(hostinfo)))
+                log_it_out(hostinfo)
+
+    return Response(json.dumps(cert_uniq, indent=4, default=str),
+                    mimetype='application/json', status=200)
+
+
+@app.route('/api/v1/cert/info/commonName', methods=['GET'])
+def api_cert_info_commonName():
+    """ Return a JSON with the certificate commonName info """
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        cert_list_common_name = []
+        for hostinfo in executor.map(lambda x: get_certificate(x[0], int(x[1])),
+                                     read_hosts()):
+            cert_list_common_name.append(json.loads(
+                print_basic_info(hostinfo))['commonName'])
+            log_it_out(hostinfo)
+
+    return Response(json.dumps(cert_list_common_name, indent=4, default=str),
+                    mimetype='application/json', status=200)
+
+
+@app.route('/api/v1/cert/info/subjectAltName', methods=['GET'])
+def api_cert_info_subjectAltName():
+    """ Return a JSON with the certificate subjectAltName info """
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        cert_list_subject_alt_name = []
+        for hostinfo in executor.map(lambda x: get_certificate(x[0], int(x[1])),
+                                     read_hosts()):
+            cert_list_subject_alt_name.append(json.loads(
+                print_basic_info(hostinfo))['subjectAltName'])
+            log_it_out(hostinfo)
+
+    return Response(json.dumps(cert_list_subject_alt_name, indent=4, default=str),
                     mimetype='application/json', status=200)
 
 
