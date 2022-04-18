@@ -46,7 +46,7 @@ def api_cert_info_hostname(hostname):
 
 
 @app.route('/api/v1/cert/info/commonName', methods=['GET'])
-def api_cert_info_commonName():
+def api_cert_info_common_name():
     """ Return a JSON with the certificate commonName info """
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         cert_list_common_name = []
@@ -61,7 +61,7 @@ def api_cert_info_commonName():
 
 
 @app.route('/api/v1/cert/info/subjectAltName', methods=['GET'])
-def api_cert_info_subjectAltName():
+def api_cert_info_subject_alt_name():
     """ Return a JSON with the certificate subjectAltName info """
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         cert_list_subject_alt_name = []
