@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: certificate-validate
+  namespace: certificate-validate
+  labels:
+    app: certificate-validate
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: certificate-validate
+  template:
+    metadata:
+      labels:
+        app: certificate-validate
+    spec:
+      containers:
+        - name: certificate-validate
+          image: docker.io/fabianoflorentino/certificate-validate:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "/app/entrypoint.sh --api $ENVIRONMENT"]
+          volumeMounts:
+            - name: settings
+              mountPath: /app/config
+          env:
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: certificate-validate-settings
+                  key: ENVIRONMENT
+            - name: API_HOST_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: certificate-validate-settings
+                  key: API_HOST_ADDRESS
+            - name: API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: certificate-validate-settings
+                  key: API_PORT
+            - name: HOME
+              valueFrom:
+                configMapKeyRef:
+                  name: certificate-validate-settings
+                  key: HOME
+          resources:
+            requests:
+              cpu: "32m"
+              memory: "32Mi"
+            limits:
+              cpu: "64m"
+              memory: "64Mi"
+          ports:
+          - containerPort: 5000
+            name: http
+      volumes:
+        - name: settings
+          configMap:
+            name: certificate-validate-settings
