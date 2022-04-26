@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: certificate-validate-settings
+  namespace: certificate-validate
+  labels:
+    app: certificate-validate
+immutable: false
+data:
+  API_HOST_ADDRESS: "0.0.0.0"
+  API_PORT: "5000"
+  HOME: "/app"
+  ENVIRONMENT: "prod"
+
+  settings.yml: |
+    ---
+    check_time: 30
+
+    app_configs:
+      - name: 'certificate-validate'
+        host: '0.0.0.0'
+        port: '5000'
+        environment: 'production'
+        debug: False 
+
+    hosts:
+      - name: "github.com"
+        url: 'github.com'
+        port: '443'
+      - name: "twitter.com"
+        url: 'twitter.com'
+        port: '443'
+      - name: "docker.com"
+        url: 'docker.com'
+        port: '443'

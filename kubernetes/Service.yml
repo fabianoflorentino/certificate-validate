@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: certificate-validate
+  namespace: certificate-validate
+  labels:
+    app: certificate-validate
+spec:
+  ports:
+  - port: 5000
+    targetPort: 5000
+    name: http
+  selector:
+    app: certificate-validate
