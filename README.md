@@ -1,6 +1,6 @@
 # **certificate-validate**
 
-![CI](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CI?label=CI) ![CodeQL](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/CodeQL?label=CodeQL) ![Pylint](https://img.shields.io/github/workflow/status/fabianoflorentino/certificate-validate/Pylint?label=Pylint)
+[![Build Image (Dockerhub)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml)
 
 Validate some info in SSL/TLS Certificates
 
