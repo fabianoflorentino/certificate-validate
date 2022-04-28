@@ -76,7 +76,7 @@ jobs:
       
       - name: Build
         run: |
-          docker build --no-cache --rm -t $GITHUB_REPOSITORY:latest -f ./Dockerfile .
+          docker build --no-cache --rm -t $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER -f ./Dockerfile .
       
       - name: Push
         run: docker push $GITHUB_REPOSITORY:latest
