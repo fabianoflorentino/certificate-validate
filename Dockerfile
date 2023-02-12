@@ -2,7 +2,7 @@ FROM python:3.10-alpine as build
 
 LABEL maintainer="Fabiano Florentino"
 LABEL email="fabianoflorentino@outlook.com"
-LABEL image version=${image_version}
+LABEL image version="0.49"
 
 COPY certificate.py api.py settings.py requirements.txt entrypoint.sh /app/
 COPY config/settings.yml /app/config/settings.yml
