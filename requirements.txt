@@ -4,7 +4,7 @@ certifi==2022.12.7
 cffi==1.15.1
 charset-normalizer==2.0.6
 click==8.0.1
-cryptography==39.0.1
+cryptography==35.0.0
 dill==0.3.6
 Flask==2.2.2
 gunicorn==20.1.0
@@ -19,10 +19,10 @@ platformdirs==2.3.0
 pycodestyle==2.10.0
 pycparser==2.20
 pylint==2.16.1
-pyOpenSSL==20.0.1
+pyOpenSSL==21.0.0
 PyYAML==5.4.1
 six==1.16.0
-types-pyOpenSSL==23.0.0.2
+types-pyOpenSSL==21.0.1
 types-PyYAML==6.0.12.5
 typing_extensions==4.4.0
 urllib3==1.26.6
