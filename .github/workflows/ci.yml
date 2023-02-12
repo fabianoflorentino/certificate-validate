@@ -28,6 +28,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -r ./requirements.txt
         pip install pylint
+        pip install mypy
 
     - name: Analysing the code with pylint
       run: |
@@ -75,13 +76,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Login
-        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login on DockerHub
+        run: |
+          docker login -u ${{ secrets.DOCKERHUB_USERNAME }} \
+            -p ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build
+      - name: Build Docker image
         run: |
           docker build --no-cache --rm \
-            --build-arg image_version=v0.${{ github.run_number }} \
             -t ${{ github.repository }}:v0.${{ github.run_number }} \
             -f ./Dockerfile .
 
@@ -97,5 +99,5 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Push
+      - name: Push to DockerHub
         run: docker push ${{ github.repository }}:v0.${{ github.run_number }}
