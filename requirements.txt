@@ -1,5 +1,5 @@
 astroid==2.7.3
-autopep8==1.5.7
+autopep8==2.0.1
 certifi==2022.12.7
 cffi==1.14.6
 charset-normalizer==2.0.6
