@@ -67,7 +67,7 @@ jobs:
       uses: github/codeql-action/analyze@v2
 
   build:
-    name: Build and Push to Docker Hub
+    name: Build Image
     environment: DOCKERHUB
     runs-on: ubuntu-latest
     needs: [lint, analyze]
@@ -75,12 +75,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Login
-        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Build
         run: |
           docker build --no-cache --rm -t $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER -f ./Dockerfile .
+
+  trivy:
+    name: Trivy
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -94,5 +99,16 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Push
+  push:
+    name: Push Image
+    runs-on: ubuntu-latest
+    needs: [build, trivy]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Login to DockerHub
+        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Image to DockerHub
         run: docker push $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER
