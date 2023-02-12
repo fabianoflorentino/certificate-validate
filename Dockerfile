@@ -1,10 +1,11 @@
-FROM python:3.9-alpine as build
+FROM python:3.10-alpine as build
 
 LABEL maintainer="Fabiano Florentino"
 LABEL email="fabianoflorentino@outlook.com"
-LABEL image version="v0.31"
+LABEL image version="v0.32"
 
 COPY certificate.py api.py settings.py requirements.txt entrypoint.sh /app/
+COPY config/settings.yml /app/config/settings.yml
 
 RUN adduser --disabled-password --gecos "" python \
     && apk add --no-cache \
@@ -22,8 +23,6 @@ RUN adduser --disabled-password --gecos "" python \
     && mkdir -p /app/config \
     && chown -R python:python /app \
     && chmod +x /app/entrypoint.sh
-
-COPY config/settings.yml /app/config/settings.yml
 
 USER python
 
