@@ -80,12 +80,12 @@ jobs:
 
       - name: Build
         run: |
-          docker build --no-cache --rm -t $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER -f ./Dockerfile .
+          docker build --no-cache --rm -t ${{ github.repository }}:v0.${{ github.run_number }} -f ./Dockerfile .
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ github.repository }}:v0.${{ github.run_number }}.1'
+          image-ref: '${{ github.repository }}:v0.${{ github.run_number }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
 
@@ -95,4 +95,4 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 
       - name: Push
-        run: docker push $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER
+        run: docker push ${{ github.repository }}:v0.${{ github.run_number }}
