@@ -24,7 +24,7 @@ from settings import read_hosts, read_check_time
 
 
 # HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
-HostInfo = namedtuple('cert hostname peername', 'HostInfo')
+HostInfo = namedtuple('HostInfo', 'cert hostname peername')
 
 OIDS = {
     "2.23.140.1.1": "Extended Validation (EV) Web Server SSL Digital Certificate",
