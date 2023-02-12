@@ -1,8 +1,7 @@
 #!/bin/sh
-set -e
 
 HELP="
-usage: 
+usage:
 
 export API_HOST_ADDRESS=<hostname> or export API_HOST_ADDRESS=<ip>
 export API_PORT=<port>
@@ -22,23 +21,23 @@ optional arguments:
 
 case $1 in
     "--local"|"-l")
-        /bin/echo -e "\nStarting the application Local\n"
+        printf '%s' "\nStarting the application Local\n"
         /usr/local/bin/python certificate.py $2
         ;;
     "--api"|"-i")
         if [ $2 == "dev" ]; then
-            /bin/echo -e "\nStarting the api Development\n"
+            printf '%s' "\nStarting the api Development\n"
             /usr/local/bin/python api.py
         fi
         if [ $2 == "prod" ]; then
-            /bin/echo -e "\nStarting the api Production\n"
+            printf '%s' "\nStarting the api Production\n"
             /usr/local/bin/gunicorn -w 4 -b $API_HOST_ADDRESS:$API_PORT -c api.py api:app
         fi
         ;;
     "--help"|"-h")
-        /bin/echo -e "${HELP}"
+        printf '%s' "${HELP}"
         ;;
     *)
-        /bin/echo -e "${HELP}"
+        printf '%s' "${HELP}"
         ;;
 esac
