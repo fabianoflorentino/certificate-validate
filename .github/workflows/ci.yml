@@ -28,11 +28,11 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -r ./requirements.txt
         pip install pylint
-    
+
     - name: Analysing the code with pylint
       run: |
         pylint `ls -R|grep .py$|xargs`
-  
+
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
@@ -50,18 +50,18 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-    
+
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
       with:
         languages: ${{ matrix.language }}
-    
+
     - name: Autobuild
       uses: github/codeql-action/autobuild@v1
-    
+
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
-  
+
   build:
     name: Build and Push to Docker Hub
     environment: DOCKERHUB
@@ -70,13 +70,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      
+
       - name: Login
         run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build
         run: |
           docker build --no-cache --rm -t $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER -f ./Dockerfile .
-      
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'docker.io/my-organization/my-app:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
       - name: Push
         run: docker push $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER
