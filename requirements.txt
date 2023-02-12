@@ -17,7 +17,7 @@ mccabe==0.6.1
 mypy==1.0.0
 mypy-extensions==1.0.0
 platformdirs==2.3.0
-pycodestyle==2.7.0
+pycodestyle==2.10.0
 pycparser==2.20
 pylint==2.10.2
 pyOpenSSL==20.0.1
