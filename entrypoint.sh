@@ -22,16 +22,16 @@ optional arguments:
 case $1 in
     "--local"|"-l")
         printf '%s' "\nStarting the application Local\n"
-        /usr/local/bin/python certificate.py $2
+        /usr/local/bin/python certificate.py "${2}"
         ;;
     "--api"|"-i")
-        if [ $2 == "dev" ]; then
+        if [ "${2}" == "dev" ]; then
             printf '%s' "\nStarting the api Development\n"
             /usr/local/bin/python api.py
         fi
-        if [ $2 == "prod" ]; then
+        if [ "${2}" == "prod" ]; then
             printf '%s' "\nStarting the api Production\n"
-            /usr/local/bin/gunicorn -w 4 -b $API_HOST_ADDRESS:$API_PORT -c api.py api:app
+            /usr/local/bin/gunicorn -w 4 -b "${API_HOST_ADDRESS}:${API_PORT}" -c api.py api:app
         fi
         ;;
     "--help"|"-h")
