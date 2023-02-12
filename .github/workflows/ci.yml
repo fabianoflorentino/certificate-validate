@@ -83,11 +83,9 @@ jobs:
           docker build --no-cache --rm -t $GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER -f ./Dockerfile .
 
       - name: Run Trivy vulnerability scanner
-        env:
-          IMAGE_TO_SCAN: '$GITHUB_REPOSITORY:v0.$GITHUB_RUN_NUMBER.1'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: $IMAGE_TO_SCAN
+          image-ref: '${{ github.repository }}:v0.${{ github.run_number }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
 
