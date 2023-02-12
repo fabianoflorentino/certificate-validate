@@ -53,7 +53,7 @@ def get_certificate(hostname, port):
 
         sock.connect((hostname, port))
         peername = sock.getpeername()
-        ctx = SSL.Context(SSL.SSLv23_METHOD)  # most compatible
+        ctx = SSL.Context(SSL.TLSv1_2_METHOD)
         ctx.check_hostname = False
         ctx.verify_mode = SSL.VERIFY_NONE
 
