@@ -23,8 +23,8 @@ import idna
 from settings import read_hosts, read_check_time
 
 
-HostInfo = namedtuple(
-    field_names='cert hostname peername', typename='HostInfo')
+# HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
+HostInfo = namedtuple('cert hostname peername', 'HostInfo')
 
 OIDS = {
     "2.23.140.1.1": "Extended Validation (EV) Web Server SSL Digital Certificate",
@@ -189,7 +189,9 @@ def main():
     """ Main function """
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            for hostinfo in executor.map(lambda x: get_certificate(x[0], int(x[1])), read_hosts()):
+            executor_map = executor.map(
+                lambda x: get_certificate(x[0], int(x[1])), read_hosts())
+            for hostinfo in executor_map:
                 log_it_out(hostinfo)
                 cert_infos = print(print_basic_info(hostinfo))
 
