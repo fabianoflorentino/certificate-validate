@@ -31,7 +31,11 @@ jobs:
 
     - name: Analysing the code with pylint
       run: |
-        pylint `ls -R|grep .py$|xargs`
+        python -m pylint `ls -R|grep .py$|xargs`
+
+    - name: Analysing the code with MyPy
+      run: |
+        python -m mypy *.py
 
   analyze:
     name: Analyze
