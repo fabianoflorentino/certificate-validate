@@ -80,7 +80,10 @@ jobs:
 
       - name: Build
         run: |
-          docker build --no-cache --rm -t ${{ github.repository }}:v0.${{ github.run_number }} -f ./Dockerfile .
+          docker build --no-cache --rm \
+            --build-arg image_version=v0.${{ github.run_number }} \
+            -t ${{ github.repository }}:v0.${{ github.run_number }} \
+            -f ./Dockerfile .
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
