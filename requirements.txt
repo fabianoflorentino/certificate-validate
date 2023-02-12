@@ -1,10 +1,11 @@
-astroid==2.7.3
+astroid==2.14.1
 autopep8==2.0.1
 certifi==2022.12.7
-cffi==1.14.6
+cffi==1.15.1
 charset-normalizer==2.0.6
 click==8.0.1
 cryptography==39.0.1
+dill==0.3.6
 Flask==2.0.1
 gunicorn==20.1.0
 idna==3.2
@@ -19,12 +20,10 @@ mypy-extensions==1.0.0
 platformdirs==2.3.0
 pycodestyle==2.10.0
 pycparser==2.20
-pylint==2.10.2
+pylint==2.16.1
 pyOpenSSL==20.0.1
 PyYAML==5.4.1
 six==1.16.0
-toml==0.10.2
-tomli==2.0.1
 types-pyOpenSSL==23.0.0.2
 types-PyYAML==6.0.12.5
 typing_extensions==4.4.0
