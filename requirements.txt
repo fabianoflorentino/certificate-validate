@@ -1,4 +1,4 @@
-astroid==2.15.0
+astroid==2.15.5
 autopep8==2.0.1
 certifi==2022.12.7
 cffi==1.15.1
