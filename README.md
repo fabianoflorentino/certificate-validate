@@ -1,6 +1,6 @@
 # **certificate-validate**
 
-[![Build Image (Dockerhub)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml)
+[![Build Image (Dockerhub)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml/badge.svg)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml)
 
 Validate some info in SSL/TLS Certificates
 
