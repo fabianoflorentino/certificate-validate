@@ -22,7 +22,7 @@ pylint==2.16.1
 pyOpenSSL==23.0.0
 PyYAML==6.0.1
 six==1.16.0
-types-pyOpenSSL==22.0.9
+types-pyOpenSSL==22.1.0
 types-PyYAML==6.0.12.5
 typing_extensions==4.4.0
 Werkzeug==3.0.6
