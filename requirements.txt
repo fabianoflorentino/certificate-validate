@@ -10,7 +10,7 @@ Flask==2.2.5
 gunicorn==23.0.0
 idna==3.7
 isort==5.9.3
-itsdangerous==2.0.1
+itsdangerous==2.2.0
 Jinja2==3.1.4
 lazy-object-proxy==1.6.0
 MarkupSafe==2.1.5
