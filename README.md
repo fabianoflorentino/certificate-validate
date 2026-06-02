@@ -16,7 +16,7 @@ A modern, extensible SSL/TLS certificate validation tool written in Go. Fetches 
 
 The project follows Clean Architecture with SOLID principles:
 
-```
+```bash
 certificate-validate/
 ├── cmd/certificate-validate/
 │   └── main.go                    # Entry point with dependency injection
@@ -46,7 +46,7 @@ certificate-validate/
 ### SOLID Principles Applied
 
 | Principle | Implementation |
-|-----------|----------------|
+| ----------- | ---------------- |
 | **S** - Single Responsibility | Each package has one responsibility: `certificate` = domain, `fetcher` = TLS connection, `formatter` = output, `checker` = orchestration |
 | **O** - Open/Closed | `Fetcher` and `Formatter` interfaces allow new implementations without modifying existing code |
 | **L** - Liskov Substitution | Explicit `(Certificate, error)` returns - no `sys.exit()`, no inconsistent types |
@@ -128,7 +128,7 @@ Start the API server:
 ./certificate-validate serve
 ```
 
-### Docker
+### Docker (Terminal)
 
 ```bash
 # CLI mode
@@ -147,7 +147,7 @@ docker-compose up -d
 ## API Endpoints
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| ---------- | -------- | ------------- |
 | `/api/v1/cert/info/all` | GET | Get all certificates |
 | `/api/v1/cert/info/{hostname}` | GET | Get certificate by hostname |
 | `/api/v1/cert/info/commonName` | GET | Get all common names |
