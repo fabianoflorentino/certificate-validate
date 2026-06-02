@@ -1,33 +1,25 @@
-FROM python:3.10-alpine as build
+FROM golang:1.23-alpine AS build
 
-LABEL maintainer="Fabiano Florentino"
-LABEL email="fabianoflorentino@outlook.com"
-LABEL image version="0.53"
+WORKDIR /src
 
-COPY certificate.py api.py settings.py requirements.txt entrypoint.sh /app/
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/certificate-validate ./cmd/certificate-validate
+
+FROM alpine:3.19
+
+RUN adduser -D -u 1000 appuser
+
+COPY --from=build /bin/certificate-validate /usr/local/bin/certificate-validate
 COPY config/settings.yml /app/config/settings.yml
 
-RUN adduser --disabled-password --gecos "" python \
-    && apk add --no-cache \
-        make \
-        sshpass \
-        openssh \
-        gcc \
-        g++ \
-        libffi-dev \
-        openssl \
-        openssl-dev \
-    && rm -vrf /var/cache/apk/* \
-    && pip install --upgrade pip wheel setuptools \
-    && pip install -r /app/requirements.txt \
-    && mkdir -p /app/config \
-    && chown -R python:python /app \
-    && chmod +x /app/entrypoint.sh
-
-USER python
-
+USER appuser
 WORKDIR /app
 
 VOLUME ["/app/config"]
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["certificate-validate"]
+CMD ["check"]

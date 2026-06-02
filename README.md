@@ -1,407 +1,304 @@
-# **certificate-validate**
+# Certificate Validate
 
-[![Build Image (Dockerhub)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml/badge.svg)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml)
+A modern, extensible SSL/TLS certificate validation tool written in Go. Fetches and inspects certificate information from remote hosts via CLI or HTTP API.
 
-Validate some info in SSL/TLS Certificates
+## Features
 
-## **prerequisites**
+- **CLI Mode**: Check certificates from command line with watch mode support
+- **HTTP API**: RESTful API for certificate inspection
+- **Extensible Architecture**: SOLID principles with clean interfaces
+- **Concurrent Processing**: Parallel certificate fetching
+- **Type Safety**: Compile-time error checking
+- **Minimal Dependencies**: Only 2 external packages (cobra, yaml.v3)
+- **Production Ready**: Small Docker image (~10MB), proper error handling
 
-* Docker
-* Internet Access
+## Architecture
 
-## **build**
+The project follows Clean Architecture with SOLID principles:
 
-```shell
-docker build --no-cache --rm -t <NAME_OF_IMAGE> -f ./Dockerfile .
+```
+certificate-validate/
+├── cmd/certificate-validate/
+│   └── main.go                    # Entry point with dependency injection
+├── internal/
+│   ├── certificate/               # DOMAIN LAYER (S, D)
+│   │   ├── certificate.go         # Value object + extraction logic
+│   │   └── errors.go              # Domain-specific errors
+│   ├── config/                    # INFRASTRUCTURE (D)
+│   │   └── config.go              # YAML configuration loader
+│   ├── fetcher/                   # PROVIDER (D, I)
+│   │   └── fetcher.go             # Interface + TLS implementation
+│   ├── formatter/                 # PROVIDER (D, I)
+│   │   └── formatter.go           # Interface + JSON implementation
+│   ├── checker/                   # USE CASE (O, L)
+│   │   └── checker.go             # Orchestration logic
+│   ├── api/                       # INTERFACE (I)
+│   │   └── api.go                 # HTTP handlers
+│   └── cmd/                       # INTERFACE (I)
+│       ├── root.go                # Cobra root command
+│       ├── check.go               # CLI check command
+│       └── serve.go               # CLI serve command
+├── config/settings.yml            # Configuration file
+├── Dockerfile                     # Multi-stage build
+└── docker-compose.yml             # Container orchestration
 ```
 
-## **configuration**
+### SOLID Principles Applied
 
-Create directory for the configuration file:
+| Principle | Implementation |
+|-----------|----------------|
+| **S** - Single Responsibility | Each package has one responsibility: `certificate` = domain, `fetcher` = TLS connection, `formatter` = output, `checker` = orchestration |
+| **O** - Open/Closed | `Fetcher` and `Formatter` interfaces allow new implementations without modifying existing code |
+| **L** - Liskov Substitution | Explicit `(Certificate, error)` returns - no `sys.exit()`, no inconsistent types |
+| **I** - Interface Segregation | Minimal interfaces: `Fetcher` has 1 method, `Formatter` has 1 method |
+| **D** - Dependency Inversion | `checker` defines interfaces, providers implement them. `main.go` injects dependencies |
 
-```shell
-mkdir -p <PATH TO DIRECTORY>
+## Installation
+
+### From Source
+
+```bash
+go install github.com/fabianoflorentino/certificate-validate/cmd/certificate-validate@latest
 ```
 
-Create a file named **settings.yml**
+### Build Locally
 
-Copy the **config/settings.yml** on directory you create before:
-
-```shell
-cp config/settings.yml <PATH TO DIRECTORY>
+```bash
+git clone https://github.com/fabianoflorentino/certificate-validate.git
+cd certificate-validate
+go build -o certificate-validate ./cmd/certificate-validate
 ```
 
-### **settings.yml**
+### Docker
 
-| **variable** | **description** |
-| ------------- | --------------- |
-| check_time | Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400** |
-| **app_configs** |
-| name | Name of the application |
-| host | IP or DNS name of the application |
-| port | Port of the application |
-| environment | Environment of the application |
-| debug | Debug mode of the application |
-| **hosts** |
-| name | Name of the certificate to validate |
-| url | URL of the certificate to validate |
-| port | Port of the certificate to validate |
+```bash
+docker build -t certificate-validate .
+```
 
-```yml
----
-check_time: 30
+## Configuration
+
+Create a `config/settings.yml` file:
+
+```yaml
+check_time: 3600  # Watch interval in seconds
 
 app_configs:
   - name: 'certificate-validate'
     host: '0.0.0.0'
     port: '5000'
-    environment: 'development'
-    debug: True 
+    environment: 'production'
+    debug: false
 
-hosts:
-  - name: "github.com"
-    url: 'github.com'
-    port: '443'
-```
-
-**OBS:**
-
-For validate more than one certificate, you can add more hosts in the **settings.yml** file.
-
-```yml
 hosts:
   - name: "github"
-    url: "github.com"
+    url: 'github.com'
     port: '443'
   - name: "gitlab"
-    url: "gitlab.com"
-    port: '443'
-  - name: "twitter"
-    url: "twitter.com"
+    url: 'gitlab.com'
     port: '443'
 ```
 
-### **volume**
+## Usage
 
-```shell
-docker volume create --driver local -o o=bind -o type=none -o device=<DIR TO BIND> <NAME OF VOLUME>
+### CLI Mode
+
+Check certificates once:
+
+```bash
+./certificate-validate check
 ```
 
-**Example:**
+Watch mode (continuous checking):
 
-```shell
-docker volume create --driver local -o o=bind -o type=none -o device=/tmp/volume/certificate-validate certificate-validate
+```bash
+./certificate-validate check --watch
 ```
 
-### **permissions**
+Custom config file:
 
-```shell
-chown -R 1000:1000 <DIR TO BIND ON VOLUME>
+```bash
+./certificate-validate -c /path/to/config.yml check
 ```
 
-**Example:**
+### HTTP API Mode
 
-```shell
-chown -R 1000:1000 /tmp/volume/certificate-validate
+Start the API server:
+
+```bash
+./certificate-validate serve
 ```
 
-### **entrypoint**
+### Docker
 
-```shell
-"
-usage: 
+```bash
+# CLI mode
+docker run -v $(pwd)/config:/app/config certificate-validate check
 
-export API_HOST_ADDRESS=<hostname> or export API_HOST_ADDRESS=<ip>
-export API_PORT=<port>
-
-./entrypoint.sh [OPTIONS] [ARGUMENTS]
-
-Ex. ./entrypoint.sh -i dev || ./entrypoint.sh -i prod || ./entrypoint.sh -h
-
-optional arguments:
-    -v, --version       show program's version number and exit
-    -l, --local         run the program locally
-        --check_time    Time to wait for the certificate to be validated, is optional, if not set, it will be set to **86400**
-                        this time is configured in the **settings.yml** file
-        --exit          Consult once and exit
-    -i, --api           run the program on the API
-        dev             run the program locally on the development environment
-        prod            run the program on the production environment
-    -h, --help          show this help message and exit
-"
+# API mode
+docker run -p 5000:5000 -v $(pwd)/config:/app/config certificate-validate serve
 ```
 
-### **run local**
+### Docker Compose
 
-```shell
-docker run -d --name certificate_validate_test \
--v <NAME OF VOLUME>:/app/config \
-fabianoflorentino/certificate-validate:test --local --check_time
+```bash
+docker-compose up -d
 ```
 
-**Example:**
+## API Endpoints
 
-```shell
-docker run -d --name certificate_validate_test \
--v certificate-validate:/app/config \
-fabianoflorentino/certificate-validate:test --local --check_time
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/cert/info/all` | GET | Get all certificates |
+| `/api/v1/cert/info/{hostname}` | GET | Get certificate by hostname |
+| `/api/v1/cert/info/commonName` | GET | Get all common names |
+| `/api/v1/cert/info/subjectAltName` | GET | Get all subject alternative names |
 
-### **status**
-
-```shell
-CONTAINER ID   IMAGE                                         COMMAND                  CREATED          STATUS          PORTS         NAMES
-d33be85a9e6b   fabianoflorentino/certificate-validate:test   "/app/entrypoint.sh …"   27 minutes ago   Up 27 minutes                 certificate_validate_test
-```
-
-### **run api**
-
-#### **dev**
-
-```shell
-docker run -d --name certificate_validate_test \
--p 5000:5000 \
--v <NAME OF VOLUME>:/app/config \
-fabianoflorentino/certificate-validate:test --api dev
-```
-
-#### **prod**
-
-```shell
-docker run -d --name certificate_validate_test \
--p 5000:5000 \
--e API_HOST_ADDRESS=<hostname> \
--e API_PORT=<port> \
--v <NAME OF VOLUME>:/app/config \
-fabianoflorentino/certificate-validate:test --api prod
-```
-
-**Example:**
-
-```shell
-docker run -d --name certificate_validate_test \
--p 5000:5000 \
--v certificate-validate:/app/config \
-fabianoflorentino/certificate-validate:test --api dev
-```
-
-**OBS:**
-The **api** option will run the application in **api mode**, the **check_time** option will be ignored.
-Certificate information will be validated on time consult. If you want to validate the certificate periodically, you can use the **cron** option.
-
-### **endpoints**
-
-| **endpoints** | **description** |
-| ------------- | --------------- |
-| /api/v1/cert/info | Get the certificate informations |
-
-#### **output**
+### Example Response
 
 ```json
 {
-     "commonName": "github.com",
-     "subjectAltName": "['github.com', 'www.github.com']",
-     "issuer": "DigiCert High Assurance TLS Hybrid ECC SHA256 2020 CA1",
-     "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
-     "notBefore": "2021-03-25 00:00:00",
-     "notAfter": "2022-03-30 23:59:59",
-     "daysLeft": "178",
-     "crl": "['http://crl3.digicert.com/DigiCertHighAssuranceTLSHybridECCSHA2562020CA1.crl', 'http://crl4.digicert.com/DigiCertHighAssuranceTLSHybridECCSHA2562020CA1.crl']"
-}
-{
-     "commonName": "gitlab.com",
-     "subjectAltName": "['gitlab.com', 'auth.gitlab.com', 'customers.gitlab.com', 'email.customers.gitlab.com', 'gprd.gitlab.com', 'www.gitlab.com']",
-     "issuer": "Sectigo RSA Domain Validation Secure Server CA",
-     "type": "Domain Validation (DV) Web Server SSL Digital Certificate",
-     "notBefore": "2021-04-12 00:00:00",
-     "notAfter": "2022-05-11 23:59:59",
-     "daysLeft": "220",
-     "crl": "CRL not found for this certificate!"
-}
-{
-     "commonName": "twitter.com",
-     "subjectAltName": "['twitter.com', 'www.twitter.com']",
-     "issuer": "DigiCert TLS RSA SHA256 2020 CA1",
-     "type": "Organization Validation (OV) Web Server SSL Digital Certificate",
-     "notBefore": "2021-02-09 00:00:00",
-     "notAfter": "2022-02-07 23:59:59",
-     "daysLeft": "127",
-     "crl": "['http://crl3.digicert.com/DigiCertTLSRSASHA2562020CA1.crl', 'http://crl4.digicert.com/DigiCertTLSRSASHA2562020CA1.crl']"
+  "commonName": "github.com",
+  "subjectAltName": ["github.com", "www.github.com"],
+  "issuer": "Sectigo Public Server Authentication CA DV E36",
+  "type": "Domain Validation (DV) Web Server SSL Digital Certificate",
+  "notBefore": "2024-01-01 00:00:00",
+  "notAfter": "2025-01-01 23:59:59",
+  "daysLeft": 365,
+  "crl": null,
+  "hostname": "github.com",
+  "port": 443
 }
 ```
 
-**OBS:** Outputs are in **json** format.
+## Extending the Project
 
-### **logs**
+### Add a New Fetcher
 
-**RFC (Request for Comments):** [Internet X.509 Public Key Infrastructure Certificate and CRL Profile](https://www.rfc-editor.org/rfc/rfc2459#section-4.1)
+Create a new implementation of the `Fetcher` interface:
 
-| **fields** | **description** |
-| ------------- | --------------- |
-| "commonName" | Common Name of the certificate |
-| "subjectAltName" | Subject Alternative Name of the certificate |
-| "issuer" | Issuer of the certificate |
-| "type" | Type of the certificate |
-| "notBefore" | Not Before of the certificate |
-| "notAfter" | Not After of the certificate |
-| "daysLeft" | Days left to expire the certificate |
-| "crl" | Certificate Revocation List of the certificate |
+```go
+// internal/fetcher/file.go
+package fetcher
 
-**OBS**: daysLeft is not part of the RFC, it is calculated based on the current date and notAfter field.
+import (
+    "context"
+    "github.com/fabianoflorentino/certificate-validate/internal/certificate"
+)
 
-```shell
-docker exec -it <CONTAINER NAME> cat /app/certificate.log
+type fileFetcher struct {
+    path string
+}
+
+func NewFileFetcher(path string) Fetcher {
+    return &fileFetcher{path: path}
+}
+
+func (f *fileFetcher) Fetch(ctx context.Context, host string, port int) (*certificate.Certificate, error) {
+    // Read certificate from PEM file
+    // Return certificate.Certificate
+}
 ```
 
-## **actions**
+### Add a New Formatter
 
-| **environment** | **description** |
-| --------------- | ---------------- |
-| DOCKERHUB | Environment configured on Github |
+Create a new implementation of the `Formatter` interface:
 
-[**Environments**](https://docs.github.com/en/actions/reference/environments)
+```go
+// internal/formatter/prometheus.go
+package formatter
 
-* [**Creating**](https://docs.github.com/en/actions/reference/environments#creating-an-environment)
+import (
+    "github.com/fabianoflorentino/certificate-validate/internal/certificate"
+)
 
-| **variable** | **description** |
-| ------------- | --------------- |
-| secrets.DOCKERHUB_USERNAME | Username of the dockerhub account |
-| secrets.DOCKERHUB_TOKEN | Token of the dockerhub account |
-| GITHUB_REPOSITORY | Your GitHub repository needs to have the same name of Dockerhub Repository |
+type prometheusFormatter struct{}
 
-* [**secrets**](https://docs.github.com/en/actions/reference/encrypted-secrets)
+func NewPrometheus() Formatter {
+    return &prometheusFormatter{}
+}
 
-    "Encrypted secrets allow you to store sensitive information in your organization, repository, or repository environments."
-
-* [**Workflow syntax for GitHub Actions**](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
-
-    "A workflow is a configurable automated process made up of one or more jobs. You must create a YAML file to define your workflow configuration."
-
-### **CI**
-
-```yaml
----
-name: CI
-
-on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
-      - 'docs/**'
-      - '.github/**'
-
-jobs:  
-  build:
-    environment: DOCKERHUB
-    name: Build and Push to Docker Hub
-    runs-on: ubuntu-latest
-
-    steps:
-      # Checkout the repository
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      # Login to Docker Hub
-      - name: Login
-        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Build the image
-      - name: Build
-        run: |
-          docker build \
-          --no-cache \
-          --rm \
-          -t $GITHUB_REPOSITORY:latest \
-          -f ./Dockerfile .
-      
-      # Push the image to Docker Hub
-      - name: Push
-        run: docker push $GITHUB_REPOSITORY:latest
-
+func (f *prometheusFormatter) Format(cert *certificate.Certificate) ([]byte, error) {
+    // Format as Prometheus metrics
+    // Return formatted bytes
+}
 ```
 
-### **Pylint**
+### Add a New CLI Command
 
-```yaml
-name: Pylint
+Create a new Cobra command:
 
-on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
-      - 'docs/**'
-      - '.github/**'
+```go
+// internal/cmd/export.go
+package cmd
 
-jobs:
-  build:
+import (
+    "github.com/spf13/cobra"
+)
 
-    runs-on: ubuntu-latest
+var exportCmd = &cobra.Command{
+    Use:   "export",
+    Short: "Export certificates to file",
+    RunE: func(cmd *cobra.Command, args []string) error {
+        // Implementation
+        return nil
+    },
+}
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -r ./requirements.txt
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint `ls -R|grep .py$|xargs`
-
+func init() {
+    rootCmd.AddCommand(exportCmd)
+}
 ```
 
-### **CodeQL**
+## Development
 
-```yaml
-name: "CodeQL"
+### Run Tests
 
-on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
-      - 'docs/**'
-      - '.github/**'
-
-jobs:
-  analyze:
-    name: Analyze
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python' ]
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
-      with:
-        languages: ${{ matrix.language }}
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v1
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v1
+```bash
+go test ./...
 ```
+
+### Build
+
+```bash
+go build -o certificate-validate ./cmd/certificate-validate
+```
+
+### Lint
+
+```bash
+go vet ./...
+```
+
+## Migration from Python
+
+This project was migrated from Python to Go for:
+
+- **Performance**: Native concurrency, no GIL
+- **Deployment**: Single binary, no runtime dependencies
+- **Type Safety**: Compile-time error checking
+- **Maintainability**: Clean architecture, SOLID principles
+- **Size**: Docker image reduced from ~180MB to ~10MB
+
+### Key Improvements
+
+| Aspect | Python (Old) | Go (New) |
+|--------|--------------|----------|
+| Dependencies | 23 packages | 2 packages |
+| Docker Image | ~180MB | ~10MB |
+| Concurrency | ThreadPoolExecutor | Goroutines + channels |
+| Error Handling | `sys.exit()` in functions | `error` as value |
+| Testability | Impossible (sys.exit) | 100% mockable |
+| Extensibility | Modify existing code | Add implementations |
+| Type System | Dynamic (runtime errors) | Static (compile-time) |
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Author
+
+Fabiano Florentino

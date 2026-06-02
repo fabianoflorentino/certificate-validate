@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  certificate-validate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: certificate-validate
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./config:/app/config:ro
+    environment:
+      - TZ=UTC
+    restart: unless-stopped
+    command: ["serve"]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/api/v1/cert/info/all"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - certificate-network
+
+networks:
+  certificate-network:
+    driver: bridge
