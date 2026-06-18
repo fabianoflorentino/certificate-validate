@@ -1,8 +1,10 @@
 package api
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"sync"
@@ -10,6 +12,9 @@ import (
 	"github.com/fabianoflorentino/certificate-validate/internal/checker"
 	"github.com/fabianoflorentino/certificate-validate/internal/config"
 )
+
+//go:embed static/*
+var staticFiles embed.FS
 
 // Handler holds dependencies for HTTP handlers.
 type Handler struct {
@@ -32,6 +37,14 @@ func (h *Handler) Router() http.Handler {
 	mux.HandleFunc("GET /api/v1/cert/info/{hostname}", h.handleByHostname)
 	mux.HandleFunc("GET /api/v1/cert/info/commonName", h.handleCommonName)
 	mux.HandleFunc("GET /api/v1/cert/info/subjectAltName", h.handleSubjectAltName)
+
+	staticFS, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		log.Printf("failed to init static file server: %v", err)
+	} else {
+		mux.Handle("GET /", http.FileServer(http.FS(staticFS)))
+	}
+
 	return withMiddleware(mux)
 }
 

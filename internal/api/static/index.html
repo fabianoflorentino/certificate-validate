@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Validate</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <nav class="header">
+        <div class="header-left">
+            <h1>Certificate Validate</h1>
+        </div>
+        <div class="header-right">
+            <span class="last-updated" id="lastUpdated"></span>
+            <button class="btn" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">Dark</button>
+            <label class="toggle-label">
+                <input type="checkbox" id="autoRefreshCheckbox" onchange="toggleAutoRefresh()">
+                <span>Auto-refresh</span>
+            </label>
+            <button class="btn btn-primary" onclick="fetchCertificates()">Refresh</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div id="loading" class="loading-state">Loading certificates...</div>
+        <div id="error" class="error-state hidden"></div>
+        <div id="emptyState" class="empty-state hidden">
+            No certificates found. Add hosts to <code>config/settings.yml</code>.
+        </div>
+        <div id="cardsGrid" class="cards-grid"></div>
+    </main>
+
+    <div id="modal" class="modal-overlay hidden" onclick="closeModal(event)">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Certificate Details</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody" class="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
