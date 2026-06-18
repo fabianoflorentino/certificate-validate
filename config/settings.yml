@@ -9,6 +9,33 @@ app_configs:
     debug: True 
 
 hosts:
-  - name: "github.com"
+  - name: "GitHub"
     url: 'github.com'
+    port: '443'
+  - name: "GitLab"
+    url: 'gitlab.com'
+    port: '443'
+  - name: "Google"
+    url: 'google.com'
+    port: '443'
+  - name: "Stack Overflow"
+    url: 'stackoverflow.com'
+    port: '443'
+  - name: "Docker"
+    url: 'docker.com'
+    port: '443'
+  - name: "Cloudflare"
+    url: 'cloudflare.com'
+    port: '443'
+  - name: "Amazon"
+    url: 'amazon.com'
+    port: '443'
+  - name: "Microsoft"
+    url: 'microsoft.com'
+    port: '443'
+  - name: "Kubernetes"
+    url: 'kubernetes.io'
+    port: '443'
+  - name: "NPM"
+    url: 'npmjs.com'
     port: '443'
