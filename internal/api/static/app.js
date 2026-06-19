@@ -1,15 +1,20 @@
 const API_BASE = '/api/v1/cert';
 let autoRefreshTimer = null;
 
+const state = {
+    certificates: [],
+    errors: [],
+    searchTerm: '',
+    sortBy: 'daysLeft-asc'
+};
+
 async function fetchCertificates() {
     const loading = document.getElementById('loading');
     const error = document.getElementById('error');
-    const empty = document.getElementById('emptyState');
     const grid = document.getElementById('cardsGrid');
 
     loading.classList.remove('hidden');
     error.classList.add('hidden');
-    empty.classList.add('hidden');
     grid.innerHTML = '';
 
     try {
@@ -19,7 +24,9 @@ async function fetchCertificates() {
         }
 
         const data = await response.json();
-        renderCertificates(data);
+        state.certificates = data.certificates || [];
+        state.errors = data.errors || [];
+        render();
 
         const now = new Date();
         document.getElementById('lastUpdated').textContent =
@@ -32,22 +39,47 @@ async function fetchCertificates() {
     }
 }
 
-function renderCertificates(data) {
+function render() {
     const grid = document.getElementById('cardsGrid');
     const empty = document.getElementById('emptyState');
     grid.innerHTML = '';
+    empty.classList.add('hidden');
 
-    const certs = data.certificates || [];
-    const errors = data.errors || [];
+    // Filter by search term
+    const term = state.searchTerm.toLowerCase();
+    let filtered = state.certificates;
+    if (term) {
+        filtered = filtered.filter(function (cert) {
+            return cert.hostname.toLowerCase().indexOf(term) !== -1 ||
+                cert.commonName.toLowerCase().indexOf(term) !== -1 ||
+                cert.issuer.toLowerCase().indexOf(term) !== -1 ||
+                (cert.subjectAltName || []).some(function (san) {
+                    return san.toLowerCase().indexOf(term) !== -1;
+                });
+        });
+    }
+
+    // Sort
+    var sortBy = state.sortBy;
+    filtered = filtered.slice().sort(function (a, b) {
+        if (sortBy === 'daysLeft-asc') return (a.daysLeft || 0) - (b.daysLeft || 0);
+        if (sortBy === 'daysLeft-desc') return (b.daysLeft || 0) - (a.daysLeft || 0);
+        if (sortBy === 'hostname') return a.hostname.localeCompare(b.hostname);
+        if (sortBy === 'issuer') return a.issuer.localeCompare(b.issuer);
+        return 0;
+    });
+
+    // Update summary badges
+    updateSummary(state.certificates);
 
     // Show fetch errors
-    if (errors.length > 0) {
-        const section = document.createElement('div');
+    if (state.errors.length > 0) {
+        var section = document.createElement('div');
         section.className = 'fetch-errors';
         var h = document.createElement('h3');
-        h.textContent = 'Errors (' + errors.length + ')';
+        h.textContent = 'Errors (' + state.errors.length + ')';
         section.appendChild(h);
-        errors.forEach(function (msg) {
+        state.errors.forEach(function (msg) {
             var p = document.createElement('p');
             p.className = 'fetch-error-item';
             p.textContent = msg;
@@ -57,15 +89,48 @@ function renderCertificates(data) {
     }
 
     // Empty state
-    if (certs.length === 0) {
+    if (filtered.length === 0) {
+        if (term) {
+            empty.textContent = 'No hosts match "' + state.searchTerm + '"';
+        } else {
+            empty.innerHTML = 'No certificates found. Add hosts to <code>config/settings.yml</code>.';
+        }
         empty.classList.remove('hidden');
         return;
     }
 
     // Render cards
-    certs.forEach(function (cert) {
+    filtered.forEach(function (cert) {
         grid.appendChild(createCard(cert));
     });
+}
+
+function handleSearch() {
+    state.searchTerm = document.getElementById('searchInput').value;
+    render();
+}
+
+function handleSort() {
+    state.sortBy = document.getElementById('sortSelect').value;
+    render();
+}
+
+function updateSummary(certs) {
+    var container = document.getElementById('summaryBadges');
+    var critical = 0;
+    var warning = 0;
+    var good = 0;
+    for (var i = 0; i < certs.length; i++) {
+        var d = certs[i].daysLeft;
+        if (d <= 7) critical++;
+        else if (d <= 30) warning++;
+        else good++;
+    }
+    var parts = [];
+    if (critical) parts.push('<span class="badge-summary badge-critical">\u25CF ' + critical + '</span>');
+    if (warning) parts.push('<span class="badge-summary badge-warning">\u25CF ' + warning + '</span>');
+    if (good) parts.push('<span class="badge-summary badge-good">\u25CF ' + good + '</span>');
+    container.innerHTML = parts.join('') || '<span class="badge-summary">0 hosts</span>';
 }
 
 function createCard(cert) {

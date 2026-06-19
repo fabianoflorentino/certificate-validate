@@ -12,13 +12,25 @@
             <h1>Certificate Validate</h1>
         </div>
         <div class="header-right">
-            <span class="last-updated" id="lastUpdated"></span>
-            <button class="btn" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">Dark</button>
-            <label class="toggle-label">
-                <input type="checkbox" id="autoRefreshCheckbox" onchange="toggleAutoRefresh()">
-                <span>Auto-refresh</span>
-            </label>
-            <button class="btn btn-primary" onclick="fetchCertificates()">Refresh</button>
+            <div class="header-controls">
+                <div id="summaryBadges" class="summary-badges"></div>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search hosts..." oninput="handleSearch()">
+                <select id="sortSelect" class="sort-select" onchange="handleSort()">
+                    <option value="daysLeft-asc">Days ↑</option>
+                    <option value="daysLeft-desc">Days ↓</option>
+                    <option value="hostname">Hostname</option>
+                    <option value="issuer">Issuer</option>
+                </select>
+            </div>
+            <div class="header-actions">
+                <span class="last-updated" id="lastUpdated"></span>
+                <button class="btn" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">Dark</button>
+                <label class="toggle-label">
+                    <input type="checkbox" id="autoRefreshCheckbox" onchange="toggleAutoRefresh()">
+                    <span>Auto-refresh</span>
+                </label>
+                <button class="btn btn-primary" onclick="fetchCertificates()">Refresh</button>
+            </div>
         </div>
     </nav>
 
