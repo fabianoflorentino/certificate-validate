@@ -281,6 +281,23 @@ function toggleAutoRefresh() {
     }
 }
 
+function downloadURL(url, filename) {
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function exportJSON() {
+    downloadURL(API_BASE + '/export/json', 'certificates.json');
+}
+
+function exportCSV() {
+    downloadURL(API_BASE + '/export/csv', 'certificates.csv');
+}
+
 function formatDate(dateStr) {
     if (!dateStr) return '';
     return dateStr.split(' ')[0];

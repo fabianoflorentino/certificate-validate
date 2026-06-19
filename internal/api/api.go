@@ -2,13 +2,17 @@ package api
 
 import (
 	"embed"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 
+	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
 	"github.com/fabianoflorentino/certificate-validate/internal/checker"
 	"github.com/fabianoflorentino/certificate-validate/internal/config"
 )
@@ -37,6 +41,8 @@ func (h *Handler) Router() http.Handler {
 	mux.HandleFunc("GET /api/v1/cert/info/{hostname}", h.handleByHostname)
 	mux.HandleFunc("GET /api/v1/cert/info/commonName", h.handleCommonName)
 	mux.HandleFunc("GET /api/v1/cert/info/subjectAltName", h.handleSubjectAltName)
+	mux.HandleFunc("GET /api/v1/cert/export/json", h.handleExportJSON)
+	mux.HandleFunc("GET /api/v1/cert/export/csv", h.handleExportCSV)
 
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {
@@ -148,6 +154,85 @@ func (h *Handler) handleSubjectAltName(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	writeJSON(w, http.StatusOK, sans)
+}
+
+func (h *Handler) handleExportJSON(w http.ResponseWriter, r *http.Request) {
+	hosts := toCheckerHosts(h.cfg.Hosts)
+	results, errs := h.checker.CheckAll(r.Context(), hosts, 10)
+
+	certs := make([]json.RawMessage, 0, len(results))
+	for _, data := range results {
+		if data != nil {
+			certs = append(certs, data)
+		}
+	}
+
+	errMessages := make([]string, 0, len(errs))
+	for _, err := range errs {
+		errMessages = append(errMessages, err.Error())
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", `attachment; filename="certificates.json"`)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"certificates": certs,
+		"errors":       errMessages,
+	})
+}
+
+func (h *Handler) handleExportCSV(w http.ResponseWriter, r *http.Request) {
+	hosts := toCheckerHosts(h.cfg.Hosts)
+
+	type certResult struct {
+		cert *certificate.Certificate
+	}
+
+	results := make(chan certResult, len(hosts))
+	for _, host := range hosts {
+		host := host
+		go func() {
+			cert, err := h.checker.Check(r.Context(), host.Hostname, host.Port)
+			if err != nil {
+				log.Printf("CSV export error %s:%d - %v", host.Hostname, host.Port, err)
+				results <- certResult{nil}
+				return
+			}
+			results <- certResult{cert}
+		}()
+	}
+
+	var certs []*certificate.Certificate
+	for range hosts {
+		r := <-results
+		if r.cert != nil {
+			certs = append(certs, r.cert)
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="certificates.csv"`)
+	w.Write([]byte{0xEF, 0xBB, 0xBF}) // BOM for Excel
+
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Write([]string{
+		"Hostname", "Port", "Common Name", "Issuer", "Type",
+		"Days Left", "Not Before", "Not After", "Subject Alt Names",
+	})
+
+	for _, cert := range certs {
+		csvWriter.Write([]string{
+			cert.Hostname,
+			strconv.Itoa(cert.Port),
+			cert.CommonName,
+			cert.Issuer,
+			cert.Type,
+			strconv.Itoa(cert.DaysLeft),
+			cert.NotBefore,
+			cert.NotAfter,
+			strings.Join(cert.SubjectAltNames, "; "),
+		})
+	}
+	csvWriter.Flush()
 }
 
 func toCheckerHosts(cfgHosts []config.HostConfig) []checker.Host {
