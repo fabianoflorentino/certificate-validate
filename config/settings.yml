@@ -8,6 +8,15 @@ app_configs:
     environment: 'development'
     debug: True 
 
+prometheus:
+  enabled: false
+  # address: ':9090'   # uncomment to use a separate listen address
+
+webhook:
+  # url: 'https://hooks.example.com/alert'
+  threshold: 15  # alert when days left drops below this
+  interval: 1800 # check every 30 minutes
+
 hosts:
   - name: "GitHub"
     url: 'github.com'
