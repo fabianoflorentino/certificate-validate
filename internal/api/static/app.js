@@ -79,20 +79,18 @@ function createCard(cert) {
 
     card.innerHTML =
         '<div class="card-header">' +
-            '<span class="card-hostname">' + esc(cert.hostname) + '</span>' +
-            '<span class="card-port">:' + cert.port + '</span>' +
+            '<div class="card-hostline">' +
+                '<span class="card-hostname">' + esc(cert.hostname) + '</span>' +
+                '<span class="card-port">:' + cert.port + '</span>' +
+            '</div>' +
+            '<span class="card-days-compact ' + statusClass + '">' +
+                daysLeft + ' <span class="days-unit">d</span>' +
+            '</span>' +
         '</div>' +
         '<div class="card-common-name">' + esc(cert.commonName) + '</div>' +
-        '<div class="card-days ' + statusClass + '">' +
-            '<span class="days-number">' + daysLeft + '</span>' +
-            '<span class="days-label">days left</span>' +
-        '</div>' +
         '<div class="card-meta">' +
             '<span class="cert-type-badge">' + esc(typeBadge) + '</span>' +
             '<span class="card-issuer" title="' + escAttr(cert.issuer) + '">' + esc(cert.issuer) + '</span>' +
-        '</div>' +
-        '<div class="card-dates">' +
-            '<span>' + formatDate(cert.notBefore) + ' - ' + formatDate(cert.notAfter) + '</span>' +
         '</div>';
 
     return card;

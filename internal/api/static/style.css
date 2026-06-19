@@ -149,8 +149,9 @@ body {
 
 /* Container */
 .container {
-    max-width: 1200px;
-    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 1.5rem;
 }
 
 /* States */
@@ -186,7 +187,20 @@ body {
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 1rem;
+    gap: 0.75rem;
+}
+
+@media (max-width: 1200px) {
+    .cards-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 900px) {
+    .cards-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+    .cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 400px) {
+    .cards-grid { grid-template-columns: 1fr; }
 }
 
 /* Certificate Card */
@@ -194,10 +208,10 @@ body {
     min-width: 0;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1rem;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
     box-shadow: var(--shadow);
 }
 
@@ -209,96 +223,100 @@ body {
 
 .card-header {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+}
+
+.card-hostline {
+    display: flex;
     align-items: baseline;
-    gap: 0.25rem;
-    margin-bottom: 0.25rem;
+    gap: 0.2rem;
+    min-width: 0;
+    flex: 1;
 }
 
 .card-hostname {
-    font-size: 0.95rem;
-    font-weight: 600;
-}
-
-.card-port {
-    color: var(--text-muted);
     font-size: 0.85rem;
-}
-
-.card-common-name {
-    color: var(--text-secondary);
-    font-size: 0.8rem;
-    margin-bottom: 0.5rem;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.card-days {
+.card-port {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.card-days-compact {
     display: flex;
-    align-items: baseline;
-    gap: 0.25rem;
-    padding: 0.35rem 0.6rem;
-    border-radius: var(--radius-sm);
-    margin-bottom: 0.5rem;
-    font-weight: 600;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
 }
 
-.days-number {
-    font-size: 1.25rem;
-    line-height: 1;
+.card-days-compact.status-good {
+    background: var(--status-good-bg);
+    color: var(--status-good-text);
 }
 
-.days-label {
-    font-size: 0.8rem;
+.card-days-compact.status-warn {
+    background: var(--status-warn-bg);
+    color: var(--status-warn-text);
+}
+
+.card-days-compact.status-critical {
+    background: var(--status-critical-bg);
+    color: var(--status-critical-text);
+}
+
+.days-unit {
+    font-size: 0.65rem;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.02em;
 }
 
-.card-days.status-good {
-    background: var(--status-good-bg);
-    color: var(--status-good-text);
-}
-
-.card-days.status-warn {
-    background: var(--status-warn-bg);
-    color: var(--status-warn-text);
-}
-
-.card-days.status-critical {
-    background: var(--status-critical-bg);
-    color: var(--status-critical-text);
-}
-
-.card-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin-bottom: 0.35rem;
-}
-
-.cert-type-badge {
-    display: inline-block;
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    background: var(--badge-bg);
-    color: var(--badge-text);
-    white-space: nowrap;
-}
-
-.card-issuer {
-    font-size: 0.8rem;
+.card-common-name {
     color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-bottom: 0.35rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.card-dates {
+.card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.cert-type-badge {
+    display: inline-block;
+    padding: 0.08rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.card-issuer {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Fetch errors section */
