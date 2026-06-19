@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"github.com/fabianoflorentino/certificate-validate/internal/config"
 	"github.com/fabianoflorentino/certificate-validate/internal/fetcher"
 	"github.com/fabianoflorentino/certificate-validate/internal/formatter"
+	"github.com/fabianoflorentino/certificate-validate/internal/metrics"
+	"github.com/fabianoflorentino/certificate-validate/internal/notifier"
 	"github.com/spf13/cobra"
 )
 
@@ -29,6 +32,27 @@ via HTTP endpoints.`,
 		fmtter := formatter.New()
 		c := checker.New(f, fmtter)
 		h := api.New(c, cfg)
+
+		ctx, cancel := context.WithCancel(cmd.Context())
+		defer cancel()
+
+		if cfg.Prometheus.Enabled {
+			hosts := toCheckerHosts(cfg.Hosts)
+			metrics.StartUpdater(ctx, c, hosts, time.Duration(cfg.CheckTime)*time.Second)
+			log.Println("Prometheus metrics enabled")
+		}
+
+		if cfg.Webhook.URL != "" {
+			hosts := toCheckerHosts(cfg.Hosts)
+			n := notifier.New(notifier.Config{
+				URL:       cfg.Webhook.URL,
+				Threshold: cfg.Webhook.Threshold,
+				Interval:  time.Duration(cfg.Webhook.Interval) * time.Second,
+			}, c, hosts)
+			n.Start(ctx)
+			log.Printf("Webhook notifier enabled (threshold: %d days, interval: %ds)",
+				cfg.Webhook.Threshold, cfg.Webhook.Interval)
+		}
 
 		addr := fmt.Sprintf("%s:%s", getAPIHost(cfg), getAPIPort(cfg))
 		log.Printf("Starting API server on %s", addr)
@@ -65,4 +89,16 @@ func getAPIPort(cfg *config.Config) string {
 		}
 	}
 	return "5000"
+}
+
+func toCheckerHosts(cfgHosts []config.HostConfig) []checker.Host {
+	hosts := make([]checker.Host, 0, len(cfgHosts))
+	for _, h := range cfgHosts {
+		hosts = append(hosts, checker.Host{
+			Hostname: h.URL,
+			Port:     h.PortInt(),
+			Name:     h.Name,
+		})
+	}
+	return hosts
 }

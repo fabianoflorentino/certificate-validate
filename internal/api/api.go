@@ -15,6 +15,7 @@ import (
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
 	"github.com/fabianoflorentino/certificate-validate/internal/checker"
 	"github.com/fabianoflorentino/certificate-validate/internal/config"
+	"github.com/fabianoflorentino/certificate-validate/internal/metrics"
 )
 
 //go:embed static/*
@@ -44,6 +45,10 @@ func (h *Handler) Router() http.Handler {
 	mux.HandleFunc("GET /api/v1/cert/export/json", h.handleExportJSON)
 	mux.HandleFunc("GET /api/v1/cert/export/csv", h.handleExportCSV)
 
+	if h.cfg.Prometheus.Enabled {
+		mux.Handle("GET /metrics", metrics.Handler())
+	}
+
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {
 		log.Printf("failed to init static file server: %v", err)
@@ -68,6 +73,10 @@ func (h *Handler) handleAll(w http.ResponseWriter, r *http.Request) {
 	errMessages := make([]string, 0, len(errs))
 	for _, err := range errs {
 		errMessages = append(errMessages, err.Error())
+	}
+
+	if h.cfg.Prometheus.Enabled {
+		metrics.UpdateFromJSON(certs)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
