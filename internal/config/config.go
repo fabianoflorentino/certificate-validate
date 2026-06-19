@@ -10,9 +10,24 @@ import (
 
 // Config represents the application configuration from settings.yml.
 type Config struct {
-	CheckTime  int          `yaml:"check_time"`
-	AppConfigs []AppConfig  `yaml:"app_configs"`
-	Hosts      []HostConfig `yaml:"hosts"`
+	CheckTime  int            `yaml:"check_time"`
+	AppConfigs []AppConfig    `yaml:"app_configs"`
+	Hosts      []HostConfig   `yaml:"hosts"`
+	Prometheus PrometheusConf `yaml:"prometheus"`
+	Webhook    WebhookConf    `yaml:"webhook"`
+}
+
+// PrometheusConf controls Prometheus metrics exposition.
+type PrometheusConf struct {
+	Enabled bool   `yaml:"enabled"`
+	Address string `yaml:"address"`
+}
+
+// WebhookConf controls webhook alert notifications.
+type WebhookConf struct {
+	URL       string `yaml:"url"`
+	Threshold int    `yaml:"threshold"`
+	Interval  int    `yaml:"interval"`
 }
 
 // HostConfig represents a single host entry to check.
