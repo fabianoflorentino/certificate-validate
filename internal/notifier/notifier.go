@@ -33,13 +33,13 @@ type Notifier struct {
 }
 
 type alertPayload struct {
-	Hostname  string `json:"hostname"`
-	Port      int    `json:"port"`
+	Hostname   string `json:"hostname"`
+	Port       int    `json:"port"`
 	CommonName string `json:"commonName"`
-	Issuer    string `json:"issuer"`
-	DaysLeft  int    `json:"daysLeft"`
-	Threshold int    `json:"threshold"`
-	Message   string `json:"message"`
+	Issuer     string `json:"issuer"`
+	DaysLeft   int    `json:"daysLeft"`
+	Threshold  int    `json:"threshold"`
+	Message    string `json:"message"`
 }
 
 // New creates a new Notifier.
