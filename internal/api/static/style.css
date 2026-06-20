@@ -538,6 +538,87 @@ body {
 .status-dot.status-warn { background: var(--yellow); }
 .status-dot.status-critical { background: var(--red); }
 
+/* Detail sections (TLS, Chain) */
+.detail-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.detail-section-title {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+}
+
+/* Certificate chain breadcrumb */
+.chain-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.chain-arrow {
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    line-height: 1;
+    padding: 0.15rem 0;
+}
+
+.chain-entry {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.75rem;
+}
+
+.chain-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.chain-label {
+    display: inline-block;
+    padding: 0.08rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    flex-shrink: 0;
+}
+
+.chain-fingerprint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: monospace;
+}
+
+.chain-meta {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.chain-subject {
+    font-weight: 500;
+    color: var(--text);
+}
+
+.chain-detail {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header-right {

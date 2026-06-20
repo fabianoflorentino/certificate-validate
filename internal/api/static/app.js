@@ -191,6 +191,55 @@ function showModal(cert) {
             '</div>';
     }
 
+    var tlsHtml = '';
+    if (cert.tlsVersion || cert.cipherSuite) {
+        tlsHtml =
+            '<div class="detail-section">' +
+                '<span class="detail-section-title">Connection Security</span>' +
+                '<div class="detail-row">' +
+                    '<span class="detail-label">TLS Version</span>' +
+                    '<span class="detail-value">' + esc(cert.tlsVersion || '—') + '</span>' +
+                '</div>' +
+                '<div class="detail-row">' +
+                    '<span class="detail-label">Cipher Suite</span>' +
+                    '<span class="detail-value"><code>' + esc(cert.cipherSuite || '—') + '</code></span>' +
+                '</div>' +
+            '</div>';
+    }
+
+    var chainHtml = '';
+    if (cert.chain && cert.chain.length > 0) {
+        var items = [];
+        for (var i = cert.chain.length - 1; i >= 0; i--) {
+            var entry = cert.chain[i];
+            var label = i === 0 ? 'Leaf' : i === cert.chain.length - 1 ? 'Root' : 'Intermediate';
+            var arrow = i < cert.chain.length - 1 ? '<div class="chain-arrow">\u25BC</div>' : '';
+            items.push(
+                arrow +
+                '<div class="chain-entry">' +
+                    '<div class="chain-entry-header">' +
+                        '<span class="chain-label">' + label + '</span>' +
+                        '<code class="chain-fingerprint">' + esc(entry.fingerprint.substring(0, 16)) + '&hellip;</code>' +
+                    '</div>' +
+                    '<div class="chain-meta">' +
+                        '<span class="chain-subject">' + esc(entry.subject) + '</span>' +
+                    '</div>' +
+                    '<div class="chain-meta">' +
+                        '<span class="chain-detail">Issued by: ' + esc(entry.issuer) + '</span>' +
+                    '</div>' +
+                    '<div class="chain-meta">' +
+                        '<span class="chain-detail">Expires: ' + esc(entry.notAfter) + '</span>' +
+                    '</div>' +
+                '</div>'
+            );
+        }
+        chainHtml =
+            '<div class="detail-section">' +
+                '<span class="detail-section-title">Certificate Chain</span>' +
+                '<div class="chain-nav">' + items.join('') + '</div>' +
+            '</div>';
+    }
+
     body.innerHTML =
         '<div class="detail-grid">' +
             '<div class="detail-row">' +
@@ -233,6 +282,8 @@ function showModal(cert) {
                 '<span class="detail-value">' + sansHtml + '</span>' +
             '</div>' +
             crlHtml +
+            tlsHtml +
+            chainHtml +
         '</div>';
 
     modal.classList.remove('hidden');
