@@ -226,6 +226,7 @@ func (h *Handler) handleExportCSV(w http.ResponseWriter, r *http.Request) {
 	csvWriter.Write([]string{
 		"Hostname", "Port", "Common Name", "Issuer", "Type",
 		"Days Left", "Not Before", "Not After", "Subject Alt Names",
+		"TLS Version", "Cipher Suite",
 	})
 
 	for _, cert := range certs {
@@ -239,6 +240,8 @@ func (h *Handler) handleExportCSV(w http.ResponseWriter, r *http.Request) {
 			cert.NotBefore,
 			cert.NotAfter,
 			strings.Join(cert.SubjectAltNames, "; "),
+			cert.TLSVersion,
+			cert.CipherSuite,
 		})
 	}
 	csvWriter.Flush()
