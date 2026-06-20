@@ -117,9 +117,12 @@ docker/stop: ## Stop the running container
 docker/rm: docker/stop ## Remove the container
 	-docker rm $(BINARY_NAME)
 
-.PHONY: docker/clean
-docker/clean: ## Remove the Docker image
+.PHONY: docker/rmi
+docker/rmi: ## Remove the Docker image
 	-docker rmi $(DOCKER_IMAGE):$(DOCKER_TAG)
+
+.PHONY: docker/clean
+docker/clean: docker/rm docker/rmi ## Remove container and image (full cleanup)
 
 # ---- Docker Compose --------------------------------------------------------
 

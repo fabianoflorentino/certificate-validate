@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: fabianoflorentino/certificate-validate:latest
     container_name: certificate-validate
     ports:
       - "5000:5000"
