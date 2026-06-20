@@ -49,10 +49,16 @@ func (f *tlsFetcher) Fetch(ctx context.Context, hostname string, port int) (*cer
 	}
 	defer conn.Close()
 
-	certs := conn.ConnectionState().PeerCertificates
+	cs := conn.ConnectionState()
+	certs := cs.PeerCertificates
 	if len(certs) == 0 {
 		return nil, fmt.Errorf("%w: %s:%d", certificate.ErrNoCertificate, hostname, port)
 	}
 
-	return certificate.FromX509(certs[0], hostname, port), nil
+	cert := certificate.FromX509(certs[0], hostname, port)
+	cert.TLSVersion = certificate.TLSVersionString(cs.Version)
+	cert.CipherSuite = tls.CipherSuiteName(cs.CipherSuite)
+	cert.Chain = certificate.BuildChain(certs)
+
+	return cert, nil
 }

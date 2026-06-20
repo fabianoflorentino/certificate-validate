@@ -1,24 +1,38 @@
 package certificate
 
 import (
+	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/asn1"
+	"fmt"
 	"net"
 	"time"
 )
 
+// ChainEntry represents a single certificate in the chain.
+type ChainEntry struct {
+	Subject     string `json:"subject"`
+	Issuer      string `json:"issuer"`
+	NotAfter    string `json:"notAfter"`
+	Fingerprint string `json:"fingerprint"`
+}
+
 // Certificate represents the extracted information from an SSL/TLS certificate.
 type Certificate struct {
-	CommonName            string   `json:"commonName"`
-	SubjectAltNames       []string `json:"subjectAltName"`
-	Issuer                string   `json:"issuer"`
-	Type                  string   `json:"type"`
-	NotBefore             string   `json:"notBefore"`
-	NotAfter              string   `json:"notAfter"`
-	DaysLeft              int      `json:"daysLeft"`
-	CRLDistributionPoints []string `json:"crl"`
-	Hostname              string   `json:"hostname"`
-	Port                  int      `json:"port"`
+	CommonName            string       `json:"commonName"`
+	SubjectAltNames       []string     `json:"subjectAltName"`
+	Issuer                string       `json:"issuer"`
+	Type                  string       `json:"type"`
+	NotBefore             string       `json:"notBefore"`
+	NotAfter              string       `json:"notAfter"`
+	DaysLeft              int          `json:"daysLeft"`
+	CRLDistributionPoints []string     `json:"crl"`
+	Hostname              string       `json:"hostname"`
+	Port                  int          `json:"port"`
+	TLSVersion            string       `json:"tlsVersion"`
+	CipherSuite           string       `json:"cipherSuite"`
+	Chain                 []ChainEntry `json:"chain"`
 }
 
 var oidCertTypes = map[string]string{
@@ -44,6 +58,41 @@ func FromX509(cert *x509.Certificate, hostname string, port int) *Certificate {
 		Hostname:              hostname,
 		Port:                  port,
 	}
+}
+
+// BuildChain builds a ChainEntry slice from peer certificates.
+func BuildChain(peerCerts []*x509.Certificate) []ChainEntry {
+	chain := make([]ChainEntry, 0, len(peerCerts))
+	for _, c := range peerCerts {
+		chain = append(chain, ChainEntry{
+			Subject:     c.Subject.String(),
+			Issuer:      c.Issuer.String(),
+			NotAfter:    c.NotAfter.Format("2006-01-02 15:04:05"),
+			Fingerprint: fingerprintSHA256(c),
+		})
+	}
+	return chain
+}
+
+// TLSVersionString converts a tls version constant to a readable string.
+func TLSVersionString(version uint16) string {
+	switch version {
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+	case tls.VersionTLS11:
+		return "TLS 1.1"
+	case tls.VersionTLS10:
+		return "TLS 1.0"
+	default:
+		return fmt.Sprintf("TLS 0x%04X", version)
+	}
+}
+
+func fingerprintSHA256(cert *x509.Certificate) string {
+	h := sha256.Sum256(cert.Raw)
+	return fmt.Sprintf("%x", h)
 }
 
 // HasExpired checks whether the certificate has already expired.
