@@ -27,8 +27,21 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
+    - name: Lint with golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+
     - name: Lint with go vet
       run: go vet ./...
+
+    - name: Test with coverage
+      run: go test -race -count=1 -coverprofile=coverage.out ./...
+
+    - name: Check coverage ≥ 80%
+      run: |
+        go tool cover -func=coverage.out | grep total | \
+          awk '{print $3}' | awk -F'%' '{if ($1 < 80) exit 1}'
 
     - name: Build check
       run: go build ./...

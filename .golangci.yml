@@ -1,0 +1,32 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - misspell
+    - unconvert
+    - gocritic
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+    gocritic:
+      enabled-tags:
+        - performance
+        - style
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

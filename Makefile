@@ -55,6 +55,11 @@ test/cover: ## Run tests with coverage and open HTML report
 		$(GO) tool cover -html=coverage.out -o coverage.html && \
 		echo "Coverage report: file://$(PWD)/coverage.html"
 
+.PHONY: test/cover/check
+test/cover/check: test/cover ## Run tests with coverage and verify ≥ 80%
+	@go tool cover -func=coverage.out | grep total | \
+		awk '{print $$3}' | awk -F'%' '{if ($$1 < 80) {printf "FAIL: coverage %.1f%% < 80%%\n", $$1; exit 1} else {printf "PASS: coverage %.1f%%\n", $$1}}'
+
 .PHONY: test/cover/func
 test/cover/func: test/cover ## Run tests with coverage and show per-function breakdown
 	$(GO) tool cover -func=coverage.out
