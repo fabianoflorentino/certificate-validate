@@ -619,6 +619,55 @@ body {
     color: var(--text-muted);
 }
 
+/* History Chart */
+.chart-container {
+    position: relative;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.history-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.chart-loading,
+.chart-empty {
+    text-align: center;
+    padding: 1.5rem 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.65rem;
+    box-shadow: var(--shadow-hover);
+    white-space: nowrap;
+    z-index: 10;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    transition: opacity 0.1s;
+}
+
+.chart-tooltip.hidden {
+    opacity: 0;
+}
+
+.chart-tip-date {
+    color: var(--text-secondary);
+}
+
+.chart-tip-days {
+    font-weight: 600;
+    color: var(--text);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header-right {

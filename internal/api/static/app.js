@@ -284,9 +284,205 @@ function showModal(cert) {
             crlHtml +
             tlsHtml +
             chainHtml +
+            '<div id="historyChart" class="detail-section">' +
+                '<span class="detail-section-title">Days Left History</span>' +
+                '<div class="chart-container"><div class="chart-loading">Loading history...</div></div>' +
+            '</div>' +
         '</div>';
 
     modal.classList.remove('hidden');
+
+    fetchHistoryChart(cert.hostname);
+}
+
+function fetchHistoryChart(hostname) {
+    var container = document.querySelector('#historyChart .chart-container');
+    if (!container) return;
+
+    fetch(API_BASE + '/history/' + encodeURIComponent(hostname))
+        .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function (entries) {
+            if (!entries || entries.length === 0) {
+                container.innerHTML = '<div class="chart-empty">No history data yet.</div>';
+                return;
+            }
+            renderSVGChart(entries, container);
+        })
+        .catch(function (err) {
+            container.innerHTML = '<div class="chart-empty">History unavailable: ' + err.message + '</div>';
+        });
+}
+
+function renderSVGChart(entries, container) {
+    var data = entries.slice(0, 30).reverse();
+
+    if (data.length < 2) {
+        container.innerHTML = '<div class="chart-empty">Need at least 2 data points.</div>';
+        return;
+    }
+
+    var W = 500;
+    var H = 160;
+    var PAD = { top: 8, right: 8, bottom: 28, left: 36 };
+    var innerW = W - PAD.left - PAD.right;
+    var innerH = H - PAD.top - PAD.bottom;
+
+    var minDays = Infinity;
+    var maxDays = -Infinity;
+    for (var i = 0; i < data.length; i++) {
+        var d = data[i].daysLeft;
+        if (d < minDays) minDays = d;
+        if (d > maxDays) maxDays = d;
+    }
+    var range = maxDays - minDays || 1;
+    var yPad = range * 0.1;
+    var yMin = Math.max(0, minDays - yPad);
+    var yMax = maxDays + yPad;
+
+    function xPos(i) {
+        return PAD.left + (i / (data.length - 1)) * innerW;
+    }
+
+    function yPos(v) {
+        return PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+    }
+
+    var pts = [];
+    for (var i = 0; i < data.length; i++) {
+        pts.push(xPos(i).toFixed(1) + ',' + yPos(data[i].daysLeft).toFixed(1));
+    }
+
+    function fmtDate(ts) {
+        var d = new Date(ts);
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    var yTicks = [];
+    var step = (yMax - yMin) / 3;
+    for (var t = yMin; t <= yMax + 0.1; t += step) {
+        yTicks.push(Math.round(t));
+    }
+
+    var xTickCount = Math.min(5, data.length);
+    var xStep = Math.max(1, Math.floor((data.length - 1) / (xTickCount - 1)));
+    var xTicks = [];
+    for (var i = 0; i < data.length; i += xStep) {
+        xTicks.push(i);
+    }
+    if (xTicks[xTicks.length - 1] !== data.length - 1) {
+        xTicks.push(data.length - 1);
+    }
+
+    var tooltip = document.createElement('div');
+    tooltip.className = 'chart-tooltip hidden';
+
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('class', 'history-svg');
+
+    for (var t = 0; t < yTicks.length; t++) {
+        var y = yPos(yTicks[t]);
+        var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', PAD.left);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', PAD.left + innerW);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', 'var(--border)');
+        line.setAttribute('stroke-width', '0.5');
+        svg.appendChild(line);
+
+        var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', PAD.left - 4);
+        label.setAttribute('y', y + 3);
+        label.setAttribute('text-anchor', 'end');
+        label.setAttribute('fill', 'var(--text-muted)');
+        label.setAttribute('font-size', '9');
+        label.textContent = yTicks[t];
+        svg.appendChild(label);
+    }
+
+    for (var t = 0; t < xTicks.length; t++) {
+        var i = xTicks[t];
+        var x = xPos(i);
+        var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x);
+        label.setAttribute('y', H - 4);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('fill', 'var(--text-muted)');
+        label.setAttribute('font-size', '8');
+        label.textContent = fmtDate(data[i].timestamp);
+        svg.appendChild(label);
+    }
+
+    var areaPts = pts.slice();
+    areaPts.push((PAD.left + innerW).toFixed(1) + ',' + yPos(yMin).toFixed(1));
+    areaPts.push(PAD.left.toFixed(1) + ',' + yPos(yMin).toFixed(1));
+    var area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    area.setAttribute('points', areaPts.join(' '));
+    area.setAttribute('fill', 'var(--primary)');
+    area.setAttribute('opacity', '0.1');
+    svg.appendChild(area);
+
+    var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', pts.join(' '));
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', 'var(--primary)');
+    polyline.setAttribute('stroke-width', '1.5');
+    polyline.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(polyline);
+
+    for (var i = 0; i < data.length; i++) {
+        var cx = xPos(i);
+        var cy = yPos(data[i].daysLeft);
+        var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', cx);
+        circle.setAttribute('cy', cy);
+        circle.setAttribute('r', '2.5');
+        circle.setAttribute('fill', 'var(--primary)');
+        svg.appendChild(circle);
+    }
+
+    var overlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    overlay.setAttribute('x', PAD.left);
+    overlay.setAttribute('y', PAD.top);
+    overlay.setAttribute('width', innerW);
+    overlay.setAttribute('height', innerH);
+    overlay.setAttribute('fill', 'transparent');
+    overlay.addEventListener('mousemove', function (e) {
+        var rect = svg.getBoundingClientRect();
+        var chartX = (e.clientX - rect.left) / rect.width * W;
+        var relX = chartX - PAD.left;
+        var idx = Math.max(0, Math.min(data.length - 1, Math.round((relX / innerW) * (data.length - 1))));
+
+        showTooltip(tooltip, data[idx], xPos(idx), yPos(data[idx].daysLeft), svg, container);
+    });
+    overlay.addEventListener('mouseleave', function () {
+        tooltip.classList.add('hidden');
+    });
+    svg.appendChild(overlay);
+
+    container.innerHTML = '';
+    container.appendChild(svg);
+    container.appendChild(tooltip);
+}
+
+function showTooltip(tooltip, entry, cx, cy, svg, container) {
+    tooltip.innerHTML =
+        '<div class="chart-tip-date">' + new Date(entry.timestamp).toLocaleString() + '</div>' +
+        '<div class="chart-tip-days">' + entry.daysLeft + ' days left</div>';
+    tooltip.classList.remove('hidden');
+
+    var svgRect = svg.getBoundingClientRect();
+    var contRect = container.getBoundingClientRect();
+    var scale = svgRect.width / 500;
+    var tx = (cx * scale) + svgRect.left - contRect.left;
+    var ty = (cy * scale) + svgRect.top - contRect.top;
+
+    tooltip.style.left = Math.min(tx - tooltip.offsetWidth / 2, contRect.width - tooltip.offsetWidth - 4) + 'px';
+    tooltip.style.top = Math.max(ty - tooltip.offsetHeight - 10, 4) + 'px';
 }
 
 function closeModal(event) {

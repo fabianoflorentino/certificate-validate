@@ -671,4 +671,16 @@ func (c *Counter) Increment() { c.n++ }        // Pointer receiver
 // Pick one style and be consistent
 ```
 
-**Remember**: Go code should be boring in the best way - predictable, consistent, and easy to understand. When in doubt, keep it simple.
+## Test Coverage Requirement
+
+**PROJECT-WIDE MANDATE**: Total project test coverage MUST be **≥ 80%**.
+
+Every `internal/` package must have meaningful test coverage:
+- **Domain logic** (`certificate/`, `config/`): ≥ 95%
+- **Use cases / services** (`service/`, `checker/`): ≥ 90%
+- **Providers** (`fetcher/`, `formatter/`, `history/`, `metrics/`, `notifier/`): ≥ 80%
+- **Interfaces** (`api/`, `cmd/`): ≥ 70% (CLI bootstrap is the only acceptable low-coverage area)
+
+Run `go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out` to verify before shipping.
+
+**Remember**: Go code should be boring in the best way - predictable, consistent, and easy to understand. When in doubt, keep it simple. And keep it covered.

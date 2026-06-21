@@ -549,6 +549,8 @@ go test -race -coverprofile=coverage.out ./...
 | General code | 80%+ |
 | Generated code | Exclude |
 
+**PROJECT-WIDE REQUIREMENT**: Total project coverage MUST be **≥ 80%**. Every `internal/` package must have meaningful test coverage. CLI bootstrap (`cmd/`) is the only acceptable low-coverage exception. All domain, service, provider, and interface packages must meet their individual targets.
+
 ### Excluding Generated Code from Coverage
 
 ```go

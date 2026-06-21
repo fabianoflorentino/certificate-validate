@@ -17,6 +17,12 @@ webhook:
   threshold: 15  # alert when days left drops below this
   interval: 1800 # check every 30 minutes
 
+history:
+  enabled: true
+  file_path: "data/history.jsonl"
+  max_entries: 10000
+  max_days: 90
+
 hosts:
   - name: "GitHub"
     url: 'github.com'
