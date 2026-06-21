@@ -1,0 +1,254 @@
+openapi: "3.0.3"
+info:
+  title: Certificate Validate API
+  description: REST API for SSL/TLS certificate inspection
+  version: "1.0.0"
+  contact:
+    name: Fabiano Florentino
+    url: https://github.com/fabianoflorentino/certificate-validate
+
+servers:
+  - url: http://localhost:5000
+    description: Local development
+  - url: https://localhost:5000
+    description: Local development (TLS)
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/v1/cert/info/all:
+    get:
+      summary: Get all certificates
+      description: Fetch certificate information for all configured hosts
+      operationId: getAllCertificates
+      responses:
+        "200":
+          description: Certificate data for all hosts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckResult"
+
+  /api/v1/cert/info/{hostname}:
+    get:
+      summary: Get certificate by hostname
+      description: Fetch certificate info for a specific host
+      operationId: getCertificateByHostname
+      parameters:
+        - name: hostname
+          in: path
+          required: true
+          schema:
+            type: string
+          example: github.com
+      responses:
+        "200":
+          description: Certificate data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Certificate"
+        "400":
+          description: Hostname is required
+        "404":
+          description: Host not found in configuration
+        "502":
+          description: Failed to fetch certificate
+
+  /api/v1/cert/info/commonName:
+    get:
+      summary: Get all common names
+      description: Returns a map of hostname to common name for all hosts
+      operationId: getCommonNames
+      responses:
+        "200":
+          description: Hostname to common name mapping
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+                example:
+                  github.com: "*.github.com"
+                  gitlab.com: "*.gitlab.com"
+
+  /api/v1/cert/info/subjectAltName:
+    get:
+      summary: Get all subject alternative names
+      description: Returns a map of hostname to SAN list for all hosts
+      operationId: getSubjectAltNames
+      responses:
+        "200":
+          description: Hostname to SAN list mapping
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+                example:
+                  github.com:
+                    - github.com
+                    - www.github.com
+
+  /api/v1/cert/export/json:
+    get:
+      summary: Export certificates as JSON file
+      operationId: exportCertificatesJSON
+      responses:
+        "200":
+          description: JSON file download
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  certificates:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Certificate"
+                  errors:
+                    type: array
+                    items:
+                      type: string
+
+  /api/v1/cert/export/csv:
+    get:
+      summary: Export certificates as CSV file
+      operationId: exportCertificatesCSV
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+                example: "Hostname,Port,Common Name,Issuer,Type,Days Left,Not Before,Not After,Subject Alt Names\n"
+
+  /api/v1/cert/history/{hostname}:
+    get:
+      summary: Get certificate history for a hostname
+      operationId: getCertificateHistory
+      parameters:
+        - name: hostname
+          in: path
+          required: true
+          schema:
+            type: string
+          example: github.com
+      responses:
+        "200":
+          description: History entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoryEntry"
+        "404":
+          description: History not enabled or host not found
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Exposes Prometheus metrics (only available when prometheus is enabled)
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus metrics in text format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    Certificate:
+      type: object
+      properties:
+        commonName:
+          type: string
+          example: "github.com"
+        subjectAltName:
+          type: array
+          items:
+            type: string
+          example:
+            - github.com
+            - www.github.com
+        issuer:
+          type: string
+          example: "DigiCert TLS RSA SHA256 2020 CA1"
+        type:
+          type: string
+          example: "Domain Validation (DV) Web Server SSL Digital Certificate"
+        notBefore:
+          type: string
+          format: date-time
+          example: "2024-01-01 00:00:00"
+        notAfter:
+          type: string
+          format: date-time
+          example: "2025-01-01 23:59:59"
+        daysLeft:
+          type: integer
+          example: 365
+        crl:
+          type: string
+          nullable: true
+          example: null
+        hostname:
+          type: string
+          example: github.com
+        port:
+          type: integer
+          example: 443
+        tlsVersion:
+          type: string
+          example: "TLS 1.3"
+        cipherSuite:
+          type: string
+          example: "TLS_AES_128_GCM_SHA256"
+
+    CheckResult:
+      type: object
+      properties:
+        certificates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Certificate"
+        errors:
+          type: array
+          items:
+            type: string
+
+    HistoryEntry:
+      type: object
+      properties:
+        host:
+          type: string
+          example: github.com
+        daysLeft:
+          type: integer
+          example: 365
+        ts:
+          type: string
+          format: date-time
+          example: "2025-06-21T10:00:00Z"

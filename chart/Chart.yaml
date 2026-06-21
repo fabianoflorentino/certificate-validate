@@ -1,0 +1,18 @@
+apiVersion: v2
+name: certificate-validate
+description: A Helm chart for Kubernetes deployment of certificate-validate
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - ssl
+  - tls
+  - certificate
+  - validation
+  - monitoring
+home: https://github.com/fabianoflorentino/certificate-validate
+sources:
+  - https://github.com/fabianoflorentino/certificate-validate
+maintainers:
+  - name: Fabiano Florentino
+    url: https://github.com/fabianoflorentino

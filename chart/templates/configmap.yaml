@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "certificate-validate.fullname" . }}-config
+  labels:
+    {{- include "certificate-validate.labels" . | nindent 4 }}
+data:
+  settings.yml: |
+    check_time: {{ .Values.config.check_time }}
+
+    hosts:
+    {{- range .Values.config.hosts }}
+      - name: "{{ .name }}"
+        url: "{{ .url }}"
+        port: "{{ .port }}"
+    {{- end }}
+
+    history:
+      enabled: {{ .Values.config.history.enabled }}
+      file_path: "{{ .Values.config.history.filePath }}"
+      max_entries: {{ .Values.config.history.maxEntries }}
+      max_days: {{ .Values.config.history.maxDays }}
+
+    prometheus:
+      enabled: {{ .Values.config.prometheus.enabled }}
+
+    webhook:
+      url: "{{ .Values.config.webhook.url }}"
+      threshold: {{ .Values.config.webhook.threshold }}
+      interval: {{ .Values.config.webhook.interval }}
