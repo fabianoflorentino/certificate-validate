@@ -3,6 +3,7 @@ package fetcher
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
+	"github.com/fabianoflorentino/certificate-validate/internal/revocation"
 )
 
 // Fetcher fetches SSL/TLS certificate information from a host.
@@ -59,6 +61,15 @@ func (f *tlsFetcher) Fetch(ctx context.Context, hostname string, port int) (*cer
 	cert.TLSVersion = certificate.TLSVersionString(cs.Version)
 	cert.CipherSuite = tls.CipherSuiteName(cs.CipherSuite)
 	cert.Chain = certificate.BuildChain(certs)
+
+	// Perform best-effort revocation check.
+	var issuer *x509.Certificate
+	if len(certs) > 1 {
+		issuer = certs[1]
+	}
+	status := revocation.Check(certs[0], issuer, certs[0].OCSPServer, certs[0].CRLDistributionPoints)
+	cert.RevocationStatus = status
+	revocation.LogRevocation(cert, status)
 
 	return cert, nil
 }

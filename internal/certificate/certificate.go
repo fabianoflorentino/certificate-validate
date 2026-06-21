@@ -18,21 +18,33 @@ type ChainEntry struct {
 	Fingerprint string `json:"fingerprint"`
 }
 
+// RevocationStatus represents the revocation status of a certificate.
+type RevocationStatus string
+
+const (
+	RevocationUnknown  RevocationStatus = "unknown"
+	RevocationGood     RevocationStatus = "good"
+	RevocationRevoked  RevocationStatus = "revoked"
+	RevocationNotReady RevocationStatus = "not_ready"
+)
+
 // Certificate represents the extracted information from an SSL/TLS certificate.
 type Certificate struct {
-	CommonName            string       `json:"commonName"`
-	SubjectAltNames       []string     `json:"subjectAltName"`
-	Issuer                string       `json:"issuer"`
-	Type                  string       `json:"type"`
-	NotBefore             string       `json:"notBefore"`
-	NotAfter              string       `json:"notAfter"`
-	DaysLeft              int          `json:"daysLeft"`
-	CRLDistributionPoints []string     `json:"crl"`
-	Hostname              string       `json:"hostname"`
-	Port                  int          `json:"port"`
-	TLSVersion            string       `json:"tlsVersion"`
-	CipherSuite           string       `json:"cipherSuite"`
-	Chain                 []ChainEntry `json:"chain"`
+	CommonName            string           `json:"commonName"`
+	SubjectAltNames       []string         `json:"subjectAltName"`
+	Issuer                string           `json:"issuer"`
+	Type                  string           `json:"type"`
+	NotBefore             string           `json:"notBefore"`
+	NotAfter              string           `json:"notAfter"`
+	DaysLeft              int              `json:"daysLeft"`
+	CRLDistributionPoints []string         `json:"crl"`
+	OCSPServer            []string         `json:"ocsp"`
+	RevocationStatus      RevocationStatus `json:"revocationStatus"`
+	Hostname              string           `json:"hostname"`
+	Port                  int              `json:"port"`
+	TLSVersion            string           `json:"tlsVersion"`
+	CipherSuite           string           `json:"cipherSuite"`
+	Chain                 []ChainEntry     `json:"chain"`
 }
 
 var oidCertTypes = map[string]string{
@@ -55,6 +67,8 @@ func FromX509(cert *x509.Certificate, hostname string, port int) *Certificate {
 		NotAfter:              cert.NotAfter.Format("2006-01-02 15:04:05"),
 		DaysLeft:              daysUntil(cert.NotAfter),
 		CRLDistributionPoints: cert.CRLDistributionPoints,
+		OCSPServer:            cert.OCSPServer,
+		RevocationStatus:      RevocationUnknown,
 		Hostname:              hostname,
 		Port:                  port,
 	}
