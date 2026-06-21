@@ -2,8 +2,7 @@ package metrics
 
 import (
 	"context"
-	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
 	"github.com/fabianoflorentino/certificate-validate/internal/checker"
 )
 
@@ -32,20 +32,10 @@ var (
 	)
 )
 
-type certSnapshot struct {
-	Hostname string `json:"hostname"`
-	Port     int    `json:"port"`
-	DaysLeft int    `json:"daysLeft"`
-}
-
-// UpdateFromJSON updates Prometheus gauges from a batch of JSON-encoded certificates.
-func UpdateFromJSON(results []json.RawMessage) {
-	for _, data := range results {
-		if data == nil {
-			continue
-		}
-		var c certSnapshot
-		if err := json.Unmarshal(data, &c); err != nil {
+// Update updates Prometheus gauges from certificate results.
+func Update(certs []*certificate.Certificate) {
+	for _, c := range certs {
+		if c == nil {
 			continue
 		}
 		setGauges(c.Hostname, c.Port, c.DaysLeft)
@@ -53,7 +43,7 @@ func UpdateFromJSON(results []json.RawMessage) {
 }
 
 // StartUpdater periodically fetches certificates in the background and updates Prometheus gauges.
-func StartUpdater(ctx context.Context, c *checker.Checker, hosts []checker.Host, interval time.Duration) {
+func StartUpdater(ctx context.Context, c checker.CertChecker, hosts []checker.Host, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		updateFromChecker(ctx, c, hosts)
@@ -69,21 +59,17 @@ func StartUpdater(ctx context.Context, c *checker.Checker, hosts []checker.Host,
 	}()
 }
 
-func updateFromChecker(ctx context.Context, c *checker.Checker, hosts []checker.Host) {
+func updateFromChecker(ctx context.Context, c checker.CertChecker, hosts []checker.Host) {
 	checkCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	raw, errs := c.CheckAll(checkCtx, hosts, 10)
+	certs, errs := c.CheckAll(checkCtx, hosts, 10)
 	if len(errs) > 0 {
 		for _, err := range errs {
-			log.Printf("metrics: fetch error: %v", err)
+			slog.Error("metrics fetch error", "error", err)
 		}
 	}
-	msgs := make([]json.RawMessage, 0, len(raw))
-	for _, r := range raw {
-		msgs = append(msgs, json.RawMessage(r))
-	}
-	UpdateFromJSON(msgs)
+	Update(certs)
 }
 
 func setGauges(hostname string, port, daysLeft int) {

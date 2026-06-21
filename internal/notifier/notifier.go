@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -24,7 +24,7 @@ type Config struct {
 // Notifier sends webhook alerts when certificates approach expiration.
 type Notifier struct {
 	cfg     Config
-	checker *checker.Checker
+	checker checker.CertChecker
 	hosts   []checker.Host
 	client  *http.Client
 
@@ -43,7 +43,7 @@ type alertPayload struct {
 }
 
 // New creates a new Notifier.
-func New(cfg Config, c *checker.Checker, hosts []checker.Host) *Notifier {
+func New(cfg Config, c checker.CertChecker, hosts []checker.Host) *Notifier {
 	return &Notifier{
 		cfg:         cfg,
 		checker:     c,
@@ -80,7 +80,7 @@ func (n *Notifier) checkAndAlert(ctx context.Context) {
 
 		cert, err := n.checker.Check(ctx, h.Hostname, h.Port)
 		if err != nil {
-			log.Printf("notifier: error checking %s:%d - %v", h.Hostname, h.Port, err)
+			slog.Error("notifier check error", "host", h.Hostname, "port", h.Port, "error", err)
 			continue
 		}
 
@@ -99,14 +99,14 @@ func (n *Notifier) checkAndAlert(ctx context.Context) {
 		}
 
 		if err := n.sendAlert(cert); err != nil {
-			log.Printf("notifier: failed to send alert for %s: %v", key, err)
+			slog.Error("notifier alert send failed", "host", key, "error", err)
 			continue
 		}
 
 		n.mu.Lock()
 		n.lastAlerted[key] = time.Now()
 		n.mu.Unlock()
-		log.Printf("notifier: alert sent for %s (%d days left)", key, cert.DaysLeft)
+		slog.Info("notifier alert sent", "host", key, "days_left", cert.DaysLeft)
 	}
 }
 

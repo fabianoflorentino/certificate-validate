@@ -3,8 +3,7 @@ package checker
 import (
 	"context"
 	"fmt"
-	"log"
-	"time"
+	"log/slog"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
 )
@@ -26,6 +25,13 @@ type Formatter interface {
 	Format(cert *certificate.Certificate) ([]byte, error)
 }
 
+// CertChecker is the interface for checking certificate expiration.
+// Consumers (api, notifier, metrics) depend on this, not on the concrete Checker.
+type CertChecker interface {
+	Check(ctx context.Context, hostname string, port int) (*certificate.Certificate, error)
+	CheckAll(ctx context.Context, hosts []Host, maxParallel int) ([]*certificate.Certificate, []error)
+}
+
 // Checker orchestrates fetching and formatting certificates.
 type Checker struct {
 	fetcher   Fetcher
@@ -40,6 +46,9 @@ func New(fetcher Fetcher, formatter Formatter) *Checker {
 	}
 }
 
+// Compile-time check: *Checker implements CertChecker.
+var _ CertChecker = (*Checker)(nil)
+
 // Check fetches certificate info for a single host.
 func (c *Checker) Check(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
 	return c.fetcher.Fetch(ctx, hostname, port)
@@ -50,14 +59,14 @@ func (c *Checker) Format(cert *certificate.Certificate) ([]byte, error) {
 	return c.formatter.Format(cert)
 }
 
-// CheckAll fetches and formats certificates for multiple hosts concurrently.
-func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) ([][]byte, []error) {
+// CheckAll fetches certificates for multiple hosts concurrently.
+func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) ([]*certificate.Certificate, []error) {
 	if maxParallel <= 0 {
 		maxParallel = 10
 	}
 
 	type res struct {
-		data []byte
+		cert *certificate.Certificate
 		err  error
 		idx  int
 	}
@@ -72,12 +81,11 @@ func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) (
 			defer func() { <-sem }()
 			cert, err := c.fetcher.Fetch(ctx, h.Hostname, h.Port)
 			if err != nil {
-				log.Printf("ERROR: %s:%d - %v", h.Hostname, h.Port, err)
+				slog.Error("check failed", "host", h.Hostname, "port", h.Port, "error", err)
 				results <- res{nil, err, i}
 				return
 			}
-			data, err := c.formatter.Format(cert)
-			results <- res{data, err, i}
+			results <- res{cert, nil, i}
 		}()
 	}
 
@@ -86,35 +94,17 @@ func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) (
 	}
 	close(results)
 
-	out := make([][]byte, len(hosts))
+	out := make([]*certificate.Certificate, len(hosts))
 	var errs []error
 	for r := range results {
 		if r.err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", hosts[r.idx].Hostname, r.err))
 			continue
 		}
-		out[r.idx] = r.data
+		out[r.idx] = r.cert
 	}
 
 	return out, errs
 }
 
-// RunWatchLoop checks all hosts periodically until the context is cancelled.
-func (c *Checker) RunWatchLoop(ctx context.Context, hosts []Host, checkTime time.Duration) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Watch loop stopped.")
-			return
-		default:
-			results, _ := c.CheckAll(ctx, hosts, 0)
-			for _, data := range results {
-				if data != nil {
-					fmt.Println(string(data))
-				}
-			}
-			log.Printf("Waiting %s before next check...", checkTime)
-			time.Sleep(checkTime)
-		}
-	}
-}
+

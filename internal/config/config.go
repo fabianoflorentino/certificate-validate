@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/fabianoflorentino/certificate-validate/internal/checker"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,6 +16,7 @@ type Config struct {
 	Hosts      []HostConfig   `yaml:"hosts"`
 	Prometheus PrometheusConf `yaml:"prometheus"`
 	Webhook    WebhookConf    `yaml:"webhook"`
+	History    HistoryConf    `yaml:"history"`
 }
 
 // PrometheusConf controls Prometheus metrics exposition.
@@ -30,11 +32,20 @@ type WebhookConf struct {
 	Interval  int    `yaml:"interval"`
 }
 
+// HistoryConf controls local history recording.
+type HistoryConf struct {
+	Enabled    bool   `yaml:"enabled"`
+	FilePath   string `yaml:"file_path"`
+	MaxEntries int    `yaml:"max_entries"`
+	MaxDays    int    `yaml:"max_days"`
+}
+
 // HostConfig represents a single host entry to check.
 type HostConfig struct {
-	Name string `yaml:"name"`
-	URL  string `yaml:"url"`
-	Port string `yaml:"port"` // string to support '443' or 443 in YAML
+	Name  string `yaml:"name"`
+	URL   string `yaml:"url"`
+	Port  string `yaml:"port"`
+	Ports []int  `yaml:"ports"`
 }
 
 // AppConfig represents the API application configuration.
@@ -53,6 +64,29 @@ func (h HostConfig) PortInt() int {
 		return 443
 	}
 	return p
+}
+
+// PortInts returns all ports for this host. Falls back to PortInt() if Ports is empty.
+func (h HostConfig) PortInts() []int {
+	if len(h.Ports) > 0 {
+		return h.Ports
+	}
+	return []int{h.PortInt()}
+}
+
+// ToCheckerHosts converts HostConfig entries to checker.Host, expanding multiple ports.
+func ToCheckerHosts(cfgHosts []HostConfig) []checker.Host {
+	var hosts []checker.Host
+	for _, h := range cfgHosts {
+		for _, port := range h.PortInts() {
+			hosts = append(hosts, checker.Host{
+				Hostname: h.URL,
+				Port:     port,
+				Name:     h.Name,
+			})
+		}
+	}
+	return hosts
 }
 
 // Load reads and parses a YAML configuration file.

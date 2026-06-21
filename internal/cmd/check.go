@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -41,14 +42,15 @@ defined in the configuration file. Use --watch to run periodically.`,
 
 		if watch {
 			checkTime := time.Duration(cfg.CheckTime) * time.Second
-			log.Printf("Starting watch loop (interval: %s)", checkTime)
-			app.RunWatchLoop(ctx, hosts, checkTime)
+			slog.Info("starting watch loop", "interval", checkTime)
+			runWatchLoop(ctx, app, hosts, checkTime)
 			return nil
 		}
 
-		results, errs := app.CheckAll(ctx, hosts, 10)
-		for _, data := range results {
-			if data != nil {
+		certs, errs := app.CheckAll(ctx, hosts, 10)
+		for _, c := range certs {
+			if c != nil {
+				data, _ := json.MarshalIndent(c, "", "  ")
 				fmt.Println(string(data))
 			}
 		}
@@ -73,13 +75,26 @@ func buildApp() (*checker.Checker, error) {
 }
 
 func toCheckerHostsFromConfig(cfgHosts []config.HostConfig) []checker.Host {
-	hosts := make([]checker.Host, 0, len(cfgHosts))
-	for _, h := range cfgHosts {
-		hosts = append(hosts, checker.Host{
-			Hostname: h.URL,
-			Port:     h.PortInt(),
-			Name:     h.Name,
-		})
+	return config.ToCheckerHosts(cfgHosts)
+}
+
+func runWatchLoop(ctx context.Context, c checker.CertChecker, hosts []checker.Host, checkTime time.Duration) {
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("watch loop stopped")
+			return
+		default:
+			certs, _ := c.CheckAll(ctx, hosts, 0)
+			for _, cert := range certs {
+				if cert != nil {
+					if data, err := json.MarshalIndent(cert, "", "  "); err == nil {
+						fmt.Println(string(data))
+					}
+				}
+			}
+			slog.Info("waiting before next check", "interval", checkTime)
+			time.Sleep(checkTime)
+		}
 	}
-	return hosts
 }
