@@ -131,3 +131,6 @@ dmypy.json
 
 # OS
 .DS_Store
+certificate-validate
+.gitignore
+coverage.out
