@@ -109,7 +109,7 @@ func tryCRL(ctx context.Context, leaf *x509.Certificate, url string) certificate
 		return certificate.RevocationUnknown
 	}
 
-	revokedCerts := rl.TBSCertList.RevokedCertificates
+	revokedCerts := rl.RevokedCertificateEntries
 	for _, rc := range revokedCerts {
 		if rc.SerialNumber.Cmp(leaf.SerialNumber) == 0 {
 			return certificate.RevocationRevoked
