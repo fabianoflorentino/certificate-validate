@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine3.23 AS build
+FROM golang:1.26-alpine3.24 AS build
 
 WORKDIR /src
 
@@ -7,7 +7,7 @@ COPY . .
 RUN go mod download \
   && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/certificate-validate ./cmd/certificate-validate
 
-FROM alpine:3.23 AS production
+FROM alpine:3.24 AS production
 
 RUN adduser -D -u 1000 appuser
 
