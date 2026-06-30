@@ -27,11 +27,13 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
+    - name: Install golangci-lint
+      run: |
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
     - name: Lint with golangci-lint
-      uses: golangci/golangci-lint-action@v6
-      with:
-        version: latest
-        install-mode: script
+      run: golangci-lint run
 
     - name: Lint with go vet
       run: go vet ./...
