@@ -45,7 +45,9 @@ func tryOCSPServer(ctx context.Context, server string, reqBytes []byte, issuer *
 	if err != nil {
 		return certificate.RevocationUnknown
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return certificate.RevocationUnknown

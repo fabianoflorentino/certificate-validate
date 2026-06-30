@@ -23,7 +23,9 @@ func TestIntegration_HealthEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /health: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -44,10 +46,10 @@ func TestIntegration_AllCertificates(t *testing.T) {
 			certs := make([]*certificate.Certificate, len(hosts))
 			for i, h := range hosts {
 				certs[i] = &certificate.Certificate{
-					Hostname:  h.Hostname,
-					Port:      h.Port,
+					Hostname:   h.Hostname,
+					Port:       h.Port,
 					CommonName: "*.example.com",
-					DaysLeft:  120,
+					DaysLeft:   120,
 				}
 			}
 			return certs, nil
@@ -60,7 +62,7 @@ func TestIntegration_AllCertificates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/info/all: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -103,7 +105,7 @@ func TestIntegration_ByHostname(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/info/example.com: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -126,7 +128,7 @@ func TestIntegration_ByHostname_NotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("got status %d; want 404", resp.StatusCode)
@@ -153,7 +155,7 @@ func TestIntegration_CommonName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/info/commonName: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -188,7 +190,7 @@ func TestIntegration_SubjectAltName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/info/subjectAltName: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -219,7 +221,7 @@ func TestIntegration_ExportJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/export/json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -247,7 +249,7 @@ func TestIntegration_ExportCSV(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/export/csv: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -271,7 +273,7 @@ func TestIntegration_History(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/history/example.com: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -286,7 +288,7 @@ func TestIntegration_HistoryNotEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("got status %d; want 404", resp.StatusCode)
@@ -301,7 +303,7 @@ func TestIntegration_SecurityHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /health: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.Header.Get("X-Content-Type-Options") != "nosniff" {
 		t.Error("missing X-Content-Type-Options header")
@@ -319,7 +321,7 @@ func TestIntegration_404(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("got status %d; want 404", resp.StatusCode)
@@ -339,7 +341,7 @@ func TestIntegration_AllWithErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/v1/cert/info/all: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
@@ -364,7 +366,7 @@ func TestIntegration_PrometheusMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /metrics: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		t.Error("expected prometheus /metrics endpoint to be registered")

@@ -173,7 +173,9 @@ func TestFetch_ContextCancelled(t *testing.T) {
 			t.Fatalf("failed to create listener: %v", err)
 		}
 		addr := ln.Addr().String()
-		ln.Close()
+		if err := ln.Close(); err != nil {
+			t.Fatalf("failed to close listener: %v", err)
+		}
 
 		host, portStr, err := net.SplitHostPort(addr)
 		if err != nil {
