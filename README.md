@@ -96,7 +96,24 @@ hosts:
   - name: "gitlab"
     url: 'gitlab.com'
     port: '443'
+  # trusted_cas:
+  #   - '/path/to/self-signed-ca.pem'
 ```
+
+## Self-signed certificate monitoring
+
+If you need to monitor servers using self-signed or privately-signed certificates, add their CA certificate to `trusted_cas` in your configuration. The fetcher will then validate TLS chains against these trusted root certificates instead of disabling verification.
+
+```yaml
+trusted_cas:
+  - '/etc/certificates/my-self-signed-ca.pem'
+  - '/etc/certificates/another-ca.pem'
+```
+
+Supported modes:
+
+- `check` and `check --watch` will use the trusted CAs
+- `serve` will use the trusted CAs for all certificate fetches
 
 ## Usage
 

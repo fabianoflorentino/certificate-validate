@@ -23,6 +23,9 @@ history:
   max_entries: 10000
   max_days: 90
 
+trusted_cas:
+  # - '/path/to/self-signed-ca.pem'
+
 hosts:
   - name: "GitHub"
     url: 'github.com'
