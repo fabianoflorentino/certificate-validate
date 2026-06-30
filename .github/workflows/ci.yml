@@ -43,13 +43,14 @@ jobs:
     needs: [lint]
     steps:
     - uses: actions/checkout@v4
-    - name: Test with coverage
-      run: go test -race -count=1 -coverprofile=coverage.out ./...
-
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.26'
+
+    - name: Test with coverage
+      run: go test -race -count=1 -coverprofile=coverage.out ./...
+
     - name: Check coverage ≥ 80%
       run: |
         go tool cover -func=coverage.out | grep total | \
