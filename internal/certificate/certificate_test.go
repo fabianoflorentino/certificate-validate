@@ -535,7 +535,7 @@ func TestFingerprintSHA256(t *testing.T) {
 
 	// Verify it's a valid hex string
 	for _, r := range fp {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
 			t.Errorf("fingerprint contains invalid character: %q", r)
 		}
 	}

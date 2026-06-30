@@ -85,7 +85,9 @@ func (r *Recorder) Record(results []*certificate.Certificate) {
 		slog.Error("failed to open history file", "error", err)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	enc := json.NewEncoder(f)
 	for _, c := range results {
@@ -167,7 +169,9 @@ func (r *Recorder) readAll() ([]Entry, error) {
 		}
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	var entries []Entry
 	scanner := bufio.NewScanner(f)
@@ -215,7 +219,9 @@ func (r *Recorder) rewrite(entries []Entry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	enc := json.NewEncoder(f)
 	for _, e := range entries {

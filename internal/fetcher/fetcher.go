@@ -49,7 +49,9 @@ func (f *tlsFetcher) Fetch(ctx context.Context, hostname string, port int) (*cer
 		}
 		return nil, fmt.Errorf("%w: %s:%d", certificate.ErrHostUnreachable, hostname, port)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	cs := conn.ConnectionState()
 	certs := cs.PeerCertificates

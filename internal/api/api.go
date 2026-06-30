@@ -131,20 +131,26 @@ func (h *Handler) handleExportCSV(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="certificates.csv"`)
-	w.Write([]byte{0xEF, 0xBB, 0xBF}) // BOM for Excel
+	if _, err := w.Write([]byte{0xEF, 0xBB, 0xBF}); err != nil {
+		http.Error(w, "failed to write csv header", http.StatusInternalServerError)
+		return
+	}
 
 	csvWriter := csv.NewWriter(w)
-	csvWriter.Write([]string{
+	if err := csvWriter.Write([]string{
 		"Hostname", "Port", "Common Name", "Issuer", "Type",
 		"Days Left", "Not Before", "Not After", "Subject Alt Names",
 		"TLS Version", "Cipher Suite",
-	})
+	}); err != nil {
+		http.Error(w, "failed to write csv header", http.StatusInternalServerError)
+		return
+	}
 
 	for _, cert := range result.Certificates {
 		if cert == nil {
 			continue
 		}
-		csvWriter.Write([]string{
+		if err := csvWriter.Write([]string{
 			cert.Hostname,
 			strconv.Itoa(cert.Port),
 			cert.CommonName,
@@ -156,7 +162,16 @@ func (h *Handler) handleExportCSV(w http.ResponseWriter, r *http.Request) {
 			strings.Join(cert.SubjectAltNames, "; "),
 			cert.TLSVersion,
 			cert.CipherSuite,
-		})
+		}); err != nil {
+			http.Error(w, "failed to write csv row", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
+		http.Error(w, "failed to finalize csv", http.StatusInternalServerError)
+		return
 	}
 	csvWriter.Flush()
 }

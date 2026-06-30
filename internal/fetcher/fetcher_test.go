@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
 )
 
 // Compile-time check that *tlsFetcher implements Fetcher.
@@ -70,7 +69,7 @@ func startTLSServer(t *testing.T, cert tls.Certificate) (string, func()) {
 				return
 			}
 			go func(c net.Conn) {
-				defer c.Close()
+				defer func() { _ = c.Close() }()
 				tlsConn := c.(*tls.Conn)
 				_ = tlsConn.Handshake()
 				time.Sleep(100 * time.Millisecond)
@@ -78,14 +77,14 @@ func startTLSServer(t *testing.T, cert tls.Certificate) (string, func()) {
 		}
 	}()
 
-	return listener.Addr().String(), func() { listener.Close() }
+	return listener.Addr().String(), func() { _ = listener.Close() }
 }
 
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name            string
-		timeout         time.Duration
-		wantTimeout     time.Duration
+		name        string
+		timeout     time.Duration
+		wantTimeout time.Duration
 	}{
 		{
 			name:        "positive timeout",
@@ -197,7 +196,7 @@ func TestFetch_ContextCancelled(t *testing.T) {
 }
 
 func TestFetcherInterfaceSatisfied(t *testing.T) {
-	var f Fetcher = New(5 * time.Second)
+	f := New(5 * time.Second)
 	if f == nil {
 		t.Fatal("expected non-nil Fetcher")
 	}

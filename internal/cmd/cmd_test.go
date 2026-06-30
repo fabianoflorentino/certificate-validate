@@ -226,7 +226,9 @@ func TestRunWatchLoop_PrintsCertificateJSON(t *testing.T) {
 	cancel()
 	<-done
 
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Fatalf("close pipe: %v", err)
+	}
 	os.Stdout = oldStdout
 
 	output, _ := io.ReadAll(r)

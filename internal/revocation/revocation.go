@@ -93,7 +93,9 @@ func tryCRL(ctx context.Context, leaf *x509.Certificate, url string) certificate
 	if err != nil {
 		return certificate.RevocationUnknown
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return certificate.RevocationUnknown
@@ -102,12 +104,12 @@ func tryCRL(ctx context.Context, leaf *x509.Certificate, url string) certificate
 	buf := new(bytes.Buffer)
 	_, _ = buf.ReadFrom(resp.Body)
 
-	crl, err := x509.ParseCRL(buf.Bytes())
+	rl, err := x509.ParseRevocationList(buf.Bytes())
 	if err != nil {
 		return certificate.RevocationUnknown
 	}
 
-	revokedCerts := crl.TBSCertList.RevokedCertificates
+	revokedCerts := rl.TBSCertList.RevokedCertificates
 	for _, rc := range revokedCerts {
 		if rc.SerialNumber.Cmp(leaf.SerialNumber) == 0 {
 			return certificate.RevocationRevoked

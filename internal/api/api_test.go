@@ -124,7 +124,9 @@ func TestHandleAll_WithErrors(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&resp)
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 
 	errs, ok := resp["errors"].([]interface{})
 	if !ok || len(errs) != 1 {
@@ -223,7 +225,9 @@ func TestHandleCommonName(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&resp)
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 
 	if _, ok := resp["example.com"]; !ok {
 		t.Errorf("expected example.com in response")
@@ -237,7 +241,7 @@ func TestHandleSubjectAltName(t *testing.T) {
 				certs := make([]*certificate.Certificate, len(hosts))
 				for i, h := range hosts {
 					certs[i] = &certificate.Certificate{
-						Hostname:       h.Hostname,
+						Hostname:        h.Hostname,
 						SubjectAltNames: []string{h.Hostname, "www." + h.Hostname},
 					}
 				}
