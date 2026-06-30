@@ -253,3 +253,36 @@ func TestCheckAndAlert_ContextCancellation(t *testing.T) {
 
 	n.checkAndAlert(ctx)
 }
+
+func TestStart_BeginsCheckLoop(t *testing.T) {
+	var callCount atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	mock := &mockCertChecker{
+		checkFunc: func(_ context.Context, hostname string, port int) (*certificate.Certificate, error) {
+			return &certificate.Certificate{
+				Hostname: hostname,
+				Port:     port,
+				DaysLeft: 5,
+			}, nil
+		},
+	}
+	n := New(Config{URL: srv.URL, Threshold: 10, Interval: 10 * time.Millisecond}, mock, []checker.Host{
+		{Hostname: "start.com", Port: 443},
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	n.Start(ctx)
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	if callCount.Load() == 0 {
+		t.Fatal("expected sendAlert to be called at least once")
+	}
+}

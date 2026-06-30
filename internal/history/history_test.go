@@ -1,6 +1,7 @@
 package history
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
+	"github.com/fabianoflorentino/certificate-validate/internal/checker"
 )
 
 func TestNewWithEmptyConfig(t *testing.T) {
@@ -22,6 +24,17 @@ func TestNewWithEmptyConfig(t *testing.T) {
 	if r.maxDays != 90 {
 		t.Errorf("expected maxDays %d, got %d", 90, r.maxDays)
 	}
+}
+
+type mockFetcher struct {
+	fetch func(ctx context.Context, hostname string, port int) (*certificate.Certificate, error)
+}
+
+func (m *mockFetcher) Fetch(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
+	if m.fetch == nil {
+		return nil, nil
+	}
+	return m.fetch(ctx, hostname, port)
 }
 
 func TestNewWithCustomConfig(t *testing.T) {
@@ -138,6 +151,53 @@ func TestRecordWithEmptyResults(t *testing.T) {
 	}
 	if len(entries) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+}
+
+func TestUpdateAndRecord(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "history.jsonl")
+
+	r := New(Config{FilePath: path, MaxEntries: 10, MaxDays: 90})
+	c := checker.New(&mockFetcher{fetch: func(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
+		return &certificate.Certificate{Hostname: hostname, Port: port, DaysLeft: 15}, nil
+	}}, nil)
+
+	updateAndRecord(context.Background(), r, c, []checker.Host{{Hostname: "example.com", Port: 443}})
+
+	entries, err := r.readAll()
+	if err != nil {
+		t.Fatalf("readAll failed: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].Host != "example.com" {
+		t.Fatalf("expected host %q, got %q", "example.com", entries[0].Host)
+	}
+}
+
+func TestStartRecorder_RecordsHistory(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "history.jsonl")
+
+	r := New(Config{FilePath: path, MaxEntries: 10, MaxDays: 90})
+	c := checker.New(&mockFetcher{fetch: func(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
+		return &certificate.Certificate{Hostname: hostname, Port: port, DaysLeft: 15}, nil
+	}}, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	StartRecorder(ctx, r, c, []checker.Host{{Hostname: "example.com", Port: 443}}, 10*time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+
+	entries, err := r.readAll()
+	if err != nil {
+		t.Fatalf("readAll failed: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Fatalf("expected at least 1 history entry, got %d", len(entries))
 	}
 }
 
