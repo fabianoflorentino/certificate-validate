@@ -36,7 +36,8 @@ func (m *mockChecker) CheckAll(ctx context.Context, hosts []checker.Host, maxPar
 
 // 1. Test buildApp returns a non-nil *checker.Checker with no error.
 func TestBuildApp(t *testing.T) {
-	c, err := buildApp()
+	cfg := &config.Config{}
+	c, err := buildApp(cfg)
 	if err != nil {
 		t.Fatalf("buildApp() error = %v; want nil", err)
 	}

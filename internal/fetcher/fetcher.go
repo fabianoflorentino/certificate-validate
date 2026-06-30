@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
@@ -21,14 +22,41 @@ type Fetcher interface {
 
 type tlsFetcher struct {
 	timeout time.Duration
+	rootCAs *x509.CertPool
 }
 
-// New creates a new TLS-based Fetcher.
+// New creates a new TLS-based Fetcher using the system root certificate pool.
 func New(timeout time.Duration) Fetcher {
+	return NewWithRootCAs(timeout, nil)
+}
+
+// NewWithRootCAs creates a TLS Fetcher using the provided CA certificate pool.
+func NewWithRootCAs(timeout time.Duration, rootCAs *x509.CertPool) Fetcher {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
-	return &tlsFetcher{timeout: timeout}
+	return &tlsFetcher{timeout: timeout, rootCAs: rootCAs}
+}
+
+// LoadRootCAs reads one or more PEM-encoded CA certificates and returns a certificate pool.
+// When no files are provided, it returns nil to let the system root store be used.
+func LoadRootCAs(paths []string) (*x509.CertPool, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	pool := x509.NewCertPool()
+	for _, path := range paths {
+		pemData, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read root CA %s: %w", path, err)
+		}
+		if ok := pool.AppendCertsFromPEM(pemData); !ok {
+			return nil, fmt.Errorf("failed to parse root CA PEM %s", path)
+		}
+	}
+
+	return pool, nil
 }
 
 func (f *tlsFetcher) Fetch(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
@@ -36,7 +64,8 @@ func (f *tlsFetcher) Fetch(ctx context.Context, hostname string, port int) (*cer
 
 	dialer := &net.Dialer{Timeout: f.timeout}
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
-		InsecureSkipVerify: true,
+		RootCAs:    f.rootCAs,
+		ServerName: hostname,
 	})
 	if err != nil {
 		if ctx.Err() != nil {

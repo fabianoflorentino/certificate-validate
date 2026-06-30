@@ -131,7 +131,14 @@ func TestFetch(t *testing.T) {
 		t.Fatalf("failed to parse port: %v", err)
 	}
 
-	f := New(5 * time.Second)
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		t.Fatalf("failed to parse generated certificate: %v", err)
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(x509Cert)
+
+	f := NewWithRootCAs(5*time.Second, pool)
 
 	t.Run("successful fetch returns certificate with expected fields", func(t *testing.T) {
 		got, err := f.Fetch(context.Background(), host, port)

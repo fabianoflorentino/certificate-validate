@@ -17,6 +17,7 @@ type Config struct {
 	Prometheus PrometheusConf `yaml:"prometheus"`
 	Webhook    WebhookConf    `yaml:"webhook"`
 	History    HistoryConf    `yaml:"history"`
+	TrustedCAs []string       `yaml:"trusted_cas"`
 }
 
 // PrometheusConf controls Prometheus metrics exposition.

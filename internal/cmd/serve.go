@@ -37,7 +37,11 @@ via HTTP endpoints. Use --tls-cert and --tls-key to serve HTTPS.`,
 			return fmt.Errorf("load config: %w", err)
 		}
 
-		f := fetcher.New(10 * time.Second)
+		rootCAs, err := fetcher.LoadRootCAs(cfg.TrustedCAs)
+		if err != nil {
+			return fmt.Errorf("load trusted root CAs: %w", err)
+		}
+		f := fetcher.NewWithRootCAs(10*time.Second, rootCAs)
 		fmtter := formatter.New()
 		c := checker.New(f, fmtter)
 
@@ -150,5 +154,3 @@ func getAPIPort(cfg *config.Config) string {
 	}
 	return "5000"
 }
-
-

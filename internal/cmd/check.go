@@ -30,7 +30,7 @@ defined in the configuration file. Use --watch to run periodically.`,
 			return fmt.Errorf("load config: %w", err)
 		}
 
-		app, err := buildApp()
+		app, err := buildApp(cfg)
 		if err != nil {
 			return err
 		}
@@ -68,8 +68,12 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 }
 
-func buildApp() (*checker.Checker, error) {
-	f := fetcher.New(10 * time.Second)
+func buildApp(cfg *config.Config) (*checker.Checker, error) {
+	rootCAs, err := fetcher.LoadRootCAs(cfg.TrustedCAs)
+	if err != nil {
+		return nil, fmt.Errorf("load trusted root CAs: %w", err)
+	}
+	f := fetcher.NewWithRootCAs(10*time.Second, rootCAs)
 	fmtter := formatter.New()
 	return checker.New(f, fmtter), nil
 }
