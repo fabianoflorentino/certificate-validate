@@ -21,8 +21,9 @@ type Fetcher interface {
 }
 
 type tlsFetcher struct {
-	timeout time.Duration
-	rootCAs *x509.CertPool
+	timeout    time.Duration
+	rootCAs    *x509.CertPool
+	perHostCAs map[string]*x509.CertPool
 }
 
 // New creates a new TLS-based Fetcher using the system root certificate pool.
@@ -36,6 +37,14 @@ func NewWithRootCAs(timeout time.Duration, rootCAs *x509.CertPool) Fetcher {
 		timeout = 10 * time.Second
 	}
 	return &tlsFetcher{timeout: timeout, rootCAs: rootCAs}
+}
+
+// NewWithPerHostCAs creates a TLS Fetcher with per-host certificate pools.
+// The perHostCAs map key is the host URL (e.g. "internal.example.com").
+func NewWithPerHostCAs(timeout time.Duration, rootCAs *x509.CertPool, perHostCAs map[string]*x509.CertPool) Fetcher {
+	f := NewWithRootCAs(timeout, rootCAs).(*tlsFetcher)
+	f.perHostCAs = perHostCAs
+	return f
 }
 
 // LoadRootCAs reads one or more PEM-encoded CA certificates and returns a certificate pool.
@@ -62,9 +71,14 @@ func LoadRootCAs(paths []string) (*x509.CertPool, error) {
 func (f *tlsFetcher) Fetch(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
 	addr := net.JoinHostPort(hostname, strconv.Itoa(port))
 
+	rootCAs := f.rootCAs
+	if pool, ok := f.perHostCAs[hostname]; ok {
+		rootCAs = pool
+	}
+
 	dialer := &net.Dialer{Timeout: f.timeout}
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
-		RootCAs:    f.rootCAs,
+		RootCAs:    rootCAs,
 		ServerName: hostname,
 	})
 	if err != nil {

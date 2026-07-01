@@ -1,12 +1,15 @@
 package config
 
 import (
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/checker"
+	"github.com/fabianoflorentino/certificate-validate/internal/fetcher"
 	"gopkg.in/yaml.v3"
 )
 
@@ -44,10 +47,12 @@ type HistoryConf struct {
 
 // HostConfig represents a single host entry to check.
 type HostConfig struct {
-	Name  string `yaml:"name"`
-	URL   string `yaml:"url"`
-	Port  string `yaml:"port"`
-	Ports []int  `yaml:"ports"`
+	Name       string   `yaml:"name"`
+	URL        string   `yaml:"url"`
+	Port       string   `yaml:"port"`
+	Ports      []int    `yaml:"ports"`
+	Timeout    int      `yaml:"timeout"`     // per-host dial timeout in seconds (0 = use default)
+	TrustedCAs []string `yaml:"trusted_cas"` // per-host trusted CA certificate paths
 }
 
 // AppConfig represents the API application configuration.
@@ -80,15 +85,34 @@ func (h HostConfig) PortInts() []int {
 func ToCheckerHosts(cfgHosts []HostConfig) []checker.Host {
 	var hosts []checker.Host
 	for _, h := range cfgHosts {
+		timeout := time.Duration(h.Timeout) * time.Second
 		for _, port := range h.PortInts() {
 			hosts = append(hosts, checker.Host{
 				Hostname: h.URL,
 				Port:     port,
 				Name:     h.Name,
+				Timeout:  timeout,
 			})
 		}
 	}
 	return hosts
+}
+
+// LoadPerHostCAs reads per-host CA paths from HostConfig entries.
+// Returns a map of host URL to certificate pool.
+func LoadPerHostCAs(hosts []HostConfig) (map[string]*x509.CertPool, error) {
+	m := make(map[string]*x509.CertPool)
+	for _, h := range hosts {
+		if len(h.TrustedCAs) == 0 {
+			continue
+		}
+		pool, err := fetcher.LoadRootCAs(h.TrustedCAs)
+		if err != nil {
+			return nil, fmt.Errorf("load per-host CAs for %s: %w", h.URL, err)
+		}
+		m[h.URL] = pool
+	}
+	return m, nil
 }
 
 // Validate checks the configuration for common issues.
@@ -118,6 +142,16 @@ func (cfg *Config) Validate() ([]string, error) {
 		for j, p := range h.Ports {
 			if p < 1 || p > 65535 {
 				warnings = append(warnings, fmt.Sprintf("host[%d].ports[%d]: port %d out of range (1-65535)", i, j, p))
+			}
+		}
+		if h.Timeout < 0 {
+			warnings = append(warnings, fmt.Sprintf("host[%d]: timeout %d is negative, using default", i, h.Timeout))
+		}
+		if len(h.TrustedCAs) > 0 {
+			for j, ca := range h.TrustedCAs {
+				if ca == "" {
+					warnings = append(warnings, fmt.Sprintf("host[%d].trusted_cas[%d]: empty path", i, j))
+				}
 			}
 		}
 	}

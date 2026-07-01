@@ -4,15 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
 )
 
 // Host is a certificate check target.
 type Host struct {
-	Hostname string
-	Port     int
-	Name     string
+	Hostname   string
+	Port       int
+	Name       string
+	Timeout    time.Duration // per-host dial timeout (0 = use default)
 }
 
 // Fetcher fetches certificate info from a host.
@@ -79,7 +81,13 @@ func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) (
 		i, h := i, h
 		go func() {
 			defer func() { <-sem }()
-			cert, err := c.fetcher.Fetch(ctx, h.Hostname, h.Port)
+			checkCtx := ctx
+			if h.Timeout > 0 {
+				var cancel context.CancelFunc
+				checkCtx, cancel = context.WithTimeout(ctx, h.Timeout)
+				defer cancel()
+			}
+			cert, err := c.fetcher.Fetch(checkCtx, h.Hostname, h.Port)
 			if err != nil {
 				slog.Error("check failed", "host", h.Hostname, "port", h.Port, "error", err)
 				results <- res{nil, err, i}
