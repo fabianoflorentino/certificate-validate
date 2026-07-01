@@ -12,12 +12,50 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/config"
 	"github.com/fabianoflorentino/certificate-validate/internal/metrics"
 	"github.com/fabianoflorentino/certificate-validate/internal/service"
 )
+
+// rateLimiter implements a simple token bucket rate limiter.
+type rateLimiter struct {
+	mu       sync.Mutex
+	tokens   float64
+	rate     float64
+	burst    int
+	lastFill time.Time
+}
+
+func newRateLimiter(rate float64, burst int) *rateLimiter {
+	return &rateLimiter{
+		tokens:   float64(burst),
+		rate:     rate,
+		burst:    burst,
+		lastFill: time.Now(),
+	}
+}
+
+func (l *rateLimiter) allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	elapsed := now.Sub(l.lastFill).Seconds()
+	l.lastFill = now
+	l.tokens += elapsed * l.rate
+	if l.tokens > float64(l.burst) {
+		l.tokens = float64(l.burst)
+	}
+
+	if l.tokens >= 1 {
+		l.tokens--
+		return true
+	}
+	return false
+}
 
 //go:embed static/*
 var staticFiles embed.FS
@@ -261,10 +299,19 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	}
 }
 
+var defaultLimiter = newRateLimiter(100, 200) // 100 req/s, burst 200
+
 func withMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
+
+		if !defaultLimiter.allow() {
+			w.Header().Set("Retry-After", "1")
+			http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
+			return
+		}
+
 		slog.Info("request", "method", r.Method, "path", r.URL.Path, "remote", r.RemoteAddr)
 		next.ServeHTTP(w, r)
 	})
