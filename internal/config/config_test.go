@@ -68,6 +68,162 @@ func TestPortInts(t *testing.T) {
 	}
 }
 
+func TestValidate_EmptyHosts(t *testing.T) {
+	cfg := &Config{}
+	_, err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate() expected error for empty hosts")
+	}
+}
+
+func TestValidate_HostWithoutURL(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{{Name: "test", Port: "443"}},
+	}
+	_, err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate() expected error for host without url")
+	}
+}
+
+func TestValidate_HostWithoutName(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{{URL: "example.com", Port: "443"}},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("expected warning for missing host name")
+	}
+}
+
+func TestValidate_InvalidPortString(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{{Name: "test", URL: "example.com", Port: "abc"}},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	found := false
+	for _, w := range warnings {
+		if contains(w, "invalid port") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected warning for invalid port string")
+	}
+}
+
+func TestValidate_PortOutOfRange(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{{Name: "test", URL: "example.com", Port: "99999"}},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	found := false
+	for _, w := range warnings {
+		if contains(w, "out of range") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected warning for port out of range")
+	}
+}
+
+func TestValidate_PortsFieldOutOfRange(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{{Name: "test", URL: "example.com", Ports: []int{443, 0, 65536}}},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	count := 0
+	for _, w := range warnings {
+		if contains(w, "out of range") {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Errorf("expected 2 out-of-range warnings, got %d", count)
+	}
+}
+
+func TestValidate_WebhookThreshold(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{{Name: "test", URL: "example.com", Port: "443"}},
+		Webhook: WebhookConf{URL: "https://hooks.example.com", Threshold: 0},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	found := false
+	for _, w := range warnings {
+		if contains(w, "webhook threshold") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected warning for zero webhook threshold")
+	}
+}
+
+func TestValidate_PrometheusNoAddress(t *testing.T) {
+	cfg := &Config{
+		Hosts:      []HostConfig{{Name: "test", URL: "example.com", Port: "443"}},
+		Prometheus: PrometheusConf{Enabled: true},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	found := false
+	for _, w := range warnings {
+		if contains(w, "prometheus") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected warning for prometheus without address")
+	}
+}
+
+func TestValidate_ValidConfig(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{
+			{Name: "test", URL: "example.com", Port: "443"},
+		},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("expected 0 warnings, got %d: %v", len(warnings), warnings)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && containsString(s, substr)
+}
+
+func containsString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func TestToCheckerHosts(t *testing.T) {
 	tests := []struct {
 		name  string

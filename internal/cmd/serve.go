@@ -37,6 +37,14 @@ via HTTP endpoints. Use --tls-cert and --tls-key to serve HTTPS.`,
 			return fmt.Errorf("load config: %w", err)
 		}
 
+		warnings, err := cfg.Validate()
+		if err != nil {
+			return fmt.Errorf("invalid config: %w", err)
+		}
+		for _, w := range warnings {
+			slog.Warn("config warning", "warning", w)
+		}
+
 		rootCAs, err := fetcher.LoadRootCAs(cfg.TrustedCAs)
 		if err != nil {
 			return fmt.Errorf("load trusted root CAs: %w", err)

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -88,6 +89,48 @@ func ToCheckerHosts(cfgHosts []HostConfig) []checker.Host {
 		}
 	}
 	return hosts
+}
+
+// Validate checks the configuration for common issues.
+// Returns a list of warnings and an error if the configuration is invalid.
+func (cfg *Config) Validate() ([]string, error) {
+	var warnings []string
+
+	if len(cfg.Hosts) == 0 {
+		return warnings, errors.New("no hosts configured")
+	}
+
+	for i, h := range cfg.Hosts {
+		if h.URL == "" {
+			return warnings, fmt.Errorf("host[%d]: url is required", i)
+		}
+		if h.Name == "" {
+			warnings = append(warnings, fmt.Sprintf("host[%d]: name is empty, using url as name", i))
+		}
+		if h.Port != "" {
+			p, err := strconv.Atoi(h.Port)
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("host[%d]: invalid port %q, defaulting to 443", i, h.Port))
+			} else if p < 1 || p > 65535 {
+				warnings = append(warnings, fmt.Sprintf("host[%d]: port %d out of range (1-65535), defaulting to 443", i, p))
+			}
+		}
+		for j, p := range h.Ports {
+			if p < 1 || p > 65535 {
+				warnings = append(warnings, fmt.Sprintf("host[%d].ports[%d]: port %d out of range (1-65535)", i, j, p))
+			}
+		}
+	}
+
+	if cfg.Webhook.URL != "" && cfg.Webhook.Threshold <= 0 {
+		warnings = append(warnings, "webhook threshold must be > 0, using default")
+	}
+
+	if cfg.Prometheus.Enabled && cfg.Prometheus.Address == "" {
+		warnings = append(warnings, "prometheus enabled but no address set, using default")
+	}
+
+	return warnings, nil
 }
 
 // Load reads and parses a YAML configuration file.
