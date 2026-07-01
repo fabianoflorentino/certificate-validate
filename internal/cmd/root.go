@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -51,7 +53,10 @@ To load completions:
 	},
 }
 
-var cfgPath string
+var (
+	cfgPath  string
+	logFile  string
+)
 
 // rootCmd is the base command for certificate-validate.
 var rootCmd = &cobra.Command{
@@ -59,6 +64,19 @@ var rootCmd = &cobra.Command{
 	Short: "Validate SSL/TLS certificates",
 	Long: `A modern tool to fetch and inspect SSL/TLS certificate information
 from remote hosts. Supports CLI checks and an HTTP API.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if logFile == "" || logFile == "stderr" {
+			return nil
+		}
+		f, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			return fmt.Errorf("open log file %s: %w", logFile, err)
+		}
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.MultiWriter(os.Stderr, f), &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})))
+		return nil
+	},
 }
 
 // Execute runs the root command.
@@ -73,4 +91,6 @@ func init() {
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.PersistentFlags().StringVarP(&cfgPath, "config", "c", "config/settings.yml",
 		"path to configuration file")
+	rootCmd.PersistentFlags().StringVar(&logFile, "log-file", "",
+		"path to write structured logs (also written to stderr)")
 }
