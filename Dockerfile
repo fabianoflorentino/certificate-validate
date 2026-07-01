@@ -14,10 +14,15 @@ RUN adduser -D -u 1000 appuser
 COPY --from=build /bin/certificate-validate /usr/local/bin/certificate-validate
 COPY config/settings.yml /app/config/settings.yml
 
+RUN mkdir -p /app/data && chown appuser:appuser /app/data /app/config
+
 USER appuser
 WORKDIR /app
 
-VOLUME ["/app/config"]
+VOLUME ["/app/config", "/app/data"]
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget -qO- http://localhost:5000/health > /dev/null 2>&1 || exit 1
 
 ENTRYPOINT ["certificate-validate"]
 CMD ["check"]
