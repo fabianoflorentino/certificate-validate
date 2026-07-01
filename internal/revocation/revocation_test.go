@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
@@ -99,5 +100,76 @@ func TestCheck_NotReadyWhenBothEmpty(t *testing.T) {
 	status := Check(nil, nil, nil, nil)
 	if status != certificate.RevocationNotReady {
 		t.Errorf("got %q; want %q", status, certificate.RevocationNotReady)
+	}
+}
+
+func TestCheckCRL_NonOKStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	status := CheckCRL(&x509.Certificate{}, []string{srv.URL})
+	if status != certificate.RevocationUnknown {
+		t.Errorf("got %q; want %q", status, certificate.RevocationUnknown)
+	}
+}
+
+func TestCheckCRL_InvalidCRLBytes(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/pkix-crl")
+		_, _ = w.Write([]byte("not a valid CRL"))
+	}))
+	defer srv.Close()
+
+	status := CheckCRL(&x509.Certificate{}, []string{srv.URL})
+	if status != certificate.RevocationUnknown {
+		t.Errorf("got %q; want %q", status, certificate.RevocationUnknown)
+	}
+}
+
+func TestTryCRL_HTTPRequestError(t *testing.T) {
+	status := tryCRL(context.Background(), &x509.Certificate{}, "://invalid-url")
+	if status != certificate.RevocationUnknown {
+		t.Errorf("got %q; want %q", status, certificate.RevocationUnknown)
+	}
+}
+
+func TestCheckOCSP_NonOKStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	original := httpPost
+	defer func() { httpPost = original }()
+
+	httpPost = func(_ context.Context, url, contentType string, body []byte) (*http.Response, error) {
+		return http.Post(url, contentType, nil) //nolint:noctx
+	}
+
+	status := CheckOCSP(&x509.Certificate{}, &x509.Certificate{}, []string{srv.URL + "/ocsp"})
+	if status != certificate.RevocationUnknown {
+		t.Errorf("got %q; want %q", status, certificate.RevocationUnknown)
+	}
+}
+
+func TestCheckOCSP_InvalidResponseBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/ocsp-response")
+		_, _ = w.Write([]byte("not valid ocsp data"))
+	}))
+	defer srv.Close()
+
+	original := httpPost
+	defer func() { httpPost = original }()
+
+	httpPost = func(_ context.Context, url, contentType string, body []byte) (*http.Response, error) {
+		return http.Post(url, contentType, nil) //nolint:noctx
+	}
+
+	status := CheckOCSP(&x509.Certificate{}, &x509.Certificate{}, []string{srv.URL + "/ocsp"})
+	if status != certificate.RevocationUnknown {
+		t.Errorf("got %q; want %q", status, certificate.RevocationUnknown)
 	}
 }
