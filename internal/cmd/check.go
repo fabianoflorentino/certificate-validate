@@ -17,7 +17,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var watch bool
+var (
+	watch  bool
+	output string
+)
 
 var checkCmd = &cobra.Command{
 	Use:   "check",
@@ -28,6 +31,14 @@ defined in the configuration file. Use --watch to run periodically.`,
 		cfg, err := config.Load(cfgPath)
 		if err != nil {
 			return fmt.Errorf("load config: %w", err)
+		}
+
+		warnings, err := cfg.Validate()
+		if err != nil {
+			return fmt.Errorf("invalid config: %w", err)
+		}
+		for _, w := range warnings {
+			slog.Warn("config warning", "warning", w)
 		}
 
 		app, err := buildApp(cfg)
@@ -48,12 +59,23 @@ defined in the configuration file. Use --watch to run periodically.`,
 		}
 
 		certs, errs := app.CheckAll(ctx, hosts, 10)
-		for _, c := range certs {
-			if c != nil {
-				data, _ := json.MarshalIndent(c, "", "  ")
-				fmt.Println(string(data))
+
+		switch output {
+		case "table":
+			data, err := formatter.FormatTable(certs)
+			if err != nil {
+				return fmt.Errorf("format table: %w", err)
+			}
+			fmt.Print(string(data))
+		default:
+			for _, c := range certs {
+				if c != nil {
+					data, _ := json.MarshalIndent(c, "", "  ")
+					fmt.Println(string(data))
+				}
 			}
 		}
+
 		for _, err := range errs {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		}
@@ -65,6 +87,8 @@ defined in the configuration file. Use --watch to run periodically.`,
 func init() {
 	checkCmd.Flags().BoolVarP(&watch, "watch", "w", false,
 		"continuously check certificates at the configured interval")
+	checkCmd.Flags().StringVarP(&output, "output", "o", "json",
+		"output format: json or table")
 	rootCmd.AddCommand(checkCmd)
 }
 
