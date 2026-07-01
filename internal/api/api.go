@@ -1,15 +1,18 @@
 package api
 
 import (
+	"context"
 	"embed"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/config"
 	"github.com/fabianoflorentino/certificate-validate/internal/metrics"
@@ -197,7 +200,57 @@ func (h *Handler) handleHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	hosts := h.cfg.Hosts
+	if len(hosts) == 0 {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	type hostResult struct {
+		name   string
+		status string
+	}
+
+	results := make(chan hostResult, len(hosts))
+	for _, host := range hosts {
+		host := host
+		go func() {
+			port := host.Port
+			if port == "" && len(host.Ports) > 0 {
+				port = strconv.Itoa(host.Ports[0])
+			}
+			if port == "" {
+				port = "443"
+			}
+			addr := net.JoinHostPort(host.URL, port)
+			dialer := net.Dialer{Timeout: 3 * time.Second}
+			conn, err := dialer.DialContext(ctx, "tcp", addr)
+			if err != nil {
+				results <- hostResult{name: host.Name, status: "unreachable"}
+				return
+			}
+			_ = conn.Close()
+			results <- hostResult{name: host.Name, status: "ok"}
+		}()
+	}
+
+	hostStatuses := make(map[string]string, len(hosts))
+	overall := "ok"
+	for range hosts {
+		r := <-results
+		hostStatuses[r.name] = r.status
+		if r.status != "ok" {
+			overall = "degraded"
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status": overall,
+		"hosts":  hostStatuses,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

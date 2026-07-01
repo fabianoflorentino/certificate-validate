@@ -31,12 +31,15 @@ func TestIntegration_HealthEndpoint(t *testing.T) {
 		t.Errorf("got status %d; want 200", resp.StatusCode)
 	}
 
-	var body map[string]string
+	var body map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if body["status"] != "ok" {
 		t.Errorf("got status %q; want ok", body["status"])
+	}
+	if _, ok := body["hosts"]; !ok {
+		t.Error("expected hosts field in health response")
 	}
 }
 
