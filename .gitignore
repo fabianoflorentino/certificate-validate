@@ -135,3 +135,4 @@ certificate-validate
 coverage.out
 cov.out
 .omo/run-continuation/
+data/
