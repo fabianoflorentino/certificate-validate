@@ -468,6 +468,147 @@ func TestLoadPerHostCAs_Valid(t *testing.T) {
 	}
 }
 
+func TestENV_OverridesCheckTime(t *testing.T) {
+	cfg := &Config{Hosts: []HostConfig{{Name: "t", URL: "t.com", Port: "443"}}}
+	t.Setenv("CV_CHECK_TIME", "7200")
+	cfg.applyEnvOverrides()
+	if cfg.CheckTime != 7200 {
+		t.Errorf("CheckTime = %d; want 7200", cfg.CheckTime)
+	}
+}
+
+func TestENV_OverridesAPIKey(t *testing.T) {
+	cfg := &Config{Hosts: []HostConfig{{Name: "t", URL: "t.com", Port: "443"}}}
+	t.Setenv("CV_API_KEY", "secret-from-env")
+	cfg.applyEnvOverrides()
+	if cfg.APIKey != "secret-from-env" {
+		t.Errorf("APIKey = %q; want %q", cfg.APIKey, "secret-from-env")
+	}
+}
+
+func TestENV_AppHostPort(t *testing.T) {
+	cfg := &Config{
+		AppConfigs: []AppConfig{{Name: "app", Host: "0.0.0.0", Port: "5000"}},
+		Hosts:      []HostConfig{{Name: "t", URL: "t.com", Port: "443"}},
+	}
+	t.Setenv("CV_APP_HOST", "127.0.0.1")
+	t.Setenv("CV_APP_PORT", "8080")
+	cfg.applyEnvOverrides()
+	if cfg.AppConfigs[0].Host != "127.0.0.1" {
+		t.Errorf("AppConfigs[0].Host = %q; want %q", cfg.AppConfigs[0].Host, "127.0.0.1")
+	}
+	if cfg.AppConfigs[0].Port != "8080" {
+		t.Errorf("AppConfigs[0].Port = %q; want %q", cfg.AppConfigs[0].Port, "8080")
+	}
+}
+
+func TestENV_Prometheus(t *testing.T) {
+	cfg := &Config{Hosts: []HostConfig{{Name: "t", URL: "t.com", Port: "443"}}}
+	t.Setenv("CV_PROMETHEUS_ENABLED", "true")
+	t.Setenv("CV_PROMETHEUS_ADDRESS", ":9090")
+	cfg.applyEnvOverrides()
+	if !cfg.Prometheus.Enabled {
+		t.Error("Prometheus.Enabled = false; want true")
+	}
+	if cfg.Prometheus.Address != ":9090" {
+		t.Errorf("Prometheus.Address = %q; want %q", cfg.Prometheus.Address, ":9090")
+	}
+}
+
+func TestENV_Webhook(t *testing.T) {
+	cfg := &Config{Hosts: []HostConfig{{Name: "t", URL: "t.com", Port: "443"}}}
+	t.Setenv("CV_WEBHOOK_URL", "https://hooks.example.com/alert")
+	t.Setenv("CV_WEBHOOK_THRESHOLD", "5")
+	t.Setenv("CV_WEBHOOK_INTERVAL", "300")
+	cfg.applyEnvOverrides()
+	if cfg.Webhook.URL != "https://hooks.example.com/alert" {
+		t.Errorf("Webhook.URL = %q; want %q", cfg.Webhook.URL, "https://hooks.example.com/alert")
+	}
+	if cfg.Webhook.Threshold != 5 {
+		t.Errorf("Webhook.Threshold = %d; want 5", cfg.Webhook.Threshold)
+	}
+	if cfg.Webhook.Interval != 300 {
+		t.Errorf("Webhook.Interval = %d; want 300", cfg.Webhook.Interval)
+	}
+}
+
+func TestENV_History(t *testing.T) {
+	cfg := &Config{Hosts: []HostConfig{{Name: "t", URL: "t.com", Port: "443"}}}
+	t.Setenv("CV_HISTORY_ENABLED", "1")
+	t.Setenv("CV_HISTORY_FILE_PATH", "/data/history.db")
+	t.Setenv("CV_HISTORY_MAX_ENTRIES", "5000")
+	t.Setenv("CV_HISTORY_MAX_DAYS", "90")
+	cfg.applyEnvOverrides()
+	if !cfg.History.Enabled {
+		t.Error("History.Enabled = false; want true")
+	}
+	if cfg.History.FilePath != "/data/history.db" {
+		t.Errorf("History.FilePath = %q; want %q", cfg.History.FilePath, "/data/history.db")
+	}
+	if cfg.History.MaxEntries != 5000 {
+		t.Errorf("History.MaxEntries = %d; want 5000", cfg.History.MaxEntries)
+	}
+	if cfg.History.MaxDays != 90 {
+		t.Errorf("History.MaxDays = %d; want 90", cfg.History.MaxDays)
+	}
+}
+
+func TestENV_TrustedCAs(t *testing.T) {
+	cfg := &Config{Hosts: []HostConfig{{Name: "t", URL: "t.com", Port: "443"}}}
+	t.Setenv("CV_TRUSTED_CAS", "/etc/certs/ca1.pem,/etc/certs/ca2.pem")
+	cfg.applyEnvOverrides()
+	if len(cfg.TrustedCAs) != 2 {
+		t.Fatalf("len(TrustedCAs) = %d; want 2", len(cfg.TrustedCAs))
+	}
+	if cfg.TrustedCAs[0] != "/etc/certs/ca1.pem" {
+		t.Errorf("TrustedCAs[0] = %q; want %q", cfg.TrustedCAs[0], "/etc/certs/ca1.pem")
+	}
+	if cfg.TrustedCAs[1] != "/etc/certs/ca2.pem" {
+		t.Errorf("TrustedCAs[1] = %q; want %q", cfg.TrustedCAs[1], "/etc/certs/ca2.pem")
+	}
+}
+
+func TestENV_EmptyHostIgnored(t *testing.T) {
+	cfg := &Config{
+		AppConfigs: []AppConfig{{Name: "app", Host: "0.0.0.0", Port: "5000"}},
+		Hosts:      []HostConfig{{Name: "t", URL: "t.com", Port: "443"}},
+	}
+	t.Setenv("CV_APP_HOST", "")
+	t.Setenv("CV_APP_PORT", "")
+	cfg.applyEnvOverrides()
+	if cfg.AppConfigs[0].Host != "0.0.0.0" {
+		t.Errorf("AppConfigs[0].Host changed to %q when env var was empty", cfg.AppConfigs[0].Host)
+	}
+}
+
+func TestENV_IntegrationWithLoad(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.yml")
+	content := `check_time: 3600
+hosts:
+  - name: test
+    url: test.com
+    port: "443"
+`
+	if err := writeFile(path, content); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("CV_CHECK_TIME", "1800")
+	t.Setenv("CV_API_KEY", "override-key")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() unexpected error: %v", err)
+	}
+	if cfg.CheckTime != 1800 {
+		t.Errorf("CheckTime = %d; want 1800 (overridden by env)", cfg.CheckTime)
+	}
+	if cfg.APIKey != "override-key" {
+		t.Errorf("APIKey = %q; want %q", cfg.APIKey, "override-key")
+	}
+}
+
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }

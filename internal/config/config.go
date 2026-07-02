@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/checker"
@@ -16,6 +17,7 @@ import (
 // Config represents the application configuration from settings.yml.
 type Config struct {
 	CheckTime  int            `yaml:"check_time"`
+	APIKey     string         `yaml:"api_key"`
 	AppConfigs []AppConfig    `yaml:"app_configs"`
 	Hosts      []HostConfig   `yaml:"hosts"`
 	Prometheus PrometheusConf `yaml:"prometheus"`
@@ -167,6 +169,63 @@ func (cfg *Config) Validate() ([]string, error) {
 	return warnings, nil
 }
 
+// applyEnvOverrides overrides config fields with environment variables.
+// Uses the CV_ prefix. Only overrides if the env var is set and non-empty.
+func (cfg *Config) applyEnvOverrides() {
+	if v := os.Getenv("CV_CHECK_TIME"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil && i > 0 {
+			cfg.CheckTime = i
+		}
+	}
+	if v := os.Getenv("CV_API_KEY"); v != "" {
+		cfg.APIKey = v
+	}
+	if v := os.Getenv("CV_APP_HOST"); v != "" && len(cfg.AppConfigs) > 0 {
+		cfg.AppConfigs[0].Host = v
+	}
+	if v := os.Getenv("CV_APP_PORT"); v != "" && len(cfg.AppConfigs) > 0 {
+		cfg.AppConfigs[0].Port = v
+	}
+	if v := os.Getenv("CV_PROMETHEUS_ENABLED"); v != "" {
+		cfg.Prometheus.Enabled = v == "true" || v == "1" || v == "yes"
+	}
+	if v := os.Getenv("CV_PROMETHEUS_ADDRESS"); v != "" {
+		cfg.Prometheus.Address = v
+	}
+	if v := os.Getenv("CV_WEBHOOK_URL"); v != "" {
+		cfg.Webhook.URL = v
+	}
+	if v := os.Getenv("CV_WEBHOOK_THRESHOLD"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			cfg.Webhook.Threshold = i
+		}
+	}
+	if v := os.Getenv("CV_WEBHOOK_INTERVAL"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			cfg.Webhook.Interval = i
+		}
+	}
+	if v := os.Getenv("CV_HISTORY_ENABLED"); v != "" {
+		cfg.History.Enabled = v == "true" || v == "1" || v == "yes"
+	}
+	if v := os.Getenv("CV_HISTORY_FILE_PATH"); v != "" {
+		cfg.History.FilePath = v
+	}
+	if v := os.Getenv("CV_HISTORY_MAX_ENTRIES"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil && i > 0 {
+			cfg.History.MaxEntries = i
+		}
+	}
+	if v := os.Getenv("CV_HISTORY_MAX_DAYS"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil && i > 0 {
+			cfg.History.MaxDays = i
+		}
+	}
+	if v := os.Getenv("CV_TRUSTED_CAS"); v != "" {
+		cfg.TrustedCAs = strings.Split(v, ",")
+	}
+}
+
 // Load reads and parses a YAML configuration file.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
@@ -182,6 +241,8 @@ func Load(path string) (*Config, error) {
 	if cfg.CheckTime <= 0 {
 		cfg.CheckTime = 86400
 	}
+
+	cfg.applyEnvOverrides()
 
 	return &cfg, nil
 }
