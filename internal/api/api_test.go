@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -346,6 +347,34 @@ func TestHandleHistory_Found(t *testing.T) {
 	}
 }
 
+func TestHandleHealth_WithReachableHost(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	_, portStr, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatalf("split host port: %v", err)
+	}
+
+	cfg := &config.Config{
+		Hosts: []config.HostConfig{
+			{Name: "local", URL: "127.0.0.1", Port: portStr},
+		},
+	}
+	svc := service.NewCertService(&mockChecker{}, nil, nil)
+	h := New(svc, cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("got status %d; want 200", w.Code)
+	}
+}
+
 func TestHandleHistory_NotEnabled(t *testing.T) {
 	h := setupHandler(&mockChecker{}, nil)
 
@@ -370,6 +399,132 @@ func TestHandleHistory_EmptyHostname(t *testing.T) {
 	// Go 1.22 mux returns 404 for pattern mismatch (empty {hostname})
 	if w.Code != http.StatusNotFound {
 		t.Errorf("got status %d; want 404 (mux no match)", w.Code)
+	}
+}
+
+func TestWriteJSON(t *testing.T) {
+	w := httptest.NewRecorder()
+	writeJSON(w, http.StatusTeapot, map[string]string{"msg": "hello"})
+	if w.Code != http.StatusTeapot {
+		t.Errorf("got status %d; want 418", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("got Content-Type %q; want application/json", ct)
+	}
+}
+
+func TestWriteJSON_EncodeError(t *testing.T) {
+	w := httptest.NewRecorder()
+	writeJSON(w, http.StatusOK, map[string]chan int{"ch": make(chan int)})
+	if w.Code != http.StatusOK {
+		t.Errorf("got status %d; want 200", w.Code)
+	}
+}
+
+type failWriter struct{}
+
+func (failWriter) Header() http.Header       { return http.Header{} }
+func (failWriter) Write([]byte) (int, error) { return 0, errors.New("write error") }
+func (failWriter) WriteHeader(int)           {}
+
+func TestHandleExportCSV_WriteError(t *testing.T) {
+	h := setupHandler(
+		&mockChecker{
+			checkAllFunc: func(_ context.Context, hosts []checker.Host, _ int) ([]*certificate.Certificate, []error) {
+				certs := make([]*certificate.Certificate, len(hosts))
+				for i, h := range hosts {
+					certs[i] = &certificate.Certificate{Hostname: h.Hostname, DaysLeft: 100}
+				}
+				return certs, nil
+			},
+		},
+		&mockStore{recordFunc: func(results []*certificate.Certificate) {}},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/export/csv", nil)
+	h.Router().ServeHTTP(failWriter{}, req)
+	// No assertion - we just verify the handler doesn't panic on write error
+}
+
+func TestHandleExportCSV_NilCert(t *testing.T) {
+	h := setupHandler(
+		&mockChecker{
+			checkAllFunc: func(_ context.Context, _ []checker.Host, _ int) ([]*certificate.Certificate, []error) {
+				return []*certificate.Certificate{nil, nil}, nil
+			},
+		},
+		&mockStore{recordFunc: func(results []*certificate.Certificate) {}},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/export/csv", nil)
+	w := httptest.NewRecorder()
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("got status %d; want 200", w.Code)
+	}
+}
+
+func TestHandleHistory_StoreError(t *testing.T) {
+	h := setupHandler(
+		&mockChecker{},
+		&mockStore{
+			getHistoryFunc: func(hostname string) ([]history.Entry, error) {
+				return nil, errors.New("db error")
+			},
+		},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/history/example.com", nil)
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("got status %d; want 500", w.Code)
+	}
+}
+
+func TestRateLimiter_Exhausted(t *testing.T) {
+	rl := newRateLimiter(0, 0) // zero rate, zero burst
+	// First call on an empty bucket
+	if rl.allow() {
+		t.Error("expected false for exhausted rate limiter")
+	}
+}
+
+func TestRateLimiter_Refill(t *testing.T) {
+	rl := newRateLimiter(1000, 2) // high rate, burst 2
+	if !rl.allow() {
+		t.Error("expected allow (burst available)")
+	}
+	if !rl.allow() {
+		t.Error("expected allow (burst available)")
+	}
+	if rl.allow() {
+		t.Error("expected false after burst exhausted")
+	}
+}
+
+func TestWithMiddleware_RateLimit(t *testing.T) {
+	oldLimiter := defaultLimiter
+	defaultLimiter = newRateLimiter(0, 0)
+	t.Cleanup(func() { defaultLimiter = oldLimiter })
+
+	h := setupHandler(
+		&mockChecker{},
+		&mockStore{recordFunc: func(results []*certificate.Certificate) {}},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/info/all", nil)
+	w := httptest.NewRecorder()
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("got status %d; want 429", w.Code)
+	}
+	if ct := w.Header().Get("Retry-After"); ct != "1" {
+		t.Errorf("got Retry-After %q; want 1", ct)
 	}
 }
 

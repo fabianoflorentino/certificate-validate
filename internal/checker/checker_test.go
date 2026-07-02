@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
 )
@@ -181,6 +182,36 @@ func TestCheckAll_DefaultMaxParallel(t *testing.T) {
 	}
 	if len(certs) != 1 {
 		t.Errorf("got %d certificates; want 1", len(certs))
+	}
+}
+
+func TestCheckAll_WithPerHostTimeout(t *testing.T) {
+	timeoutUsed := false
+	c := New(
+		&mockFetcher{
+			fetchFunc: func(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
+				if _, ok := ctx.Deadline(); ok {
+					timeoutUsed = true
+				}
+				return &certificate.Certificate{Hostname: hostname}, nil
+			},
+		},
+		&mockFormatter{},
+	)
+
+	hosts := []Host{
+		{Hostname: "slow.example.com", Port: 443, Timeout: 30 * time.Second},
+	}
+
+	certs, errs := c.CheckAll(context.Background(), hosts, 1)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(certs) != 1 {
+		t.Fatalf("got %d certificates; want 1", len(certs))
+	}
+	if !timeoutUsed {
+		t.Error("expected context deadline to be set for host with Timeout")
 	}
 }
 
