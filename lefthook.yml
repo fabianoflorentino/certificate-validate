@@ -1,0 +1,29 @@
+# Lefthook configuration
+# Install: lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      run: golangci-lint run
+      stage_fixed: true
+    vet:
+      run: go vet ./...
+      stage_fixed: true
+
+pre-push:
+  parallel: false
+  commands:
+    verify-deps:
+      run: go mod verify
+    lint:
+      run: golangci-lint run
+    vet:
+      run: go vet ./...
+    test:
+      run: go test -race -count=1 -coverprofile=coverage.out ./...
+    coverage:
+      run: |
+        go tool cover -func=coverage.out | grep total | \
+          awk '{print $3}' | awk -F'%' '{if ($1 < 80) {print "Coverage: " $1 "% (minimum 80%)"; exit 1}}'
+      skip: merge  # skip in merge-commit as coverage.out may be stale
