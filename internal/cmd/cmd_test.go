@@ -430,3 +430,109 @@ func generateCACert(t *testing.T, path string) {
 		t.Fatalf("write ca.pem: %v", err)
 	}
 }
+
+func TestExportCmd_Registered(t *testing.T) {
+	seen := false
+	for _, c := range rootCmd.Commands() {
+		if c.Use == exportCmd.Use {
+			seen = true
+			break
+		}
+	}
+	if !seen {
+		t.Error("export command not registered on rootCmd")
+	}
+}
+
+func TestExportCmd_Flags(t *testing.T) {
+	f := exportCmd.Flags()
+	formatFlag := f.Lookup("format")
+	if formatFlag == nil {
+		t.Fatal("expected --format flag")
+	}
+	if formatFlag.DefValue != "json" {
+		t.Errorf("format default = %q; want %q", formatFlag.DefValue, "json")
+	}
+
+	fileFlag := f.Lookup("output-file")
+	if fileFlag == nil {
+		t.Fatal("expected --output-file flag")
+	}
+	if fileFlag.DefValue != "" {
+		t.Errorf("output-file default = %q; want empty string", fileFlag.DefValue)
+	}
+}
+
+func TestExportCmd_RunsWithoutPanic(t *testing.T) {
+	dir := t.TempDir()
+	oldCfgPath := cfgPath
+	cfgPath = filepath.Join(dir, "settings.yml")
+	t.Cleanup(func() { cfgPath = oldCfgPath })
+
+	yml := `hosts:
+  - name: test
+    url: 127.0.0.1
+    port: "1"
+`
+	if err := os.WriteFile(cfgPath, []byte(yml), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	exportFormat = "json"
+	exportFile = filepath.Join(dir, "out.json")
+
+	err := exportCmd.RunE(exportCmd, nil)
+	if err != nil {
+		t.Fatalf("export command error: %v", err)
+	}
+
+	if _, err := os.Stat(exportFile); os.IsNotExist(err) {
+		t.Error("output file was not created")
+	}
+}
+
+func TestExportCmd_CSVFormat(t *testing.T) {
+	dir := t.TempDir()
+	oldCfgPath := cfgPath
+	cfgPath = filepath.Join(dir, "settings.yml")
+	t.Cleanup(func() { cfgPath = oldCfgPath })
+
+	yml := `hosts:
+  - name: test
+    url: 127.0.0.1
+    port: "1"
+`
+	if err := os.WriteFile(cfgPath, []byte(yml), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	exportFormat = "csv"
+	exportFile = filepath.Join(dir, "out.csv")
+
+	err := exportCmd.RunE(exportCmd, nil)
+	if err != nil {
+		t.Fatalf("export command error: %v", err)
+	}
+
+	data, err := os.ReadFile(exportFile)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if !strings.Contains(string(data), "hostname") {
+		t.Error("CSV output missing header row")
+	}
+}
+
+func TestExportCmd_ConfigMissing(t *testing.T) {
+	oldCfgPath := cfgPath
+	cfgPath = "/nonexistent/config.yml"
+	t.Cleanup(func() { cfgPath = oldCfgPath })
+
+	exportFormat = "json"
+	exportFile = ""
+
+	err := exportCmd.RunE(exportCmd, nil)
+	if err == nil {
+		t.Fatal("expected error for missing config file")
+	}
+}
