@@ -352,7 +352,7 @@ func TestHandleHealth_WithReachableHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	_, portStr, err := net.SplitHostPort(ln.Addr().String())
 	if err != nil {
 		t.Fatalf("split host port: %v", err)
