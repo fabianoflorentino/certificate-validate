@@ -52,7 +52,7 @@ func setupHandler(checker checker.CertChecker, recorder history.Store) *Handler 
 		},
 	}
 	svc := service.NewCertService(checker, recorder, nil)
-	return New(svc, cfg)
+	return New(svc, cfg, "")
 }
 
 func TestHandleHealth(t *testing.T) {
@@ -364,7 +364,7 @@ func TestHandleHealth_WithReachableHost(t *testing.T) {
 		},
 	}
 	svc := service.NewCertService(&mockChecker{}, nil, nil)
-	h := New(svc, cfg)
+	h := New(svc, cfg, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -555,7 +555,7 @@ func TestRouter_RegistersPrometheus(t *testing.T) {
 		Prometheus: config.PrometheusConf{Enabled: true},
 	}
 	svc := service.NewCertService(&mockChecker{}, nil, nil)
-	h := New(svc, cfg)
+	h := New(svc, cfg, "")
 
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	w := httptest.NewRecorder()
@@ -564,5 +564,129 @@ func TestRouter_RegistersPrometheus(t *testing.T) {
 
 	if w.Code == http.StatusNotFound {
 		t.Error("expected prometheus metrics handler to be registered")
+	}
+}
+
+func TestAuth_NoKeyConfigured(t *testing.T) {
+	h := setupHandler(&mockChecker{
+		checkAllFunc: func(ctx context.Context, hosts []checker.Host, maxParallel int) ([]*certificate.Certificate, []error) {
+			return []*certificate.Certificate{{Hostname: "test.com"}}, nil
+		},
+	}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/info/all", nil)
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code == http.StatusUnauthorized {
+		t.Error("got 401 with no API key configured; expected no auth")
+	}
+}
+
+func TestAuth_ValidKey(t *testing.T) {
+	setup := func() *Handler {
+		cfg := &config.Config{
+			Hosts: []config.HostConfig{
+				{Name: "test", URL: "example.com", Port: "443"},
+			},
+		}
+		svc := service.NewCertService(&mockChecker{
+			checkAllFunc: func(ctx context.Context, hosts []checker.Host, maxParallel int) ([]*certificate.Certificate, []error) {
+				return []*certificate.Certificate{{Hostname: "test.com"}}, nil
+			},
+		}, nil, nil)
+		return New(svc, cfg, "my-secret-token")
+	}
+
+	h := setup()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/info/all", nil)
+	req.Header.Set("X-API-Key", "my-secret-token")
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code == http.StatusUnauthorized {
+		t.Error("got 401 with valid API key; expected access granted")
+	}
+}
+
+func TestAuth_InvalidKey(t *testing.T) {
+	cfg := &config.Config{
+		Hosts: []config.HostConfig{
+			{Name: "test", URL: "example.com", Port: "443"},
+		},
+	}
+	svc := service.NewCertService(&mockChecker{}, nil, nil)
+	h := New(svc, cfg, "my-secret-token")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/info/all", nil)
+	req.Header.Set("X-API-Key", "wrong-token")
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("got status %d; want 401 with invalid API key", w.Code)
+	}
+}
+
+func TestAuth_MissingKey(t *testing.T) {
+	cfg := &config.Config{
+		Hosts: []config.HostConfig{
+			{Name: "test", URL: "example.com", Port: "443"},
+		},
+	}
+	svc := service.NewCertService(&mockChecker{}, nil, nil)
+	h := New(svc, cfg, "my-secret-token")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/info/all", nil)
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("got status %d; want 401 with missing API key", w.Code)
+	}
+}
+
+func TestAuth_HealthBypassesAuth(t *testing.T) {
+	cfg := &config.Config{
+		Hosts: []config.HostConfig{
+			{Name: "test", URL: "example.com", Port: "443"},
+		},
+	}
+	svc := service.NewCertService(&mockChecker{}, nil, nil)
+	h := New(svc, cfg, "my-secret-token")
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code == http.StatusUnauthorized {
+		t.Error("health endpoint returned 401; should bypass auth")
+	}
+}
+
+func TestAuth_KeyConfiguredNoKeyUnauthorized(t *testing.T) {
+	cfg := &config.Config{
+		Hosts: []config.HostConfig{
+			{Name: "test", URL: "example.com", Port: "443"},
+		},
+	}
+	svc := service.NewCertService(&mockChecker{}, nil, nil)
+	h := New(svc, cfg, "my-secret-token")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/info/commonName", nil)
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("got status %d; want 401", w.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["error"] != "unauthorized" {
+		t.Errorf("error message = %q; want %q", resp["error"], "unauthorized")
 	}
 }

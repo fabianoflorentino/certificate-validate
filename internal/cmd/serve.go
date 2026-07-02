@@ -26,6 +26,7 @@ import (
 var (
 	tlsCertFile string
 	tlsKeyFile  string
+	apiKeyFlag  string
 )
 
 type serverDeps struct {
@@ -161,6 +162,7 @@ Send SIGHUP to reload configuration without restarting.`,
 func init() {
 	serveCmd.Flags().StringVarP(&tlsCertFile, "tls-cert", "", "", "path to TLS certificate file")
 	serveCmd.Flags().StringVarP(&tlsKeyFile, "tls-key", "", "", "path to TLS private key file")
+	serveCmd.Flags().StringVarP(&apiKeyFlag, "api-key", "", "", "API key for authenticating requests (overrides config/api_key)")
 	rootCmd.AddCommand(serveCmd)
 }
 
@@ -196,7 +198,12 @@ func buildDeps(cfg *config.Config) (http.Handler, *serverDeps, error) {
 		mUpdater = metrics.Update
 	}
 	svc := service.NewCertService(c, rec, mUpdater)
-	h := api.New(svc, cfg)
+	// CLI --api-key flag takes precedence over config file api_key.
+	apiToken := apiKeyFlag
+	if apiToken == "" {
+		apiToken = cfg.APIKey
+	}
+	h := api.New(svc, cfg, apiToken)
 
 	return h.Router(), &serverDeps{checker: c, registry: rec}, nil
 }

@@ -393,7 +393,7 @@ func newIntegrationServer(mc checker.CertChecker, ms history.Store, promEnabled 
 		Prometheus: config.PrometheusConf{Enabled: promEnabled},
 	}
 	svc := service.NewCertService(mc, ms, nil)
-	h := New(svc, cfg)
+	h := New(svc, cfg, "")
 	return httptest.NewServer(h.Router())
 }
 

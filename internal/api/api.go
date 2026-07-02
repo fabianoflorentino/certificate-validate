@@ -62,15 +62,18 @@ var staticFiles embed.FS
 
 // Handler holds dependencies for HTTP handlers.
 type Handler struct {
-	svc *service.CertService
-	cfg *config.Config
+	svc      *service.CertService
+	cfg      *config.Config
+	apiToken string
 }
 
 // New creates a new Handler with the given dependencies.
-func New(svc *service.CertService, cfg *config.Config) *Handler {
+// If apiToken is non-empty, all API routes require X-API-Key header matching it.
+func New(svc *service.CertService, cfg *config.Config, apiToken string) *Handler {
 	return &Handler{
-		svc: svc,
-		cfg: cfg,
+		svc:      svc,
+		cfg:      cfg,
+		apiToken: apiToken,
 	}
 }
 
@@ -97,7 +100,7 @@ func (h *Handler) Router() http.Handler {
 		mux.Handle("GET /", http.FileServer(http.FS(staticFS)))
 	}
 
-	return withMiddleware(mux)
+	return withMiddleware(h, mux)
 }
 
 func (h *Handler) handleAll(w http.ResponseWriter, r *http.Request) {
@@ -301,10 +304,21 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 var defaultLimiter = newRateLimiter(100, 200) // 100 req/s, burst 200
 
-func withMiddleware(next http.Handler) http.Handler {
+// withMiddleware applies security headers, rate limiting, and optional API auth.
+func withMiddleware(h *Handler, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
+
+		// API key authentication for non-health routes when a token is configured.
+		if h.apiToken != "" && r.URL.Path != "/health" {
+			if r.Header.Get("X-API-Key") != h.apiToken {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+				return
+			}
+		}
 
 		if !defaultLimiter.allow() {
 			w.Header().Set("Retry-After", "1")
