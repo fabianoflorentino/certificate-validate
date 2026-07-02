@@ -1,9 +1,16 @@
 package config
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestPortInt(t *testing.T) {
@@ -196,6 +203,48 @@ func TestValidate_PrometheusNoAddress(t *testing.T) {
 	}
 }
 
+func TestValidate_NegativeTimeout(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{
+			{Name: "test", URL: "example.com", Port: "443", Timeout: -1},
+		},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	found := false
+	for _, w := range warnings {
+		if contains(w, "timeout") && contains(w, "negative") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected warning for negative timeout")
+	}
+}
+
+func TestValidate_EmptyTrustedCA(t *testing.T) {
+	cfg := &Config{
+		Hosts: []HostConfig{
+			{Name: "test", URL: "example.com", Port: "443", TrustedCAs: []string{""}},
+		},
+	}
+	warnings, err := cfg.Validate()
+	if err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+	found := false
+	for _, w := range warnings {
+		if contains(w, "trusted_cas") && contains(w, "empty") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected warning for empty trusted_ca path")
+	}
+}
+
 func TestValidate_ValidConfig(t *testing.T) {
 	cfg := &Config{
 		Hosts: []HostConfig{
@@ -335,6 +384,87 @@ func TestLoad_DefaultsCheckTime(t *testing.T) {
 
 	if cfg.CheckTime != 86400 {
 		t.Errorf("CheckTime = %d; want default 86400", cfg.CheckTime)
+	}
+}
+
+func TestLoadPerHostCAs_EmptyInputs(t *testing.T) {
+	m, err := LoadPerHostCAs(nil)
+	if err != nil {
+		t.Fatalf("LoadPerHostCAs(nil) error = %v", err)
+	}
+	if len(m) != 0 {
+		t.Errorf("got %d entries; want 0", len(m))
+	}
+
+	m, err = LoadPerHostCAs([]HostConfig{})
+	if err != nil {
+		t.Fatalf("LoadPerHostCAs([]) error = %v", err)
+	}
+	if len(m) != 0 {
+		t.Errorf("got %d entries; want 0", len(m))
+	}
+}
+
+func TestLoadPerHostCAs_NoTrustedCAs(t *testing.T) {
+	hosts := []HostConfig{
+		{Name: "test", URL: "example.com", Port: "443"},
+	}
+	m, err := LoadPerHostCAs(hosts)
+	if err != nil {
+		t.Fatalf("LoadPerHostCAs() error = %v", err)
+	}
+	if len(m) != 0 {
+		t.Errorf("got %d entries; want 0", len(m))
+	}
+}
+
+func TestLoadPerHostCAs_InvalidPath(t *testing.T) {
+	hosts := []HostConfig{
+		{Name: "test", URL: "example.com", Port: "443", TrustedCAs: []string{"/nonexistent/ca.pem"}},
+	}
+	_, err := LoadPerHostCAs(hosts)
+	if err == nil {
+		t.Fatal("expected error for nonexistent CA file")
+	}
+}
+
+func TestLoadPerHostCAs_Valid(t *testing.T) {
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	// Generate a minimal DER-encoded self-signed cert
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Test CA"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour * 24 * 365),
+		IsCA:         true,
+		BasicConstraintsValid: true,
+		KeyUsage:     x509.KeyUsageCertSign,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		t.Fatalf("create cert: %v", err)
+	}
+	pemBlock := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	if err := os.WriteFile(caPath, pemBlock, 0644); err != nil {
+		t.Fatalf("write ca.pem: %v", err)
+	}
+
+	hosts := []HostConfig{
+		{Name: "internal", URL: "internal.example.com", Port: "443", TrustedCAs: []string{caPath}},
+	}
+	m, err := LoadPerHostCAs(hosts)
+	if err != nil {
+		t.Fatalf("LoadPerHostCAs() error = %v", err)
+	}
+	if len(m) != 1 {
+		t.Fatalf("got %d entries; want 1", len(m))
+	}
+	if m["internal.example.com"] == nil {
+		t.Error("expected non-nil CertPool for internal.example.com")
 	}
 }
 

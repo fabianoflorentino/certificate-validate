@@ -241,6 +241,33 @@ func TestFormatTable_StatusThresholds(t *testing.T) {
 	}
 }
 
+func TestFormatTable_RevocationColumn(t *testing.T) {
+	tests := []struct {
+		name   string
+		status certificate.RevocationStatus
+		want   string
+	}{
+		{"good status", certificate.RevocationGood, "good"},
+		{"revoked status", certificate.RevocationRevoked, "revoked"},
+		{"unknown status", certificate.RevocationUnknown, "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			certs := []*certificate.Certificate{
+				{Hostname: "test.com", Port: 443, DaysLeft: 100, RevocationStatus: tt.status},
+			}
+			data, err := FormatTable(certs)
+			if err != nil {
+				t.Fatalf("FormatTable() error = %v", err)
+			}
+			if !strings.Contains(string(data), tt.want) {
+				t.Errorf("expected revocation status %q in table output.\nGot:\n%s", tt.want, string(data))
+			}
+		})
+	}
+}
+
 func TestFormatTable_IssuerTruncation(t *testing.T) {
 	longIssuer := "A really long issuer name that should definitely be truncated to fit in the table because it exceeds forty eight characters total"
 	certs := []*certificate.Certificate{

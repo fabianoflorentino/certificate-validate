@@ -229,6 +229,31 @@ func TestFetcherInterfaceCompliance(t *testing.T) {
 	}
 }
 
+func TestNewWithPerHostCAs(t *testing.T) {
+	pool := x509.NewCertPool()
+	perHostCAs := map[string]*x509.CertPool{"internal.example.com": pool}
+	f := NewWithPerHostCAs(5*time.Second, nil, perHostCAs)
+	tf, ok := f.(*tlsFetcher)
+	if !ok {
+		t.Fatalf("expected *tlsFetcher, got %T", f)
+	}
+	if tf.timeout != 5*time.Second {
+		t.Errorf("timeout = %v; want %v", tf.timeout, 5*time.Second)
+	}
+	if tf.perHostCAs == nil {
+		t.Fatal("expected non-nil perHostCAs map")
+	}
+	if tf.perHostCAs["internal.example.com"] == nil {
+		t.Error("expected pool for internal.example.com")
+	}
+	// Verify default timeout
+	f2 := NewWithPerHostCAs(0, nil, nil)
+	tf2 := f2.(*tlsFetcher)
+	if tf2.timeout != 10*time.Second {
+		t.Errorf("default timeout = %v; want 10s", tf2.timeout)
+	}
+}
+
 func TestLoadRootCAs_EmptyPaths(t *testing.T) {
 	pool, err := LoadRootCAs(nil)
 	if err != nil {
