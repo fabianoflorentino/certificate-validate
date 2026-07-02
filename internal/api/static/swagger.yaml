@@ -13,17 +13,6 @@ servers:
   - url: https://localhost:5000
     description: Local development (TLS)
 
-components:
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
-      description: |
-        API key for authenticating requests.
-        Configured via `config/settings.yml` (api_key), `--api-key` flag, or `CV_API_KEY` env var.
-        When configured, all routes except `/health` require this header.
-
 paths:
   /health:
     get:
@@ -190,6 +179,16 @@ paths:
                 type: string
 
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authenticating requests.
+        Configured via `config/settings.yml` (api_key), `--api-key` flag, or `CV_API_KEY` env var.
+        When configured, all routes except `/health` require this header.
+
   schemas:
     Certificate:
       type: object
