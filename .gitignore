@@ -133,3 +133,5 @@ dmypy.json
 .DS_Store
 certificate-validate
 coverage.out
+cov.out
+.omo/run-continuation/
