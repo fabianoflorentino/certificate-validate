@@ -284,6 +284,129 @@ func TestFormatTable_IssuerTruncation(t *testing.T) {
 	}
 }
 
+func TestFormatJSON(t *testing.T) {
+	certs := []*certificate.Certificate{
+		{Hostname: "github.com", Port: 443, DaysLeft: 180, TLSVersion: "TLS 1.3"},
+		{Hostname: "gitlab.com", Port: 443, DaysLeft: 12, TLSVersion: "TLS 1.3"},
+	}
+
+	data, err := FormatJSON(certs)
+	if err != nil {
+		t.Fatalf("FormatJSON() error = %v", err)
+	}
+
+	var result []map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("FormatJSON() returned invalid JSON: %v", err)
+	}
+
+	if len(result) != 2 {
+		t.Fatalf("got %d certificates; want 2", len(result))
+	}
+	if result[0]["hostname"] != "github.com" {
+		t.Errorf("result[0].hostname = %v; want %q", result[0]["hostname"], "github.com")
+	}
+}
+
+func TestFormatJSON_Empty(t *testing.T) {
+	data, err := FormatJSON([]*certificate.Certificate{})
+	if err != nil {
+		t.Fatalf("FormatJSON() error = %v", err)
+	}
+	if string(data) != "[]" && string(data) != "[]\n" {
+		t.Errorf("expected empty array, got: %s", string(data))
+	}
+}
+
+func TestFormatJSON_NilSlice(t *testing.T) {
+	data, err := FormatJSON(nil)
+	if err != nil {
+		t.Fatalf("FormatJSON(nil) error = %v", err)
+	}
+	var result []interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("FormatJSON(nil) returned invalid JSON: %v", err)
+	}
+	if len(result) != 0 {
+		t.Errorf("expected empty array, got %d elements", len(result))
+	}
+}
+
+func TestFormatCSV(t *testing.T) {
+	certs := []*certificate.Certificate{
+		{Hostname: "github.com", Port: 443, CommonName: "github.com", Issuer: "Sectigo", DaysLeft: 180, TLSVersion: "TLS 1.3", CipherSuite: "TLS_AES_256_GCM_SHA384"},
+	}
+
+	data, err := FormatCSV(certs)
+	if err != nil {
+		t.Fatalf("FormatCSV() error = %v", err)
+	}
+
+	output := string(data)
+	if !strings.Contains(output, "hostname") {
+		t.Error("CSV missing header row")
+	}
+	if !strings.Contains(output, "github.com") {
+		t.Error("CSV missing github.com")
+	}
+	if !strings.Contains(output, "443") {
+		t.Error("CSV missing port 443")
+	}
+}
+
+func TestFormatCSV_MultipleRows(t *testing.T) {
+	certs := []*certificate.Certificate{
+		{Hostname: "a.com", Port: 443, DaysLeft: 100},
+		{Hostname: "b.com", Port: 8443, DaysLeft: 50},
+	}
+
+	data, err := FormatCSV(certs)
+	if err != nil {
+		t.Fatalf("FormatCSV() error = %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 3 { // header + 2 rows
+		t.Fatalf("expected 3 lines, got %d", len(lines))
+	}
+	if !strings.Contains(lines[1], "a.com") {
+		t.Error("first data row missing a.com")
+	}
+	if !strings.Contains(lines[2], "b.com") {
+		t.Error("second data row missing b.com")
+	}
+}
+
+func TestFormatCSV_SkipsNil(t *testing.T) {
+	certs := []*certificate.Certificate{
+		{Hostname: "a.com", Port: 443, DaysLeft: 100},
+		nil,
+		{Hostname: "b.com", Port: 443, DaysLeft: 50},
+	}
+
+	data, err := FormatCSV(certs)
+	if err != nil {
+		t.Fatalf("FormatCSV() error = %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 3 { // header + 2 data rows (nil skipped)
+		t.Fatalf("expected 3 lines, got %d (nil certificate should be skipped)", len(lines))
+	}
+}
+
+func TestFormatCSV_Empty(t *testing.T) {
+	data, err := FormatCSV([]*certificate.Certificate{})
+	if err != nil {
+		t.Fatalf("FormatCSV() error = %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected only header line, got %d lines", len(lines))
+	}
+}
+
 func splitLines(s string) []string {
 	var lines []string
 	start := 0

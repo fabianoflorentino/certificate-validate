@@ -2,8 +2,10 @@ package formatter
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
@@ -83,4 +85,51 @@ func statusLabel(days int) string {
 	default:
 		return "good"
 	}
+}
+
+// FormatJSON formats multiple certificates as a JSON array.
+func FormatJSON(certs []*certificate.Certificate) ([]byte, error) {
+	data, err := json.MarshalIndent(certs, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("format certificates: %w", err)
+	}
+	return data, nil
+}
+
+// FormatCSV formats certificates as CSV with a header row.
+func FormatCSV(certs []*certificate.Certificate) ([]byte, error) {
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+
+	header := []string{"hostname", "port", "commonName", "issuer", "notBefore", "notAfter", "daysLeft", "revocationStatus", "tlsVersion", "cipherSuite"}
+	if err := w.Write(header); err != nil {
+		return nil, fmt.Errorf("write csv header: %w", err)
+	}
+
+	for _, c := range certs {
+		if c == nil {
+			continue
+		}
+		rec := []string{
+			c.Hostname,
+			strconv.Itoa(c.Port),
+			c.CommonName,
+			c.Issuer,
+			c.NotBefore,
+			c.NotAfter,
+			strconv.Itoa(c.DaysLeft),
+			string(c.RevocationStatus),
+			c.TLSVersion,
+			c.CipherSuite,
+		}
+		if err := w.Write(rec); err != nil {
+			return nil, fmt.Errorf("write csv record: %w", err)
+		}
+	}
+
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return nil, fmt.Errorf("csv flush: %w", err)
+	}
+	return buf.Bytes(), nil
 }
