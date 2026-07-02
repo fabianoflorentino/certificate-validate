@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Certificate Validate API - Swagger UI" />
+  <title>Certificate Validate API</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+  <style>
+    html { box-sizing: border-box; overflow-y: scroll; }
+    *, *:before, *:after { box-sizing: inherit; }
+    body { margin: 0; background: #fafafa; }
+    .topbar { display: none; }
+    .version-stamp { display: none; }
+
+    /* Header */
+    .swagger-header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .swagger-header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .swagger-header a {
+      color: #80b5ff;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .swagger-header a:hover { text-decoration: underline; }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a2e; }
+      .swagger-ui { color: #e0e0e0; }
+      .swagger-ui .scheme-container {
+        background: #16213e;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      .swagger-ui .opblock-tag,
+      .swagger-ui .opblock-tag small,
+      .swagger-ui .opblock .opblock-summary-description,
+      .swagger-ui .info .title,
+      .swagger-ui .info a,
+      .swagger-ui .info p,
+      .swagger-ui .info li,
+      .swagger-ui .info table,
+      .swagger-ui .response-col_status,
+      .swagger-ui .response-col_description { color: #e0e0e0; }
+      .swagger-ui .info .description p { color: #c0c0c0; }
+      .swagger-ui .opblock { background: #16213e; border-color: #2a3a5e; }
+      .swagger-ui .opblock .opblock-section-header {
+        background: #1a2a4e;
+        border-color: #2a3a5e;
+      }
+      .swagger-ui .opblock .opblock-section-header h4 { color: #e0e0e0; }
+      .swagger-ui .opblock-body .opblock-description p { color: #c0c0c0; }
+      .swagger-ui table thead tr td, .swagger-ui table thead tr th {
+        color: #e0e0e0;
+        border-bottom: 1px solid #2a3a5e;
+      }
+      .swagger-ui .parameter__name, .swagger-ui .parameter__type, .swagger-ui .parameter__in {
+        color: #c0c0c0;
+      }
+      .swagger-ui .btn { border-color: #3a4a6e; color: #e0e0e0; }
+      .swagger-ui .btn:hover { background: #2a3a5e; }
+      .swagger-ui select { border-color: #3a4a6e; background: #16213e; color: #e0e0e0; }
+      .swagger-ui .model-box { background: #0d1b2a; }
+      .swagger-ui .model { color: #e0e0e0; }
+      .swagger-ui .model-title { color: #e0e0e0; }
+      .swagger-ui .prop-type { color: #80b5ff; }
+      .swagger-ui .model-toggle:after { filter: invert(0.8); }
+    }
+  </style>
+</head>
+<body>
+  <div class="swagger-header">
+    <h1>Certificate Validate API</h1>
+    <div>
+      <a href="/">Dashboard</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/fabianoflorentino/certificate-validate" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js" crossorigin></script>
+  <script>
+    window.onload = function() {
+      window.ui = SwaggerUIBundle({
+        url: '/swagger.yaml',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: "StandaloneLayout",
+        defaultModelRendering: "model",
+        defaultModelsExpandDepth: 1,
+        displayOperationId: true,
+        filter: true,
+        tryItOutEnabled: true,
+        syntaxHighlight: { theme: "agate" },
+      });
+    };
+  </script>
+</body>
+</html>
