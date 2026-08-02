@@ -391,6 +391,17 @@ func TestUserService(t *testing.T) {
 }
 ```
 
+## SOLID for Testability
+
+SOLID shapes how easy code is to test. The payoff is mostly in **Dependency Inversion**
+(consumers depend on interfaces, tests inject fakes) and **Interface Segregation**
+(small interfaces are cheap to mock). Use it as guidance — don't refuse to test code
+that skips an abstraction.
+
+- Single-responsibility types → table-driven tests cover behavior cleanly.
+- Interface-based mocking (above) only works when consumers depend on interfaces.
+- If a type has no interface and tests are painful to write, that's a signal — extract one.
+
 ## Benchmarks
 
 ### Basic Benchmarks

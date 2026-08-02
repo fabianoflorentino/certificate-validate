@@ -96,6 +96,26 @@ func ProcessData(r io.Reader) (io.Reader, error) {
 }
 ```
 
+## SOLID as an Architecture Guide
+
+Use SOLID as a **guide, not a rulebook**. Apply a principle when it improves clarity,
+testability, or extensibility — skip it when it would add layers without payoff. Small
+internal packages usually need only the principles that earn their keep.
+
+| Principle | In Practice |
+|-----------|-------------|
+| **S** — Single Responsibility | One package/type does one thing: `certificate` = domain, `fetcher` = TLS, `formatter` = output, `checker` = orchestration |
+| **O** — Open/Closed | Prefer small interfaces so new implementations plug in without editing existing code (`Fetcher`, `Formatter`) |
+| **L** — Liskov Substitution | Keep explicit `(T, error)` returns and consistent contracts across implementations |
+| **I** — Interface Segregation | Define minimal interfaces at the consumer (`Fetcher` has 1 method, `Formatter` has 1) |
+| **D** — Dependency Inversion | Consumers depend on interfaces; providers implement them; wire dependencies at the top (`main.go`) |
+
+Guidance, not enforcement:
+
+- Prefer **interfaces at the consumer** and concrete dependencies that can be swapped for tests.
+- Don't force an abstraction for a single concrete implementation — wait for a second use case.
+- If applying a principle makes the code harder to read, the principle is being misapplied.
+
 ## Error Handling Patterns
 
 ### Error Wrapping with Context
