@@ -1,28 +1,28 @@
 # Architecture
 
-Este documento descreve a arquitetura, fluxos e componentes do **certificate-validate**,
-uma ferramenta moderna e extensível de validação SSL/TLS escrita em Go.
+This document describes the architecture, flows, and components of **certificate-validate**,
+a modern, extensible SSL/TLS validation tool written in Go.
 
 ---
 
-## Índice
+## Table of Contents
 
-1. [Visão Geral da Arquitetura](#1-visão-geral-da-arquitetura)
-2. [Hierarquia de Comandos CLI](#2-hierarquia-de-comandos-cli)
-3. [Fluxo de Checagem de Certificado](#3-fluxo-de-checagem-de-certificado)
-4. [Fluxo de Requisição HTTP (API)](#4-fluxo-de-requisição-http-api)
-5. [Serviços de Background](#5-serviços-de-background)
-6. [Pipeline de Carregamento de Configuração](#6-pipeline-de-carregamento-de-configuração)
-7. [Injeção de Dependências e Inicialização](#7-injeção-de-dependências-e-inicialização)
-8. [Exportação de Dados](#8-exportação-de-dados)
-9. [Checagem de Revogação](#9-checagem-de-revogação)
+1. [Architecture Overview](#1-architecture-overview)
+2. [CLI Command Hierarchy](#2-cli-command-hierarchy)
+3. [Certificate Check Flow](#3-certificate-check-flow)
+4. [HTTP Request Flow (API)](#4-http-request-flow-api)
+5. [Background Services](#5-background-services)
+6. [Configuration Loading Pipeline](#6-configuration-loading-pipeline)
+7. [Dependency Injection and Initialization](#7-dependency-injection-and-initialization)
+8. [Data Export](#8-data-export)
+9. [Revocation Check](#9-revocation-check)
 
 ---
 
-## 1. Visão Geral da Arquitetura
+## 1. Architecture Overview
 
-O projeto segue **Clean Architecture** com princípios **SOLID**,
-separando o código em camadas concêntricas:
+The project follows **Clean Architecture** with **SOLID** principles,
+separating the code into concentric layers:
 
 ```mermaid
 flowchart TB
@@ -36,7 +36,7 @@ flowchart TB
     end
 
     subgraph UseCase["USE CASE - O, L"]
-        checkerLayer["internal/checker/\n(Checker: orquestra fetch + format)"]
+        checkerLayer["internal/checker/\n(Checker: orchestrates fetch + format)"]
         serviceLayer["internal/service/\n(CertService: CheckAll, CheckSingle, GetHistory)"]
     end
 
@@ -45,7 +45,7 @@ flowchart TB
     end
 
     subgraph Providers["PROVIDERS - D, I"]
-        fetcherLayer["internal/fetcher/\n(interface + implementação TLS)"]
+        fetcherLayer["internal/fetcher/\n(interface + TLS implementation)"]
         formatterLayer["internal/formatter/\n(JSONFormatter, FormatTable, FormatJSON, FormatCSV)"]
         notifierLayer["internal/notifier/\n(webhook alerts)"]
         historyLayer["internal/history/\n(Recorder, Store, JSONL rotation)"]
@@ -54,7 +54,7 @@ flowchart TB
     end
 
     subgraph Config["CONFIG"]
-        configLayer["internal/config/\n(YAML loader + env var overrides + validação)"]
+        configLayer["internal/config/\n(YAML loader + env var overrides + validation)"]
         yamlFile["config/settings.yml"]
     end
 
@@ -85,26 +85,26 @@ flowchart TB
     metricsLayer --> checkerLayer
 ```
 
-### Princípios SOLID Aplicados
+### SOLID Principles Applied
 
-| Princípio | Implementação |
+| Principle | Implementation |
 |---|---|
-| **S** - Single Responsibility | Cada pacote tem uma responsabilidade: `certificate` = domínio, `fetcher` = TLS, `formatter` = saída, `checker` = orquestração |
-| **O** - Open/Closed | Interfaces `Fetcher` e `Formatter` permitem novas implementações sem modificar código existente |
-| **L** - Liskov Substitution | Retornos explícitos `(Certificate, error)` — sem `sys.Exit()` ou tipos inconsistentes |
-| **I** - Interface Segregation | Interfaces mínimas: `Fetcher` tem 1 método, `Formatter` tem 1 método |
-| **D** - Dependency Inversion | `checker` define interfaces, providers implementam. `main.go` injeta dependências |
+| **S** - Single Responsibility | Each package has a single responsibility: `certificate` = domain, `fetcher` = TLS, `formatter` = output, `checker` = orchestration |
+| **O** - Open/Closed | `Fetcher` and `Formatter` interfaces allow new implementations without modifying existing code |
+| **L** - Liskov Substitution | Explicit `(Certificate, error)` returns — no `sys.Exit()` or inconsistent types |
+| **I** - Interface Segregation | Minimal interfaces: `Fetcher` has 1 method, `Formatter` has 1 method |
+| **D** - Dependency Inversion | `checker` defines interfaces, providers implement them. `main.go` injects dependencies |
 
 ---
 
-## 2. Hierarquia de Comandos CLI
+## 2. CLI Command Hierarchy
 
 ```mermaid
 flowchart LR
     root["certificate-validate"]
     subgraph globalFlags["Global Flags"]
-        cfg["-c, --config\n(caminho do YAML)"]
-        logFile["--log-file\n(arquivo de log)"]
+        cfg["-c, --config\n(YAML path)"]
+        logFile["--log-file\n(log file)"]
     end
 
     checkCmd["check"]
@@ -121,24 +121,24 @@ flowchart LR
     root --> completionCmd
 
     subgraph checkFlags["check Flags"]
-        cw["-w, --watch\n(modo contínuo)"]
-        co["-o, --output\n(json ou table)"]
-        ch["--host\n(host único)"]
-        cp["--port\n(padrão: 443)"]
-        cm["--min-days\n(filtro por dias)"]
+        cw["-w, --watch\n(continuous mode)"]
+        co["-o, --output\n(json or table)"]
+        ch["--host\n(single host)"]
+        cp["--port\n(default: 443)"]
+        cm["--min-days\n(filter by days)"]
     end
     checkCmd --> checkFlags
 
     subgraph serveFlags["serve Flags"]
-        st["--tls-cert\n(certificado TLS)"]
-        sk["--tls-key\n(chave TLS)"]
-        sa["--api-key\n(chave de API)"]
+        st["--tls-cert\n(TLS certificate)"]
+        sk["--tls-key\n(TLS key)"]
+        sa["--api-key\n(API key)"]
     end
     serveCmd --> serveFlags
 
     subgraph exportFlags["export Flags"]
-        ef["-f, --format\n(json ou csv)"]
-        eo["-o, --output-file\n(arquivo de saída)"]
+        ef["-f, --format\n(json or csv)"]
+        eo["-o, --output-file\n(output file)"]
     end
     exportCmd --> exportFlags
 
@@ -151,24 +151,24 @@ flowchart LR
     completionCmd --> completionShells
 ```
 
-### Funcionamento de Cada Comando
+### How Each Command Works
 
-| Comando | Descrição | Fluxo Principal |
+| Command | Description | Main Flow |
 |---|---|---|
-| `check` | Checa certificados dos hosts configurados ou de um host único via `--host` | Carrega config → constrói `Checker` via `buildApp` → `CheckAll`/`Check` → filtra por `--min-days` → imprime JSON ou tabela |
-| `check --watch` | Loop contínuo de checagem com intervalo configurável | `signal.NotifyContext` → loop com `time.Sleep(checkTime)` → checa e imprime → reinicia |
-| `serve` | Inicia servidor HTTP/HTTPS com hot-reload via SIGHUP | Carrega config → `buildDeps` (injeta tudo) → mux com rotas + middleware → background services → aguarda SIGHUP ou SIGTERM |
-| `export` | Checa todos os hosts e exporta em JSON ou CSV | Carrega config → `buildApp` → `CheckAll` → `FormatJSON`/`FormatCSV` → stdout ou arquivo |
-| `version` | Exibe versão, commit, data de build e runtime Go | Imprime vars injetadas via `ldflags` |
-| `completion` | Gera script de completão para shell | Delega para `cobra.Gen*Completion` |
+| `check` | Checks certificates from configured hosts or a single host via `--host` | Loads config → builds `Checker` via `buildApp` → `CheckAll`/`Check` → filters by `--min-days` → prints JSON or table |
+| `check --watch` | Continuous check loop with configurable interval | `signal.NotifyContext` → loop with `time.Sleep(checkTime)` → checks and prints → restarts |
+| `serve` | Starts HTTP/HTTPS server with hot-reload via SIGHUP | Loads config → `buildDeps` (injects everything) → mux with routes + middleware → background services → waits for SIGHUP or SIGTERM |
+| `export` | Checks all hosts and exports in JSON or CSV | Loads config → `buildApp` → `CheckAll` → `FormatJSON`/`FormatCSV` → stdout or file |
+| `version` | Shows version, commit, build date, and Go runtime | Prints variables injected via `ldflags` |
+| `completion` | Generates shell completion script | Delegates to `cobra.Gen*Completion` |
 
 ---
 
-## 3. Fluxo de Checagem de Certificado
+## 3. Certificate Check Flow
 
 ```mermaid
 sequenceDiagram
-    participant User as Usuário
+    participant User as User
     participant CLI as check.go
     participant Cfg as config
     participant App as buildApp
@@ -192,9 +192,9 @@ sequenceDiagram
 
     CLI->>Checker: CheckAll(ctx, hosts, maxParallel=10)
 
-    par Concurrente (semáforo)
+    par Concurrent (semaphore)
         Checker->>Fetcher: Fetch(ctx, host, port)
-        Fetcher->>Fetcher: tls.DialWithDialer (handshake TLS)
+        Fetcher->>Fetcher: tls.DialWithDialer (TLS handshake)
         Fetcher->>Cert: certificate.FromX509(certs[0], host, port)
         Fetcher->>Cert: certificate.TLSVersionString(cs.Version)
         Fetcher->>Cert: certificate.BuildChain(certs)
@@ -208,62 +208,62 @@ sequenceDiagram
     CLI->>CLI: filterByMinDays(certs)
     alt output == "table"
         CLI->>Fmt: formatter.FormatTable(certs)
-        Fmt-->>CLI: []byte (tabela formatada)
+        Fmt-->>CLI: []byte (formatted table)
     else output == "json"
         CLI->>CLI: json.MarshalIndent(cert)
     end
-    CLI-->>User: resultado
+    CLI-->>User: result
 ```
 
-### Etapas Detalhadas da Checagem
+### Detailed Check Steps
 
 ```mermaid
 flowchart TB
-    start(["certificate-validate check"]) --> loadConfig["config.Load(path)\nLê YAML + aplica env vars"]
-    loadConfig --> validate["cfg.Validate()\nValida hosts, portas, webhook, prometheus"]
+    start(["certificate-validate check"]) --> loadConfig["config.Load(path)\nReads YAML + applies env vars"]
+    loadConfig --> validate["cfg.Validate()\nValidates hosts, ports, webhook, prometheus"]
     validate --> buildApp["buildApp(cfg)"]
 
     subgraph buildAppFlow["buildApp"]
         direction TB
-        l1["fetcher.LoadRootCAs(cfg.TrustedCAs)\nCarrega CAs confiáveis globais"]
-        l2["config.LoadPerHostCAs(cfg.Hosts)\nCarrega CAs por host"]
-        l3["fetcher.NewWithPerHostCAs(timeout, rootCAs, perHostCAs)\nCria fetcher TLS"]
-        l4["formatter.New()\nCria formatador JSON"]
-        l5["checker.New(fetcher, formatter)\nCria orquestrador"]
+        l1["fetcher.LoadRootCAs(cfg.TrustedCAs)\nLoads trusted global CAs"]
+        l2["config.LoadPerHostCAs(cfg.Hosts)\nLoads per-host CAs"]
+        l3["fetcher.NewWithPerHostCAs(timeout, rootCAs, perHostCAs)\nCreates TLS fetcher"]
+        l4["formatter.New()\nCreates JSON formatter"]
+        l5["checker.New(fetcher, formatter)\nCreates orchestrator"]
         l1 --> l2 --> l3 --> l5
         l4 --> l5
     end
 
     buildApp --> buildAppFlow
-    buildAppFlow --> resolveHosts["config.ToCheckerHosts(cfg.Hosts)\nExpande portas em Host structs"]
-    resolveHosts --> checkAll["app.CheckAll(ctx, hosts, 10)\nConcorrente com semáforo"]
+    buildAppFlow --> resolveHosts["config.ToCheckerHosts(cfg.Hosts)\nExpands ports into Host structs"]
+    resolveHosts --> checkAll["app.CheckAll(ctx, hosts, 10)\nConcurrent with semaphore"]
 
-    subgraph perHost["Para cada host"]
-        tlsDial["tls.DialWithDialer\nHandshake TLS 1.2/1.3"]
-        extract["FromX509(leaf, hostname, port)\nExtrai: CN, SAN, Issuer, Validade, Tipo"]
+    subgraph perHost["For each host"]
+        tlsDial["tls.DialWithDialer\nTLS 1.2/1.3 handshake"]
+        extract["FromX509(leaf, hostname, port)\nExtracts: CN, SAN, Issuer, Validity, Type"]
         tlsVersion["TLSVersionString(cs.Version)\nCipherSuiteName(cs.CipherSuite)"]
-        chain["BuildChain(peerCerts)\nCadeia com fingerprints SHA256"]
-        revocCheck["revocation.Check(leaf, issuer, OCSP, CRL)\nOCSP primeiro, CRL como fallback"]
+        chain["BuildChain(peerCerts)\nChain with SHA256 fingerprints"]
+        revocCheck["revocation.Check(leaf, issuer, OCSP, CRL)\nOCSP first, CRL as fallback"]
         resultCert["*certificate.Certificate"]
         tlsDial --> extract --> tlsVersion --> chain --> revocCheck --> resultCert
     end
 
     checkAll --> perHost
-    perHost --> filter["filterByMinDays(certs)\nRemove certificados com daysLeft > minDays"]
+    perHost --> filter["filterByMinDays(certs)\nRemoves certificates with daysLeft > minDays"]
 
     filter --> print["printCerts(output, certs, errs)"]
-    print --> format{"Formato?"}
-    format -->|"json (padrão)"| printJSON["json.MarshalIndent(cada cert)"]
-    format -->|"table"| printTable["formatter.FormatTable(certs)\nTabela alinhada com status"]
+    print --> format{"Format?"}
+    format -->|"json (default)"| printJSON["json.MarshalIndent(each cert)"]
+    format -->|"table"| printTable["formatter.FormatTable(certs)\nAligned table with status"]
 ```
 
 ---
 
-## 4. Fluxo de Requisição HTTP (API)
+## 4. HTTP Request Flow (API)
 
 ```mermaid
 sequenceDiagram
-    participant Client as Cliente HTTP
+    participant Client as HTTP Client
     participant Mux as http.ServeMux
     participant MW as Middleware Chain
     participant RL as Rate Limiter
@@ -279,16 +279,16 @@ sequenceDiagram
 
     MW->>MW: Security Headers\nX-Content-Type-Options: nosniff\nX-Frame-Options: DENY
 
-    alt API Key configurada && rota != /health
+    alt API key configured && route != /health
         MW->>Auth: r.Header.Get("X-API-Key") == h.apiToken?
         Auth-->>MW: match?
-        alt Não coincide
+        alt No match
             MW-->>Client: 401 {"error":"unauthorized"}
         end
     end
 
     MW->>RL: defaultLimiter.allow()?
-    alt Taxa excedida
+    alt Rate exceeded
         RL-->>MW: false
         MW-->>Client: 429 {"error":"too many requests"} + Retry-After: 1
     end
@@ -299,7 +299,7 @@ sequenceDiagram
     Handler->>Svc: h.svc.CheckAll(ctx, h.cfg.Hosts)
     Svc->>Checker: s.checker.CheckAll(ctx, hosts, 10)
     Checker-->>Svc: []*Certificate, []error
-    Svc->>Svc: Filtra nils
+    Svc->>Svc: Filters nils
     alt metrics != nil
         Svc->>Metrics: s.metrics(certs)
         Metrics->>Metrics: setGauges(host, port, daysLeft)
@@ -314,40 +314,40 @@ sequenceDiagram
     Handler-->>Client: 200 JSON
 ```
 
-### Rotas da API
+### API Routes
 
-| Método | Rota | Handler | Descrição |
+| Method | Route | Handler | Description |
 |---|---|---|---|
-| GET | `/health` | `handleHealth` | Health check com ping TCP em cada host |
-| GET | `/api/v1/cert/info/all` | `handleAll` | Certificados de todos os hosts |
-| GET | `/api/v1/cert/info/{hostname}` | `handleByHostname` | Certificado de um host específico |
-| GET | `/api/v1/cert/info/commonName` | `handleCommonName` | Mapa hostname → Common Name |
-| GET | `/api/v1/cert/info/subjectAltName` | `handleSubjectAltName` | Mapa hostname → SANs |
-| GET | `/api/v1/cert/export/json` | `handleExportJSON` | Download JSON de todos certificados |
-| GET | `/api/v1/cert/export/csv` | `handleExportCSV` | Download CSV de todos certificados |
-| GET | `/api/v1/cert/history/{hostname}` | `handleHistory` | Histórico de checagens de um host |
-| GET | `/metrics` | `metrics.Handler()` | Métricas Prometheus (se habilitado) |
-| GET | `/` | `http.FileServer(staticFS)` | Frontend estático embutido |
+| GET | `/health` | `handleHealth` | Health check with TCP ping to each host |
+| GET | `/api/v1/cert/info/all` | `handleAll` | Certificates from all hosts |
+| GET | `/api/v1/cert/info/{hostname}` | `handleByHostname` | Certificate for a specific host |
+| GET | `/api/v1/cert/info/commonName` | `handleCommonName` | Map hostname → Common Name |
+| GET | `/api/v1/cert/info/subjectAltName` | `handleSubjectAltName` | Map hostname → SANs |
+| GET | `/api/v1/cert/export/json` | `handleExportJSON` | Download JSON of all certificates |
+| GET | `/api/v1/cert/export/csv` | `handleExportCSV` | Download CSV of all certificates |
+| GET | `/api/v1/cert/history/{hostname}` | `handleHistory` | Check history for a host |
+| GET | `/metrics` | `metrics.Handler()` | Prometheus metrics (if enabled) |
+| GET | `/` | `http.FileServer(staticFS)` | Embedded static frontend |
 
 ### Middleware Chain
 
 ```mermaid
 flowchart LR
-    Req["Requisição HTTP"] --> Headers["Security Headers\nX-Content-Type-Options\nX-Frame-Options"]
+    Req["HTTP Request"] --> Headers["Security Headers\nX-Content-Type-Options\nX-Frame-Options"]
 
-    Headers --> Auth{"apiToken configurada\n&& rota != /health?"}
-    Auth -->|"Sim"| CheckKey{"X-API-Key\n== apiToken?"}
-    CheckKey -->|"Não"| Resp401["401 Unauthorized"]
-    CheckKey -->|"Sim"| RateLimit
+    Headers --> Auth{"apiToken configured\n&& route != /health?"}
+    Auth -->|"No"| CheckKey{"X-API-Key\n== apiToken?"}
+    CheckKey -->|"No"| Resp401["401 Unauthorized"]
+    CheckKey -->|"Yes"| RateLimit
 
-    Auth -->|"Não"| RateLimit
+    Auth -->|"No"| RateLimit
 
     RateLimit{"Rate Limiter\n(token bucket)\n100 req/s, burst 200"}
-    RateLimit -->|"Excedido"| Resp429["429 Too Many Requests\nRetry-After: 1"]
+    RateLimit -->|"Exceeded"| Resp429["429 Too Many Requests\nRetry-After: 1"]
     RateLimit -->|"OK"| Log["slog.Info(method, path, remote)"]
 
-    Log --> Route["Roteamento\nhttp.ServeMux"]
-    Route --> Handler["Handler específico"]
+    Log --> Route["Routing\nhttp.ServeMux"]
+    Route --> Handler["Specific handler"]
 ```
 
 ### Rate Limiter (Token Bucket)
@@ -355,63 +355,63 @@ flowchart LR
 ```mermaid
 flowchart TB
     allow(["defaultLimiter.allow()"]) --> lock["h.mu.Lock()"]
-    lock --> calc["elapsed = now - lastFill\ntokens += elapsed * rate\n(taxa: 100 tokens/s)"]
+    lock --> calc["elapsed = now - lastFill\ntokens += elapsed * rate\n(rate: 100 tokens/s)"]
     calc --> cap{"tokens > burst?"}
-    cap -->|"Sim"| capTokens["tokens = burst\n(burst: 200)"]
-    cap -->|"Não"| checkTokens{"tokens >= 1?"}
+    cap -->|"Yes"| capTokens["tokens = burst\n(burst: 200)"]
+    cap -->|"No"| checkTokens{"tokens >= 1?"}
     capTokens --> checkTokens
-    checkTokens -->|"Sim"| consume["tokens--\nreturn true (allow)"]
-    checkTokens -->|"Não"| returnFalse["return false (deny)"]
+    checkTokens -->|"Yes"| consume["tokens--\nreturn true (allow)"]
+    checkTokens -->|"No"| returnFalse["return false (deny)"]
     consume --> unlock["h.mu.Unlock()"]
     returnFalse --> unlock
 ```
 
 ---
 
-## 5. Serviços de Background
+## 5. Background Services
 
-Quando o servidor `serve` está rodando, três serviços concorrentes podem operar em background:
+When the `serve` server is running, three concurrent services may operate in the background:
 
 ```mermaid
 flowchart TB
     Serve["certificate-validate serve"] --> startBackground["startBackground(ctx, cfg, deps)"]
 
     startBackground --> prom{"cfg.Prometheus.Enabled?"}
-    prom -->|"Sim"| PromUpdater["metrics.StartUpdater(ctx, checker, hosts, interval)"]
+    prom -->|"Yes"| PromUpdater["metrics.StartUpdater(ctx, checker, hosts, interval)"]
 
     startBackground --> hist{"deps.registry != nil\n(history.Enabled?)"}
-    hist -->|"Sim"| HistRecorder["history.StartRecorder(ctx, registry, checker, hosts, interval)"]
+    hist -->|"Yes"| HistRecorder["history.StartRecorder(ctx, registry, checker, hosts, interval)"]
 
     startBackground --> webhook{"cfg.Webhook.URL != ''?"}
-    webhook -->|"Sim"| Notifier["notifier.New(cfg, checker, hosts).Start(ctx)"]
+    webhook -->|"Yes"| Notifier["notifier.New(cfg, checker, hosts).Start(ctx)"]
 
-    subgraph promLoop["Prometheus Updater - Loop a cada check_time"]
+    subgraph promLoop["Prometheus Updater - Loop every check_time"]
         direction TB
-        p1["updateFromChecker:\nCheckAll com timeout 30s"]
+        p1["updateFromChecker:\nCheckAll with 30s timeout"]
         p2["Update(certs):\nsetGauges(host, port, daysLeft)"]
         p1 --> p2
     end
 
-    subgraph histLoop["History Recorder - Loop a cada check_time"]
+    subgraph histLoop["History Recorder - Loop every check_time"]
         direction TB
-        h1["updateAndRecord:\nCheckAll com timeout 30s"]
+        h1["updateAndRecord:\nCheckAll with 30s timeout"]
         h2["r.Record(certs):\nAppend JSONL"]
-        h3["r.rotate():\nRemove entradas > maxDays\ntruncate para maxEntries"]
+        h3["r.rotate():\nRemoves entries > maxDays\ntruncates to maxEntries"]
         h1 --> h2 --> h3
     end
 
-    subgraph webhookLoop["Webhook Notifier - Loop a cada webhook.interval"]
+    subgraph webhookLoop["Webhook Notifier - Loop every webhook.interval"]
         direction TB
-        w1["checkAndAlert:\nPara cada host:"]
+        w1["checkAndAlert:\nFor each host:"]
         w2["checker.Check(host)"]
         w3{"daysLeft <= threshold?"}
-        w4{"já alertou\nneste interval?"}
-        w5["sendAlert:\nPOST JSON para webhook.URL"]
-        w6["atualiza lastAlerted[key]"]
+        w4{"already alerted\nin this interval?"}
+        w5["sendAlert:\nPOST JSON to webhook.URL"]
+        w6["updates lastAlerted[key]"]
         w1 --> w2 --> w3
-        w3 -->|"Sim"| w4
-        w3 -->|"Não"| next["próximo host"]
-        w4 -->|"Não"| w5 --> w6
+        w3 -->|"Yes"| w4
+        w3 -->|"No"| next["next host"]
+        w4 -->|"No"| w5 --> w6
     end
 
     PromUpdater --> promLoop
@@ -420,37 +420,37 @@ flowchart TB
 
     subgraph reload["Hot-Reload (SIGHUP)"]
         direction TB
-        sig["Sinal SIGHUP recebido"] --> bgCancel["bgCancel()\n(para loops antigos)"]
+        sig["SIGHUP signal received"] --> bgCancel["bgCancel()\n(stops old loops)"]
         bgCancel --> loadNew["config.Load(cfgPath)"]
         loadNew --> valNew["cfg.Validate()"]
         valNew --> rebuild["buildDeps(newCfg)"]
         rebuild --> store["currentHandler.Store(newHandler)"]
-        store --> restart["restartBackground()\n(começa novos loops)"]
+        store --> restart["restartBackground()\n(starts new loops)"]
     end
 ```
 
-### Detalhamento dos Serviços
+### Service Details
 
-| Serviço | Ativação | Intervalo | Função |
+| Service | Activation | Interval | Function |
 |---|---|---|---|
-| **Prometheus Updater** | `prometheus.enabled: true` | `check_time` | Checa todos os hosts e atualiza gauges `certificate_days_left` e `certificate_expired` |
-| **History Recorder** | `history.enabled: true` | `check_time` | Checa todos os hosts e registra entrada JSONL com rotação automática (max_dias + max_entries) |
-| **Webhook Notifier** | `webhook.url` definido | `webhook.interval` | Checa cada host individualmente e envia alerta POST se `daysLeft <= threshold`, com rate limiting próprio |
+| **Prometheus Updater** | `prometheus.enabled: true` | `check_time` | Checks all hosts and updates the `certificate_days_left` and `certificate_expired` gauges |
+| **History Recorder** | `history.enabled: true` | `check_time` | Checks all hosts and records a JSONL entry with automatic rotation (max_days + max_entries) |
+| **Webhook Notifier** | `webhook.url` set | `webhook.interval` | Checks each host individually and sends a POST alert if `daysLeft <= threshold`, with its own rate limiting |
 
 ---
 
-## 6. Pipeline de Carregamento de Configuração
+## 6. Configuration Loading Pipeline
 
 ```mermaid
 flowchart TB
     Start["config.Load(cfgPath)"] --> read["os.ReadFile(path)"]
     read --> yaml["yaml.Unmarshal(data, &cfg)"]
 
-    yaml --> defaults["Defaults:\ncheck_time = 86400 (se <= 0)"]
+    yaml --> defaults["Defaults:\ncheck_time = 86400 (if <= 0)"]
 
     defaults --> env["cfg.applyEnvOverrides()"]
 
-    subgraph EnvOverrides["Variáveis de Ambiente (prefixo CV_)"]
+    subgraph EnvOverrides["Environment Variables (CV_ prefix)"]
         direction TB
         e1["CV_CHECK_TIME"]
         e2["CV_API_KEY"]
@@ -469,71 +469,71 @@ flowchart TB
     end
 
     env --> EnvOverrides
-    EnvOverrides --> cfgValido["*Config (pronto para uso)"]
+    EnvOverrides --> cfgValido["*Config (ready to use)"]
 
     cfgValido --> validate["cfg.Validate()"]
-    validate --> checks{"Validações:"}
+    validate --> checks{"Validations:"}
 
-    subgraph validations["Validações"]
-        v1["hosts vazio → erro"]
-        v2["host.url vazio → erro"]
-        v3["host.name vazio → warning"]
-        v4["host.port inválido → warning"]
-        v5["host.ports fora 1-65535 → warning"]
-        v6["host.timeout negativo → warning"]
+    subgraph validations["Validations"]
+        v1["empty hosts → error"]
+        v2["empty host.url → error"]
+        v3["empty host.name → warning"]
+        v4["invalid host.port → warning"]
+        v5["host.ports outside 1-65535 → warning"]
+        v6["negative host.timeout → warning"]
         v7["webhook.threshold <= 0 → warning"]
-        v8["prometheus sem address → warning"]
+        v8["prometheus without address → warning"]
     end
 
     checks --> validations
     validations --> result["(*Config, warnings, err)"]
 ```
 
-### Estrutura do Config
+### Config Structure
 
 ```yaml
-check_time: 30                    # Intervalo de checagem em segundos
-api_key: "..."                    # Chave de API para autenticação
+check_time: 30                    # Check interval in seconds
+api_key: "..."                    # API key for authentication
 
-app_configs:                      # Configuração do servidor HTTP
+app_configs:                      # HTTP server configuration
   - host: '0.0.0.0'
     port: '5000'
     environment: 'production'
     debug: false
 
-hosts:                            # Hosts para checar certificados
+hosts:                            # Hosts to check certificates
   - name: "GitHub"
     url: 'github.com'
     port: '443'
-    ports: [443]                  # Múltiplas portas (alternativa a port)
-    timeout: 10                   # Timeout específico por host (segundos)
-    trusted_cas:                  # CAs específicas por host
+    ports: [443]                  # Multiple ports (alternative to port)
+    timeout: 10                   # Per-host timeout (seconds)
+    trusted_cas:                  # Per-host CAs
       - '/certs/internal-ca.pem'
 
-prometheus:                       # Métricas Prometheus
+prometheus:                       # Prometheus metrics
   enabled: false
   address: ':9090'
 
-webhook:                          # Alertas via webhook
+webhook:                          # Webhook alerts
   url: 'https://hooks.example.com/alert'
-  threshold: 15                   # Dias mínimos para alertar
-  interval: 1800                  # Intervalo entre checagens (segundos)
+  threshold: 15                   # Minimum days to alert
+  interval: 1800                  # Interval between checks (seconds)
 
-history:                          # Histórico local (JSONL)
+history:                          # Local history (JSONL)
   enabled: true
   file_path: "data/history.jsonl"
   max_entries: 10000
   max_days: 90
 
-trusted_cas:                      # CAs confiáveis globais
+trusted_cas:                      # Trusted global CAs
   - '/etc/certs/my-ca.pem'
 ```
 
 ---
 
-## 7. Injeção de Dependências e Inicialização
+## 7. Dependency Injection and Initialization
 
-### `serve` — Inicialização Completa
+### `serve` — Full Initialization
 
 ```mermaid
 flowchart TB
@@ -554,8 +554,8 @@ flowchart TB
         b9["metrics.Update (fn)"]
         b10["service.NewCertService(checker, recorder, metrics)"]
         b11{"apiKeyFlag != ''?"}
-        b12["usa apiKeyFlag"]
-        b13["usa cfg.APIKey"]
+        b12["uses apiKeyFlag"]
+        b13["uses cfg.APIKey"]
         b14["api.New(svc, cfg, apiToken)"]
         b15["h.Router()"]
 
@@ -564,13 +564,13 @@ flowchart TB
         b3 --> b5
         b4 --> b5
         b5 --> b10
-        b6 -->|"Sim"| b7 --> b10
-        b6 -->|"Não"| b10
-        b8 -->|"Sim"| b9 --> b10
-        b8 -->|"Não"| b10
+        b6 -->|"Yes"| b7 --> b10
+        b6 -->|"No"| b10
+        b8 -->|"Yes"| b9 --> b10
+        b8 -->|"No"| b10
         b10 --> b14
-        b11 -->|"Sim"| b12 --> b14
-        b11 -->|"Não"| b13 --> b14
+        b11 -->|"Yes"| b12 --> b14
+        b11 -->|"No"| b13 --> b14
         b14 --> b15
     end
 
@@ -581,23 +581,23 @@ flowchart TB
     server --> bg["restartBackground()"]
     bg --> startBG["startBackground(ctx, cfg, deps)"]
 
-    startBG --> services["Prometheus / History / Webhook\n(ver seção 5)"]
+    startBG --> services["Prometheus / History / Webhook\n(see section 5)"]
 
-    services --> listen{"TLS configurado?"}
-    listen -->|"Sim"| tls["server.ListenAndServeTLS()"]
-    listen -->|"Não"| http["server.ListenAndServe()"]
+    services --> listen{"TLS configured?"}
+    listen -->|"Yes"| tls["server.ListenAndServeTLS()"]
+    listen -->|"No"| http["server.ListenAndServe()"]
 
-    tls --> loop["Loop principal:\nselect { SIGTERM → shutdown | SIGHUP → reload }"]
+    tls --> loop["Main loop:\nselect { SIGTERM → shutdown | SIGHUP → reload }"]
     http --> loop
 ```
 
-### `check` — Inicialização Simplificada
+### `check` — Simplified Initialization
 
 ```mermaid
 flowchart TB
-    checkCmd["check"] --> host{"--host definido?"}
-    host -->|"Sim"| single["runCheckHost(cmd, host, port)"]
-    host -->|"Não"| load["config.Load(cfgPath)"]
+    checkCmd["check"] --> host{"--host set?"}
+    host -->|"Yes"| single["runCheckHost(cmd, host, port)"]
+    host -->|"No"| load["config.Load(cfgPath)"]
 
     single --> fetcher1["fetcher.New(10s)"]
     fetcher1 --> formatter1["formatter.New()"]
@@ -605,33 +605,33 @@ flowchart TB
 
     checker1 --> check1["checker.Check(ctx, host, port)"]
     check1 --> filter1{"minDays > 0 && daysLeft > minDays?"}
-    filter1 -->|"Sim"| exit["return nil (sem output)"]
-    filter1 -->|"Não"| output1{"output == 'table'?"}
-    output1 -->|"Sim"| table1["formatter.FormatTable"]
-    output1 -->|"Não"| json1["json.MarshalIndent"]
+    filter1 -->|"Yes"| exit["return nil (no output)"]
+    filter1 -->|"No"| output1{"output == 'table'?"}
+    output1 -->|"Yes"| table1["formatter.FormatTable"]
+    output1 -->|"No"| json1["json.MarshalIndent"]
 
     load --> val["cfg.Validate()"]
     val --> app["buildApp(cfg)"]
     app --> hosts["config.ToCheckerHosts(cfg.Hosts)"]
     hosts --> watch{"--watch?"}
 
-    watch -->|"Não"| checkAll["app.CheckAll(ctx, hosts, 10)"]
+    watch -->|"No"| checkAll["app.CheckAll(ctx, hosts, 10)"]
     checkAll --> filterAll["filterByMinDays(certs)"]
     filterAll --> print["printCerts(certs, errs)"]
     print --> output2{"output == 'table'?"}
-    output2 -->|"Sim"| table2["formatter.FormatTable"]
-    output2 -->|"Não"| json2["json.MarshalIndent"]
+    output2 -->|"Yes"| table2["formatter.FormatTable"]
+    output2 -->|"No"| json2["json.MarshalIndent"]
 
-    watch -->|"Sim"| webhook{"webhook.URL configurado?"}
-    webhook -->|"Sim"| notifier["notifier.New(cfg, app, hosts).Start(ctx)"]
-    webhook -->|"Não"| loopWatch["runWatchLoop(ctx, app, hosts, interval)"]
+    watch -->|"Yes"| webhook{"webhook.URL configured?"}
+    webhook -->|"Yes"| notifier["notifier.New(cfg, app, hosts).Start(ctx)"]
+    webhook -->|"No"| loopWatch["runWatchLoop(ctx, app, hosts, interval)"]
     notifier --> loopWatch
     loopWatch --> loopBody["loop:\napp.CheckAll(ctx, hosts, 0)\nfilterByMinDays\njson.MarshalIndent\nsleep(checkTime)"]
 ```
 
 ---
 
-## 8. Exportação de Dados
+## 8. Data Export
 
 ```mermaid
 flowchart TB
@@ -639,28 +639,28 @@ flowchart TB
         cli["certificate-validate export"] --> loadCfg["config.Load(cfgPath)"]
         loadCfg --> buildApp["buildApp(cfg)"]
         buildApp --> checkAll["app.CheckAll(ctx, hosts, 10)"]
-        checkAll --> formatChoice{"Formato?"}
-        formatChoice -->|"json (padrão)"| fmtJSON["formatter.FormatJSON(certs)\n[]byte JSON array"]
-        formatChoice -->|"csv"| fmtCSV["formatter.FormatCSV(certs)\n[]byte CSV com header"]
+        checkAll --> formatChoice{"Format?"}
+        formatChoice -->|"json (default)"| fmtJSON["formatter.FormatJSON(certs)\n[]byte JSON array"]
+        formatChoice -->|"csv"| fmtCSV["formatter.FormatCSV(certs)\n[]byte CSV with header"]
         fmtJSON --> output{"--output-file?"}
         fmtCSV --> output
-        output -->|"Sim"| file["os.WriteFile(path, data, 0644)"]
-        output -->|"Não"| stdout["fmt.Println(string(data))"]
+        output -->|"Yes"| file["os.WriteFile(path, data, 0644)"]
+        output -->|"No"| stdout["fmt.Println(string(data))"]
     end
 
     subgraph API["Export via API"]
         apiJson["GET /api/v1/cert/export/json"] --> svcAll["svc.CheckAll(ctx, hosts)"]
         svcAll --> jsonResp["writeJSON(200, {certificates, errors})\nContent-Disposition: attachment"]
         svcAll --> csvHeader["Content-Type: text/csv\nBOM UTF-8\nContent-Disposition: attachment"]
-        csvHeader --> csvWrite["csv.NewWriter:\nescreve header + linhas"]
+        csvHeader --> csvWrite["csv.NewWriter:\nwrites header + rows"]
     end
 
-    subgraph Formats["Formatos de Saída"]
+    subgraph Formats["Output Formats"]
         direction TB
         f1["FormatJSON:\njson.MarshalIndent(certs, '', '  ')"]
-        f2["FormatCSV:\ncsv.Writer com header:\nhostname,port,commonName,issuer,\nnotBefore,notAfter,daysLeft,\nrevocationStatus,tlsVersion,cipherSuite"]
-        f3["FormatTable (CLI only):\nTabela com colunas:\nHost, Port, Days, Status, Revoc,\nIssuer, TLS Version"]
-        f4["JSON individual:\njson.MarshalIndent(cert, '', '  ')"]
+        f2["FormatCSV:\ncsv.Writer with header:\nhostname,port,commonName,issuer,\nnotBefore,notAfter,daysLeft,\nrevocationStatus,tlsVersion,cipherSuite"]
+        f3["FormatTable (CLI only):\nTable with columns:\nHost, Port, Days, Status, Revoc,\nIssuer, TLS Version"]
+        f4["Individual JSON:\njson.MarshalIndent(cert, '', '  ')"]
     end
 
     Formats --> f1
@@ -669,72 +669,72 @@ flowchart TB
     Formats --> f4
 ```
 
-### Diferenças de Formatação
+### Formatting Differences
 
-| Formato | Onde | Saída |
+| Format | Where | Output |
 |---|---|---|
-| `FormatJSON` | CLI `export -f json` | `[{...}, {...}]` — array de certificados |
-| `FormatCSV` | CLI `export -f csv` | CSV com header + 10 colunas |
-| `FormatTable` | CLI `check -o table` | Tabela alinhada com status colorido |
-| JSON individual | CLI `check` (padrão) | Um JSON object por certificado |
+| `FormatJSON` | CLI `export -f json` | `[{...}, {...}]` — array of certificates |
+| `FormatCSV` | CLI `export -f csv` | CSV with header + 10 columns |
+| `FormatTable` | CLI `check -o table` | Aligned table with colored status |
+| Individual JSON | CLI `check` (default) | One JSON object per certificate |
 
 ---
 
-## 9. Checagem de Revogação
+## 9. Revocation Check
 
 ```mermaid
 flowchart TB
     revocation["revocation.Check(leaf, issuer, ocspServers, crlURLs)"]
 
-    revocation --> hasOCSP{"Possui servidores\nOCSP?"}
-    hasOCSP -->|"Sim"| ocsp["CheckOCSP(leaf, issuer, servers)"]
+    revocation --> hasOCSP{"Has OCSP\nservers?"}
+    hasOCSP -->|"Yes"| ocsp["CheckOCSP(leaf, issuer, servers)"]
 
-    ocsp --> ocspLoop["Para cada servidor OCSP:"]
+    ocsp --> ocspLoop["For each OCSP server:"]
     ocspLoop --> createReq["ocsp.CreateRequest(leaf, issuer)"]
     createReq --> post["POST application/ocsp-request\n(10s timeout)"]
 
     post --> parseResp["ocsp.ParseResponse(bytes, issuer)"]
-    parseResp --> ocspStatus{"Status OCSP:"}
+    parseResp --> ocspStatus{"OCSP status:"}
     ocspStatus -->|"Good"| good["RevocationGood"]
     ocspStatus -->|"Revoked"| revoked["RevocationRevoked"]
-    ocspStatus -->|"Unknown"| tryNext["Tenta próximo servidor\n(ou retorna Unknown)"]
+    ocspStatus -->|"Unknown"| tryNext["Try next server\n(or return Unknown)"]
 
-    hasOCSP -->|"Não"| crl["CheckCRL(leaf, crlURLs)"]
+    hasOCSP -->|"No"| crl["CheckCRL(leaf, crlURLs)"]
 
-    crl --> crlLoop["Para cada URL CRL:"]
+    crl --> crlLoop["For each CRL URL:"]
     crlLoop --> download["GET (10s timeout)"]
     download --> parseCRL["x509.ParseRevocationList(bytes)"]
 
-    parseCRL --> search{"SerialNumber\nestá na lista de\nrevogados?"}
-    search -->|"Sim"| crlRevoked["RevocationRevoked"]
-    search -->|"Não"| crlGood["RevocationGood"]
+    parseCRL --> search{"SerialNumber\nis on the\nrevoked list?"}
+    search -->|"Yes"| crlRevoked["RevocationRevoked"]
+    search -->|"No"| crlGood["RevocationGood"]
 
-    good --> statusFinal["Status Final"]
+    good --> statusFinal["Final Status"]
     revoked --> statusFinal
     crlRevoked --> statusFinal
     crlGood --> statusFinal
 
     subgraph fallback["Fallback"]
         direction LR
-        notReady["Nenhum servidor OCSP\nnem URL CRL disponível"]
+        notReady["No OCSP server\nor CRL URL available"]
         notReady --> resultNotReady["RevocationNotReady"]
     end
 
-    hasOCSP -->|"Não"| fallback
-    crl -->|sem CRLs| fallback
+    hasOCSP -->|"No"| fallback
+    crl -->|no CRLs| fallback
     fallback --> statusFinal
-    statusFinal --> log["LogRevocation(cert, status)\nWarn se revogado"]
+    statusFinal --> log["LogRevocation(cert, status)\nWarn if revoked"]
 ```
 
-### Prioridade da Checagem
+### Check Priority
 
-1. **OCSP** (Online Certificate Status Protocol) — tentativa primária, mais rápida e precisa
-2. **CRL** (Certificate Revocation List) — fallback quando OCSP não está disponível ou retorna `NotReady`
-3. **NotReady** — quando não há servidores OCSP nem URLs CRL no certificado
+1. **OCSP** (Online Certificate Status Protocol) — primary attempt, faster and more accurate
+2. **CRL** (Certificate Revocation List) — fallback when OCSP is unavailable or returns `NotReady`
+3. **NotReady** — when the certificate has no OCSP servers or CRL URLs
 
 ---
 
-## Modelo de Dados — Certificate
+## Data Model — Certificate
 
 ```mermaid
 classDiagram
@@ -777,47 +777,47 @@ classDiagram
 
 ---
 
-## Estrutura de Diretórios
+## Directory Structure
 
 ```
 certificate-validate/
 ├── cmd/certificate-validate/
 │   └── main.go                    # Entry point
 ├── config/
-│   └── settings.yml               # Configuração YAML
+│   └── settings.yml               # YAML configuration
 ├── docs/
 │   ├── swagger.yaml               # OpenAPI 3.0
-│   └── ARCHITECTURE.md            # Este documento
+│   └── ARCHITECTURE.md            # This document
 ├── internal/
-│   ├── api/                       # Interface HTTP
+│   ├── api/                       # HTTP interface
 │   │   ├── api.go                 # Handlers + middleware + rate limiter
-│   │   └── static/                # Frontend embutido (embed)
-│   ├── certificate/               # Domínio
+│   │   └── static/                # Embedded frontend (embed)
+│   ├── certificate/               # Domain
 │   │   ├── certificate.go         # VO + FromX509 + BuildChain
-│   │   └── errors.go              # Erros de domínio
-│   ├── checker/                   # Caso de uso
-│   │   └── checker.go             # Checker (orquestração)
+│   │   └── errors.go              # Domain errors
+│   ├── checker/                   # Use case
+│   │   └── checker.go             # Checker (orchestration)
 │   ├── cmd/                       # CLI (Cobra)
-│   │   ├── root.go                # Comando raiz + flags globais
+│   │   ├── root.go                # Root command + global flags
 │   │   ├── check.go               # check + watch
 │   │   ├── serve.go               # serve + buildDeps + startBackground
 │   │   ├── export.go              # export JSON/CSV
 │   │   └── version.go             # version
-│   ├── config/                    # Configuração
+│   ├── config/                    # Configuration
 │   │   └── config.go              # Load + Validate + applyEnvOverrides
-│   ├── fetcher/                   # Provedor TLS
+│   ├── fetcher/                   # TLS provider
 │   │   └── fetcher.go             # Fetcher interface + tlsFetcher
-│   ├── formatter/                 # Provedor de formatação
+│   ├── formatter/                 # Formatting provider
 │   │   └── formatter.go           # Formatter, FormatTable, FormatJSON, FormatCSV
-│   ├── history/                   # Histórico
-│   │   └── history.go             # Store, Recorder, rotacao JSONL
-│   ├── metrics/                   # Métricas Prometheus
+│   ├── history/                   # History
+│   │   └── history.go             # Store, Recorder, JSONL rotation
+│   ├── metrics/                   # Prometheus metrics
 │   │   └── metrics.go             # Gauges + Handler
 │   ├── notifier/                  # Webhook
-│   │   └── notifier.go            # Notifier + alerta
-│   ├── revocation/                # Revogação
+│   │   └── notifier.go            # Notifier + alerts
+│   ├── revocation/                # Revocation
 │   │   └── revocation.go          # OCSP + CRL checks
-│   └── service/                   # Serviço (facade)
+│   └── service/                   # Service (facade)
 │       └── service.go             # CertService
 ├── Dockerfile
 ├── docker-compose.yml
