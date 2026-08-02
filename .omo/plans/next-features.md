@@ -1,71 +1,71 @@
-# Próximas Features — Certificate Validate
+# Next Features — Certificate Validate
 
-> Ordem de implementação: prioridade decrescente.
+> Implementation order: decreasing priority.
 
 ---
 
-## 🥇 Fase 1 — Infraestrutura de Qualidade
+## 🥇 Phase 1 — Quality Infrastructure
 
 ### 1.1 CI (GitHub Actions)
-Workflow automático em todo PR:
+Automatic workflow on every PR:
 ```yaml
 - go test -race -coverprofile=coverage.out ./...
 - go tool cover -func=coverage.out | grep total | awk '...'
 - golangci-lint run
 - go build ./...
 ```
-**Arquivo**: `.github/workflows/ci.yml`
+**File**: `.github/workflows/ci.yml`
 
 ### 1.2 Makefile
-Comandos padronizados para dev:
+Standardized commands for dev:
 ```makefile
 test    → go test -race -count=1 ./...
 cover   → go tool cover -html=coverage.out
 lint    → golangci-lint run
 build   → go build -o certificate-validate ./cmd/certificate-validate
 ```
-**Arquivo**: `Makefile`
+**File**: `Makefile`
 
 ### 1.3 golangci-lint + Pre-commit
-Configurar linters (errcheck, gosimple, govet, gofmt, misspell) e hook pre-commit.
-**Arquivos**: `.golangci.yml`, `.pre-commit-config.yaml`
+Configure linters (errcheck, gosimple, govet, gofmt, misspell) and pre-commit hook.
+**Files**: `.golangci.yml`, `.pre-commit-config.yaml`
 
 ---
 
-## 🥇 Fase 2 — Resiliência
+## 🥇 Phase 2 — Resilience
 
 ### 2.1 Graceful Shutdown
-`serve.go`: capturar `ctx.Done()`, chamar `server.Shutdown()` com timeout de 15s.
+`serve.go`: capture `ctx.Done()`, call `server.Shutdown()` with a 15s timeout.
 
 ### 2.2 Structured Logging (`log/slog`)
-Trocar `log.Printf` por `slog.Info`/`slog.Error` com atributos.
-**Pacotes**: `api/`, `checker/`, `history/`, `metrics/`, `notifier/`, `cmd/`
+Replace `log.Printf` with `slog.Info`/`slog.Error` with attributes.
+**Packages**: `api/`, `checker/`, `history/`, `metrics/`, `notifier/`, `cmd/`
 
 ---
 
-## 🥇 Fase 3 — Testes de Integração
+## 🥇 Phase 3 — Integration Tests
 
 ### 3.1 HTTP Integration Tests
-Testar handler contra `httptest.NewServer` real, validando JSON responses, status codes, CORS.
-**Arquivo**: `internal/api/integration_test.go`
+Test handlers against a real `httptest.NewServer`, validating JSON responses, status codes, CORS.
+**File**: `internal/api/integration_test.go`
 
 ---
 
-## 🥉 Fase 4 — Documentação
+## 🥉 Phase 4 — Documentation
 
 ### 4.1 OpenAPI/Swagger Spec
-Gerar spec OpenAPI 3.0 dos endpoints da API.
+Generate an OpenAPI 3.0 spec for the API endpoints.
 
 ---
 
-## 🥉 Fase 5 — Deploy
+## 🥉 Phase 5 — Deploy
 
 ### 5.1 Helm Chart
-`chart/` com Deployment, Service, ConfigMap para Kubernetes.
+`chart/` with Deployment, Service, ConfigMap for Kubernetes.
 
 ---
 
-## 🥉 Fase 6 — CLI Polish
+## 🥉 Phase 6 — CLI Polish
 
 ### 6.1 Shell Completion
 ```go
@@ -74,7 +74,7 @@ rootCmd.CompletionOptions.DisableDefaultCmd = false
 
 ---
 
-## 🥉 Fase 7 — Segurança
+## 🥉 Phase 7 — Security
 
 ### 7.1 OCSP/CRL Stapling
-Verificar revogação via OCSP — funcionalidade que existia no Python original.
+Verify revocation via OCSP — functionality that existed in the original Python version.

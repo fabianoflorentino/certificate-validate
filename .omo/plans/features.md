@@ -1,197 +1,197 @@
-# Plano de Features — Certificate Validate
+# Feature Plan — Certificate Validate
 
-## Filosofia
+## Philosophy
 
-- **Binário único** — nada de runtime externo, banco separado ou containers extras
-- **Zero ou 1 dependência nova por feature** — cada feature pode adicionar **no máximo 1** dependency externa
-- **Frontend opcional** — toda feature de dashboard tem que ter suporte CLI/API primeiro
-- **Deploy inalterado** — mesmo Dockerfile, mesmo `docker-compose.yml`
-
----
-
-## Fase 0 — Dashboard Imediato (só frontend, 0 backend)
-
-**Esforço**: muito baixo. Só JS/CSS no `internal/api/static/`. Nenhuma linha em Go muda.
-
-| # | Feature | Arquivos | O que muda |
-|---|---------|----------|------------|
-| 0.1 | **Campo de busca** | `app.js`, `style.css` | Input que filtra cards por hostname/CN/issuer em tempo real |
-| 0.2 | **Ordenação** | `app.js` | Dropdown "Sort by: days left ↑ / hostname / issuer" |
-| 0.3 | **Badges de resumo** | `app.js`, `index.html` | "3 críticos · 2 atenção · 5 ok" no header, ao lado do relógio |
-| 0.4 | **Tooltip no card** | `style.css` | Mostrar issuer completo no hover (já tem `title`, só garantir) |
-
-### Dependências
-Nenhuma.
-
-### Validação
-- `go build ./cmd/certificate-validate` limpo
-- Abrir `http://localhost:5000/` e testar busca, sort, badges
+- **Single binary** — no external runtime, separate database, or extra containers
+- **Zero or 1 new dependency per feature** — each feature may add **at most 1** external dependency
+- **Optional frontend** — every dashboard feature must have CLI/API support first
+- **Deploy unchanged** — same Dockerfile, same `docker-compose.yml`
 
 ---
 
-## Fase 1 — Export + Dados (1 endpoint novo)
+## Phase 0 — Immediate Dashboard (frontend only, 0 backend)
 
-**Esforço**: baixo. 1 endpoint + 1 botão.
+**Effort**: very low. Only JS/CSS in `internal/api/static/`. No Go lines change.
 
-| # | Feature | Arquivos | O que muda |
-|---|---------|----------|------------|
-| 1.1 | **Export JSON** | `api.go`, `app.js` | Botão "Export JSON" → `GET /api/v1/cert/export/json` → download |
-| 1.2 | **Export CSV** | `api.go`, `app.js` | Botão "Export CSV" → `GET /api/v1/cert/export/csv` → download |
+| # | Feature | Files | What changes |
+|---|---------|-------|--------------|
+| 0.1 | **Search field** | `app.js`, `style.css` | Input that filters cards by hostname/CN/issuer in real time |
+| 0.2 | **Sorting** | `app.js` | Dropdown "Sort by: days left ↑ / hostname / issuer" |
+| 0.3 | **Summary badges** | `app.js`, `index.html` | "3 critical · 2 attention · 5 ok" in the header, next to the clock |
+| 0.4 | **Card tooltip** | `style.css` | Show full issuer on hover (already has `title`, just ensure it) |
 
-### Endpoints novos
+### Dependencies
+None.
+
+### Validation
+- `go build ./cmd/certificate-validate` clean
+- Open `http://localhost:5000/` and test search, sort, badges
+
+---
+
+## Phase 1 — Export + Data (1 new endpoint)
+
+**Effort**: low. 1 endpoint + 1 button.
+
+| # | Feature | Files | What changes |
+|---|---------|-------|--------------|
+| 1.1 | **Export JSON** | `api.go`, `app.js` | Button "Export JSON" → `GET /api/v1/cert/export/json` → download |
+| 1.2 | **Export CSV** | `api.go`, `app.js` | Button "Export CSV" → `GET /api/v1/cert/export/csv` → download |
+
+### New endpoints
 ```
 GET /api/v1/cert/export/json  → application/json (Content-Disposition: attachment)
 GET /api/v1/cert/export/csv   → text/csv (Content-Disposition: attachment)
 ```
 
-### Dependências
-Nenhuma (CSV usa `encoding/csv` da stdlib).
+### Dependencies
+None (CSV uses stdlib `encoding/csv`).
 
-### Validação
-- `curl` nos endpoints → header + body corretos
-- Botão no dashboard → download do arquivo
+### Validation
+- `curl` on the endpoints → correct header + body
+- Dashboard button → file download
 
 ---
 
-## Fase 2 — Observabilidade (1 dep nova)
+## Phase 2 — Observability (1 new dep)
 
-**Esforço**: médio.
+**Effort**: medium.
 
-### 2.1 — Métricas Prometheus
+### 2.1 — Prometheus Metrics
 
-Adicionar dependência: `github.com/prometheus/client_golang`.
+Add dependency: `github.com/prometheus/client_golang`.
 
-| O que | Detalhe |
-|-------|---------|
-| Endpoint | `GET /metrics` (porta separada ou mesma, via `--metrics-addr`) |
-| Métricas | `certificate_days_left{host="...",port="..."}` gauge |
-|           | `certificate_expired{host="...",port="..."}` 0/1 gauge |
-| Atualização | A cada request ou com valor fixo (check no startup) |
-| Config | `prometheus_metrics: true/false` no `settings.yml` |
+| What | Detail |
+|------|--------|
+| Endpoint | `GET /metrics` (separate port or same, via `--metrics-addr`) |
+| Metrics | `certificate_days_left{host="...",port="..."}` gauge |
+|          | `certificate_expired{host="...",port="..."}` 0/1 gauge |
+| Update | On every request or with a fixed value (check at startup) |
+| Config | `prometheus_metrics: true/false` in `settings.yml` |
 
-### Dependências
-1 externa: `prometheus/client_golang`.
+### Dependencies
+1 external: `prometheus/client_golang`.
 
-### 2.2 — Webhook de Alerta
+### 2.2 — Alert Webhook
 
-**Zero** dependências novas (usa `net/http`).
+**Zero** new dependencies (uses `net/http`).
 
-| O que | Detalhe |
-|-------|---------|
-| Gatilho | `daysLeft < threshold` (configurável por host) |
-| Payload | JSON com hostname, daysLeft, issuer, commonName |
-| Destino | URL configurável no `settings.yml` |
-| Formato | Slack Webhook, Discord, ou JSON genérico |
-| Quando executa | No `serve` + watch loop |
+| What | Detail |
+|------|--------|
+| Trigger | `daysLeft < threshold` (configurable per host) |
+| Payload | JSON with hostname, daysLeft, issuer, commonName |
+| Destination | Configurable URL in `settings.yml` |
+| Format | Slack Webhook, Discord, or generic JSON |
+| When it runs | In `serve` + watch loop |
 
-### Config nova (`settings.yml`)
+### New config (`settings.yml`)
 ```yaml
 webhook:
   url: "https://hooks.slack.com/..."
   threshold: 30
-  interval: 3600  # re-alerta a cada N segundos
+  interval: 3600  # re-alert every N seconds
 ```
 
-### Dependências
-Nenhuma.
+### Dependencies
+None.
 
 ---
 
-## Fase 3 — Análise Profunda (estende fetcher)
+## Phase 3 — Deep Analysis (extends fetcher)
 
-**Esforço**: médio-alto. Muda o core `fetcher` + `certificate.Certificate` struct.
+**Effort**: medium-high. Changes the core `fetcher` + `certificate.Certificate` struct.
 
-### 3.1 — Cadeia do Certificado
+### 3.1 — Certificate Chain
 
-| O que | Detalhe |
-|-------|---------|
-| Onde | `fetcher.Fetch()` já tem acesso à chain (`VerifiedChains`) |
-| O que expor | Array de certificados: subject, issuer, notAfter, fingerprint |
-| Struct nova | `certificate.ChainEntry` com dados resumidos de cada nível |
-| Frontend | Aba "Chain" no modal, mostrando Root → Intermediate → Leaf |
+| What | Detail |
+|------|--------|
+| Where | `fetcher.Fetch()` already has access to the chain (`VerifiedChains`) |
+| What to expose | Array of certificates: subject, issuer, notAfter, fingerprint |
+| New struct | `certificate.ChainEntry` with summarized data from each level |
+| Frontend | "Chain" tab in the modal, showing Root → Intermediate → Leaf |
 
-### Mudanças
-- `certificate.Certificate` ganha campo `Chain []ChainEntry`
-- `fetcher` extrai chain do `tls.ConnectionState.PeerCertificates`
-- Modal no dashboard mostra breadcrumb da cadeia
+### Changes
+- `certificate.Certificate` gains a `Chain []ChainEntry` field
+- `fetcher` extracts the chain from `tls.ConnectionState.PeerCertificates`
+- Dashboard modal shows a breadcrumb of the chain
 
 ### 3.2 — TLS Version + Cipher Suites
 
-| O que | Detalhe |
-|-------|---------|
-| Onde | `tls.Config` já negocia version/cipher |
-| O que expor | TLS version (1.2, 1.3), cipher suite name |
-| Struct | `certificate.Certificate` ganha `TLSVersion`, `CipherSuite` |
-| Frontend | Mostrar no modal, seção "Connection Security" |
+| What | Detail |
+|------|--------|
+| Where | `tls.Config` already negotiates version/cipher |
+| What to expose | TLS version (1.2, 1.3), cipher suite name |
+| Struct | `certificate.Certificate` gains `TLSVersion`, `CipherSuite` |
+| Frontend | Show in the modal, "Connection Security" section |
 
-### Dependências
-Nenhuma (stdlib `crypto/tls` expõe tudo).
+### Dependencies
+None (stdlib `crypto/tls` exposes everything).
 
 ---
 
-## Fase 4 — Persistência + Histórico
+## Phase 4 — Persistence + History
 
-**Esforço**: médio. Depende de decisão de formato.
+**Effort**: medium. Depends on a format decision.
 
-### 4.1 — Histórico Local (JSONL)
+### 4.1 — Local History (JSONL)
 
-Sem dependências. Arquivo `data/history.jsonl` — uma linha por check por host.
+No dependencies. File `data/history.jsonl` — one line per check per host.
 
-| O que | Detalhe |
-|-------|---------|
-| Formato | `{"host":"github.com","daysLeft":45,"ts":"2026-06-18T12:00:00Z"}` |
-| Rotação | `max_entries: 10000` ou `max_days: 90` no config |
-| Atualização | A cada check no `serve`, append ao arquivo |
+| What | Detail |
+|------|--------|
+| Format | `{"host":"github.com","daysLeft":45,"ts":"2026-06-18T12:00:00Z"}` |
+| Rotation | `max_entries: 10000` or `max_days: 90` in config |
+| Update | On every `serve` check, append to the file |
 
-### 4.2 — Gráfico no Dashboard
+### 4.2 — Dashboard Chart
 
-| O que | Detalhe |
-|-------|---------|
-| Técnica | Canvas API ou SVG — sem Chart.js (zero deps) |
-| O que mostrar | Linha de `daysLeft` por host nos últimos N checks |
-| Onde | Modal ou página separada `/history` |
-| Interação | Hover mostra data + valor |
+| What | Detail |
+|------|--------|
+| Technique | Canvas API or SVG — no Chart.js (zero deps) |
+| What to show | Line of `daysLeft` per host over the last N checks |
+| Where | Modal or separate page `/history` |
+| Interaction | Hover shows date + value |
 
-### API nova
+### New API
 ```
 GET /api/v1/cert/history/{hostname} → [{ts, daysLeft}, ...]
 ```
 
-### Dependências
-Nenhuma.
+### Dependencies
+None.
 
 ---
 
-## Fase 5 — Polimento
+## Phase 5 — Polish
 
-**Esforço**: baixo-médio.
+**Effort**: low-medium.
 
-| # | Feature | O que muda |
-|---|---------|------------|
-| 5.1 | **HTTPS no servidor** | Flags `--tls-cert` + `--tls-key`. Serve API+frontend com TLS |
-| 5.2 | **Portas múltiplas** | Config `port: [443, 8443]` → checker faz N checks por host |
-| 5.3 | **Health check** | `GET /health` → 200 com `{"status":"ok"}` |
+| # | Feature | What changes |
+|---|---------|--------------|
+| 5.1 | **HTTPS on the server** | Flags `--tls-cert` + `--tls-key`. Serves API+frontend with TLS |
+| 5.2 | **Multiple ports** | Config `port: [443, 8443]` → checker does N checks per host |
+| 5.3 | **Health check** | `GET /health` → 200 with `{"status":"ok"}` |
 
 ---
 
-## Ordem de Execução Recomendada
+## Recommended Execution Order
 
 ```
-Fase 0 ────→ Fase 1 ───→ Fase 2 ───→ Fase 3 ───→ Fase 4 ───→ Fase 5
-(só frontend)  (export)   (observabilidade) (análise) (histórico) (polimento)
-                               │
-                               ├→ 2.1 Prometheus
-                               └→ 2.2 Webhook (paralelo)
+Phase 0 ────→ Phase 1 ───→ Phase 2 ───→ Phase 3 ───→ Phase 4 ───→ Phase 5
+(frontend only) (export)  (observability) (analysis) (history) (polish)
+                                │
+                                ├→ 2.1 Prometheus
+                                └→ 2.2 Webhook (parallel)
 ```
 
-**Dependências reais entre fases**: nenhuma. Cada fase pode ser feita sozinha. A ordem é por **custo-benefício**: o que sai mais rápido e agrega mais valor primeiro.
+**Real dependencies between phases**: none. Each phase can be done on its own. The order is by **cost-benefit**: what ships fastest and adds the most value first.
 
 ---
 
-## Esforço Estimado por Fase
+## Estimated Effort per Phase
 
-| Fase | Arquivos alterados | Linhas estimadas | Deps novas |
-|------|-------------------|-------------------|------------|
+| Phase | Files changed | Estimated lines | New deps |
+|-------|---------------|-----------------|----------|
 | 0 | 2-3 (JS/CSS) | ~60 | 0 |
 | 1 | 2 (Go + JS) | ~50 | 0 |
 | 2.1 | 2 (Go + config) | ~80 | 1 (prometheus) |

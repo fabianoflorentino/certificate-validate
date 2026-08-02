@@ -1,52 +1,52 @@
-# Refactor SOLID + Testes
+# SOLID Refactor + Tests
 
-## Objetivo
-Aplicar SOLID em todo o codebase e destravar testes unitários reais.
+## Goal
+Apply SOLID across the whole codebase and unlock real unit tests.
 
-## Problemas Identificados
+## Identified Problems
 
-| # | Problema | Impacto |
-|---|----------|---------|
-| 1 | `toCheckerHosts` duplicado em 3 arquivos | Manutenção propensa a erro |
-| 2 | `Checker` acoplado a formato (`CheckAll` retorna `[][]byte`) | Consumidores re-parseiam JSON |
-| 3 | `history.Record()` recebe `json.RawMessage` | Vazamento de formato |
-| 4 | Dependências concretas em vez de interfaces | Nenhum teste unitário possível |
-| 5 | `RunWatchLoop` no checker (responsabilidade errada) | Código de CLI no domínio |
-| 6 | Nenhum teste | Qualquer refactor é risco |
+| # | Problem | Impact |
+|---|---------|--------|
+| 1 | `toCheckerHosts` duplicated in 3 files | Error-prone maintenance |
+| 2 | `Checker` coupled to format (`CheckAll` returns `[][]byte`) | Consumers re-parse JSON |
+| 3 | `history.Record()` receives `json.RawMessage` | Format leak |
+| 4 | Concrete dependencies instead of interfaces | No unit tests possible |
+| 5 | `RunWatchLoop` in the checker (wrong responsibility) | CLI code in the domain |
+| 6 | No tests | Any refactor is risky |
 
-## Plano de Execução
+## Execution Plan
 
-### Fase A — Foundation (0 breaking changes)
+### Phase A — Foundation (0 breaking changes)
 
-1. **config**: Mover `toCheckerHosts` → `config.ToCheckerHosts()`, remover duplicatas
-2. **checker**: Extrair `CertChecker` interface (Check, CheckAll) — consumidores dependem dela
-3. **history**: Extrair `Store` interface (Record, GetHistory)
+1. **config**: Move `toCheckerHosts` → `config.ToCheckerHosts()`, remove duplicates
+2. **checker**: Extract `CertChecker` interface (Check, CheckAll) — consumers depend on it
+3. **history**: Extract `Store` interface (Record, GetHistory)
 
-### Fase B — Domain types (quebra formato)
+### Phase B — Domain types (breaks format)
 
-4. **checker**: `CheckAll` retorna `[]*certificate.Certicate` em vez de `[][]byte`
-5. **history**: `Record` aceita `[]certificate.Certificate` em vez de `[]json.RawMessage`
-6. **metrics**: Atualizar `UpdateFromJSON` → `Update([]certificate.Certificate)`
+4. **checker**: `CheckAll` returns `[]*certificate.Certicate` instead of `[][]byte`
+5. **history**: `Record` accepts `[]certificate.Certificate` instead of `[]json.RawMessage`
+6. **metrics**: Update `UpdateFromJSON` → `Update([]certificate.Certificate)`
 
-### Fase C — Service layer
+### Phase C — Service layer
 
-7. **service/**: Novo package com `CertService` que orquestra checker + history + metrics
-8. **api**: Handler depende de `service.CertService` e interfaces, não concretos
-9. **cmd/**: `RunWatchLoop` move para `cmd/serve.go`
+7. **service/**: New package with `CertService` that orchestrates checker + history + metrics
+8. **api**: Handler depends on `service.CertService` and interfaces, not concretes
+9. **cmd/**: `RunWatchLoop` moves to `cmd/serve.go`
 
-### Fase D — Testes
+### Phase D — Tests
 
-10. **config**: Testes para `ToCheckerHosts`
-11. **history**: Testes para `Record`, `GetHistory`, `rotate` (com `t.TempDir`)
-12. **checker**: Testes com mock `Fetcher`
-13. **api**: Testes HTTP com `httptest` + mocks
+10. **config**: Tests for `ToCheckerHosts`
+11. **history**: Tests for `Record`, `GetHistory`, `rotate` (with `t.TempDir`)
+12. **checker**: Tests with mock `Fetcher`
+13. **api**: HTTP tests with `httptest` + mocks
 
 ---
 
-## Ordem de Implementação
+## Implementation Order
 
 ```
-Fase A1 → A2 → A3 → B4 → B5 → B6 → C7 → C8 → C9 → D10 → D11 → D12 → D13
+Phase A1 → A2 → A3 → B4 → B5 → B6 → C7 → C8 → C9 → D10 → D11 → D12 → D13
 ```
 
-Cada passo mantém `go build ./...` e `go vet ./...` limpos antes de avançar.
+Each step keeps `go build ./...` and `go vet ./...` clean before moving on.
