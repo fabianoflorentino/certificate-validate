@@ -43,14 +43,14 @@ docker build -t certificate-validate .
 ## Documentation
 
 | Resource | Description |
-|---|---|
+| --- | --- |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architecture overview with 13 Mermaid flowcharts |
 | Swagger UI | Interactive API docs at `http://localhost:5000/swagger/` (when server is running) |
 | [`docs/swagger.yaml`](docs/swagger.yaml) | OpenAPI 3.0 specification |
 
 ## Architecture
 
-```
+```bash
 certificate-validate/
 ├── cmd/certificate-validate/
 │   └── main.go                    # Entry point
@@ -144,7 +144,7 @@ trusted_cas:
 All config fields can be overridden via environment variables with the `CV_` prefix:
 
 | Variable | Overrides |
-|---|---|
+| --- | --- |
 | `CV_CHECK_TIME` | `check_time` |
 | `CV_API_KEY` | `api_key` |
 | `CV_APP_HOST` | `app_configs[0].host` |
@@ -171,7 +171,7 @@ CV_API_KEY="sk-secret" CV_WEBHOOK_URL="https://hooks.example.com/alert" ./certif
 ### Global Flags
 
 | Flag | Description |
-|---|---|
+| --- | --- |
 | `-c, --config` | Path to config file (default: `config/settings.yml`) |
 | `--log-file` | Write structured logs to file (also written to stderr) |
 
@@ -189,7 +189,7 @@ Check certificates from configured hosts or a single host.
 ```
 
 | Flag | Description |
-|---|---|
+| --- | --- |
 | `-w, --watch` | Continuously check at the configured interval |
 | `-o, --output` | Output format: `json` (default) or `table` |
 | `--host` | Check a single host directly (no config needed) |
@@ -207,7 +207,7 @@ Start the HTTP API server.
 ```
 
 | Flag | Description |
-|---|---|
+| --- | --- |
 | `--tls-cert` | Path to TLS certificate file |
 | `--tls-key` | Path to TLS private key file |
 | `--api-key` | API key (overrides `config/api_key`) |
@@ -229,7 +229,7 @@ Export certificate data to JSON or CSV.
 ```
 
 | Flag | Description |
-|---|---|
+| --- | --- |
 | `-f, --format` | Output format: `json` (default) or `csv` |
 | `-o, --output-file` | Write to file instead of stdout |
 
@@ -274,7 +274,7 @@ All requests (except static files) are rate-limited via a token bucket: **100 re
 ### Endpoints
 
 | Method | Route | Description |
-|---|---|---|
+| --- | --- | --- |
 | GET | `/` | Dashboard (embedded frontend) |
 | GET | `/swagger/` | Swagger UI (interactive API docs) |
 | GET | `/swagger.yaml` | OpenAPI 3.0 specification |
@@ -361,6 +361,7 @@ hosts:
 ```
 
 Supported modes:
+
 - `check` and `check --watch` — uses configured CAs
 - `serve` — uses CAs for all certificate fetches
 
