@@ -16,6 +16,12 @@ Comprehensive Go testing patterns for writing reliable, maintainable tests follo
 - Implementing fuzz tests for input validation
 - Following TDD workflow in Go projects
 
+## Language
+
+Everything in this repository stays in **English**: code comments, documentation, commit
+messages, plans, and PR descriptions. Never write Portuguese or mix languages in any
+artifact. If you find content in another language, translate it to English.
+
 ## TDD Workflow for Go
 
 ### The RED-GREEN-REFACTOR Cycle

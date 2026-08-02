@@ -15,6 +15,12 @@ Idiomatic Go patterns and best practices for building robust, efficient, and mai
 - Refactoring existing Go code
 - Designing Go packages/modules
 
+## Language
+
+Everything in this repository stays in **English**: code comments, documentation, commit
+messages, plans, and PR descriptions. Never write Portuguese or mix languages in any
+artifact. If you find content in another language, translate it to English.
+
 ## Core Principles
 
 ### 1. Simplicity and Clarity
