@@ -1,29 +1,33 @@
 # Lefthook configuration
 # Install: lefthook install
+#
+# asdf tools (golangci-lint) live in ~/.asdf/shims, which GUI-launched editors
+# (VS Code) do not add to PATH. Hook commands prefix it explicitly so tools
+# resolve regardless of how the editor was started.
 
 pre-commit:
   parallel: true
   commands:
     lint:
-      run: golangci-lint run
+      run: PATH="$HOME/.asdf/shims:$PATH" golangci-lint run
       stage_fixed: true
     vet:
-      run: go vet ./...
+      run: PATH="$HOME/.asdf/shims:$PATH" go vet ./...
       stage_fixed: true
 
 pre-push:
   parallel: false
   commands:
     verify-deps:
-      run: go mod verify
+      run: PATH="$HOME/.asdf/shims:$PATH" go mod verify
     lint:
-      run: golangci-lint run
+      run: PATH="$HOME/.asdf/shims:$PATH" golangci-lint run
     vet:
-      run: go vet ./...
+      run: PATH="$HOME/.asdf/shims:$PATH" go vet ./...
     test:
-      run: go test -race -count=1 -coverprofile=coverage.out ./...
+      run: PATH="$HOME/.asdf/shims:$PATH" go test -race -count=1 -coverprofile=coverage.out ./...
     coverage:
       run: |
-        go tool cover -func=coverage.out | grep total | \
+        PATH="$HOME/.asdf/shims:$PATH" go tool cover -func=coverage.out | grep total | \
           awk '{print $3}' | awk -F'%' '{if ($1 < 80) {print "Coverage: " $1 "% (minimum 80%)"; exit 1}}'
       skip: merge  # skip in merge-commit as coverage.out may be stale
