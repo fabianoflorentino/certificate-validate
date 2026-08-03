@@ -218,3 +218,94 @@ func TestCheckAll_WithPerHostTimeout(t *testing.T) {
 func TestCertCheckerInterface(t *testing.T) {
 	var _ CertChecker = (*Checker)(nil)
 }
+
+func TestAssembleResults_OrdersByIndex(t *testing.T) {
+	hosts := []Host{
+		{Hostname: "a.com", Port: 443},
+		{Hostname: "b.com", Port: 443},
+		{Hostname: "c.com", Port: 443},
+	}
+
+	results := make(chan checkResult, 3)
+	results <- checkResult{cert: &certificate.Certificate{Hostname: "c.com"}, idx: 2}
+	results <- checkResult{cert: &certificate.Certificate{Hostname: "a.com"}, idx: 0}
+	results <- checkResult{err: errors.New("timeout"), idx: 1}
+	close(results)
+
+	certs, errs := assembleResults(results, hosts)
+
+	if len(certs) != 3 {
+		t.Fatalf("got %d certificates; want 3", len(certs))
+	}
+	if certs[0] == nil || certs[0].Hostname != "a.com" {
+		t.Errorf("certs[0] = %v; want a.com", certs[0])
+	}
+	if certs[1] != nil {
+		t.Errorf("certs[1] = %v; want nil for failed host", certs[1])
+	}
+	if certs[2] == nil || certs[2].Hostname != "c.com" {
+		t.Errorf("certs[2] = %v; want c.com", certs[2])
+	}
+	if len(errs) != 1 {
+		t.Fatalf("got %d errors; want 1", len(errs))
+	}
+	if errs[0].Error() != "b.com: timeout" {
+		t.Errorf("got error %q; want %q", errs[0].Error(), "b.com: timeout")
+	}
+}
+
+func TestAssembleResults_Empty(t *testing.T) {
+	results := make(chan checkResult)
+	close(results)
+
+	certs, errs := assembleResults(results, nil)
+
+	if len(certs) != 0 {
+		t.Errorf("got %d certificates; want 0", len(certs))
+	}
+	if len(errs) != 0 {
+		t.Errorf("got %d errors; want 0", len(errs))
+	}
+}
+
+func TestAssembleResults_AllErrors(t *testing.T) {
+	hosts := []Host{
+		{Hostname: "a.dev", Port: 443},
+		{Hostname: "b.dev", Port: 443},
+		{Hostname: "c.dev", Port: 443},
+	}
+
+	results := make(chan checkResult, 3)
+	results <- checkResult{err: errors.New("timeout"), idx: 0}
+	results <- checkResult{err: errors.New("connection refused"), idx: 1}
+	results <- checkResult{err: errors.New("host unreachable"), idx: 2}
+	close(results)
+
+	certs, errs := assembleResults(results, hosts)
+
+	if len(certs) != 3 {
+		t.Fatalf("got %d certificates; want 3", len(certs))
+	}
+
+	for i, cert := range certs {
+		if cert != nil {
+			t.Errorf("certs[%d] = %v; want nil for failed host", i, cert)
+		}
+	}
+
+	if len(errs) != 3 {
+		t.Fatalf("got %d errors; want 3", len(errs))
+	}
+
+	expectedErrors := []string{
+		"a.dev: timeout",
+		"b.dev: connection refused",
+		"c.dev: host unreachable",
+	}
+
+	for i, err := range errs {
+		if err.Error() != expectedErrors[i] {
+			t.Errorf("errs[%d] = %q; want %q", i, err.Error(), expectedErrors[i])
+		}
+	}
+}
