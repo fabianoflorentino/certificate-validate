@@ -94,6 +94,7 @@ func (h *Handler) Router() http.Handler {
 	}
 
 	staticFS, err := fs.Sub(staticFiles, "static")
+
 	if err != nil {
 		slog.Error("failed to init static file server", "error", err)
 	} else {
@@ -105,6 +106,7 @@ func (h *Handler) Router() http.Handler {
 
 func (h *Handler) handleAll(w http.ResponseWriter, r *http.Request) {
 	result := h.svc.CheckAll(r.Context(), h.cfg.Hosts)
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"certificates": result.Certificates,
 		"errors":       result.Errors,
@@ -121,12 +123,15 @@ func (h *Handler) handleByHostname(w http.ResponseWriter, r *http.Request) {
 	for _, host := range h.cfg.Hosts {
 		if host.URL == hostname {
 			cert, err := h.svc.CheckSingle(r.Context(), host.URL, host.PortInt())
+
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]string{
 					"error": fmt.Sprintf("failed to fetch certificate: %v", err),
 				})
+
 				return
 			}
+
 			writeJSON(w, http.StatusOK, cert)
 			return
 		}
@@ -140,22 +145,26 @@ func (h *Handler) handleByHostname(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleCommonName(w http.ResponseWriter, r *http.Request) {
 	result := h.svc.CheckAll(r.Context(), h.cfg.Hosts)
 	names := make(map[string]string, len(result.Certificates))
+
 	for _, c := range result.Certificates {
 		if c != nil {
 			names[c.Hostname] = c.CommonName
 		}
 	}
+
 	writeJSON(w, http.StatusOK, names)
 }
 
 func (h *Handler) handleSubjectAltName(w http.ResponseWriter, r *http.Request) {
 	result := h.svc.CheckAll(r.Context(), h.cfg.Hosts)
 	sans := make(map[string][]string, len(result.Certificates))
+
 	for _, c := range result.Certificates {
 		if c != nil {
 			sans[c.Hostname] = c.SubjectAltNames
 		}
 	}
+
 	writeJSON(w, http.StatusOK, sans)
 }
 
@@ -217,6 +226,7 @@ func (h *Handler) handleExportCSV(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to finalize csv", http.StatusInternalServerError)
 		return
 	}
+
 	csvWriter.Flush()
 }
 
@@ -257,12 +267,11 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	results := make(chan hostResult, len(hosts))
 	for _, host := range hosts {
-		host := host
 		go func() {
 			port := host.Port
 			if port == "" && len(host.Ports) > 0 {
 				port = strconv.Itoa(host.Ports[0])
-			} else if port == "" {
+			} else {
 				port = "443"
 			}
 
@@ -284,6 +293,7 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 	for range hosts {
 		r := <-results
 		hostStatuses[r.name] = r.status
+
 		if r.status != "ok" {
 			overall = "degraded"
 		}
