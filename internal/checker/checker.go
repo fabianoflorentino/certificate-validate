@@ -3,7 +3,7 @@ package checker
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
@@ -11,10 +11,10 @@ import (
 
 // Host is a certificate check target.
 type Host struct {
-	Hostname   string
-	Port       int
-	Name       string
-	Timeout    time.Duration // per-host dial timeout (0 = use default)
+	Hostname string
+	Port     int
+	Name     string
+	Timeout  time.Duration // per-host dial timeout (0 = use default)
 }
 
 // Fetcher fetches certificate info from a host.
@@ -61,48 +61,55 @@ func (c *Checker) Format(cert *certificate.Certificate) ([]byte, error) {
 	return c.formatter.Format(cert)
 }
 
+type checkResult struct {
+	cert *certificate.Certificate
+	err  error
+	idx  int
+}
+
 // CheckAll fetches certificates for multiple hosts concurrently.
 func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) ([]*certificate.Certificate, []error) {
+	return assembleResults(c.fetchAll(ctx, hosts, maxParallel), hosts)
+}
+
+func (c *Checker) fetchAll(ctx context.Context, hosts []Host, maxParallel int) <-chan checkResult {
 	if maxParallel <= 0 {
 		maxParallel = 10
 	}
 
-	type res struct {
-		cert *certificate.Certificate
-		err  error
-		idx  int
-	}
-
 	sem := make(chan struct{}, maxParallel)
-	results := make(chan res, len(hosts))
+	results := make(chan checkResult, len(hosts))
 
+	var wg sync.WaitGroup
 	for i, h := range hosts {
 		sem <- struct{}{}
+		wg.Add(1)
 		i, h := i, h
+
 		go func() {
+			defer wg.Done()
 			defer func() { <-sem }()
+
 			checkCtx := ctx
 			if h.Timeout > 0 {
 				var cancel context.CancelFunc
 				checkCtx, cancel = context.WithTimeout(ctx, h.Timeout)
 				defer cancel()
 			}
+
 			cert, err := c.fetcher.Fetch(checkCtx, h.Hostname, h.Port)
-			if err != nil {
-				slog.Error("check failed", "host", h.Hostname, "port", h.Port, "error", err)
-				results <- res{nil, err, i}
-				return
-			}
-			results <- res{cert, nil, i}
+			results <- checkResult{cert, err, i}
 		}()
 	}
 
-	for i := 0; i < cap(sem); i++ {
-		sem <- struct{}{}
-	}
+	wg.Wait()
 	close(results)
+	return results
+}
 
+func assembleResults(results <-chan checkResult, hosts []Host) ([]*certificate.Certificate, []error) {
 	out := make([]*certificate.Certificate, len(hosts))
+
 	var errs []error
 	for r := range results {
 		if r.err != nil {
@@ -114,5 +121,3 @@ func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) (
 
 	return out, errs
 }
-
-
