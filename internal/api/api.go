@@ -105,7 +105,7 @@ func (h *Handler) Router() http.Handler {
 
 func (h *Handler) handleAll(w http.ResponseWriter, r *http.Request) {
 	result := h.svc.CheckAll(r.Context(), h.cfg.Hosts)
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"certificates": result.Certificates,
 		"errors":       result.Errors,
 	})
@@ -262,10 +262,10 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 			port := host.Port
 			if port == "" && len(host.Ports) > 0 {
 				port = strconv.Itoa(host.Ports[0])
-			}
-			if port == "" {
+			} else if port == "" {
 				port = "443"
 			}
+
 			addr := net.JoinHostPort(host.URL, port)
 			dialer := net.Dialer{Timeout: 3 * time.Second}
 			conn, err := dialer.DialContext(ctx, "tcp", addr)
@@ -274,6 +274,7 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			_ = conn.Close()
+
 			results <- hostResult{name: host.Name, status: "ok"}
 		}()
 	}
@@ -288,15 +289,16 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"status": overall,
 		"hosts":  hostStatuses,
 	})
 }
 
-func writeJSON(w http.ResponseWriter, status int, v interface{}) {
+func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		slog.Error("json encode error", "error", err)
 	}
@@ -315,7 +317,9 @@ func withMiddleware(h *Handler, next http.Handler) http.Handler {
 			if r.Header.Get("X-API-Key") != h.apiToken {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
+
 				_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+
 				return
 			}
 		}
@@ -323,6 +327,7 @@ func withMiddleware(h *Handler, next http.Handler) http.Handler {
 		if !defaultLimiter.allow() {
 			w.Header().Set("Retry-After", "1")
 			http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
+
 			return
 		}
 
