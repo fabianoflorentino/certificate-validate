@@ -101,7 +101,7 @@ func (h *Handler) Router() http.Handler {
 		mux.Handle("GET /", http.FileServer(http.FS(staticFS)))
 	}
 
-	return withMiddleware(h, mux)
+	return withMiddleware(h, mux, newRateLimiter(100, 200)) // 100 req/s, burst 200
 }
 
 func (h *Handler) handleAll(w http.ResponseWriter, r *http.Request) {
@@ -322,9 +322,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 // withMiddleware applies security headers, rate limiting, and optional API auth.
-func withMiddleware(h *Handler, next http.Handler) http.Handler {
-	defaultLimiter := newRateLimiter(100, 200) // 100 req/s, burst 200
-
+func withMiddleware(h *Handler, next http.Handler, limiter *rateLimiter) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
@@ -341,7 +339,7 @@ func withMiddleware(h *Handler, next http.Handler) http.Handler {
 			}
 		}
 
-		if !defaultLimiter.allow() {
+		if !limiter.allow() {
 			w.Header().Set("Retry-After", "1")
 			http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
 

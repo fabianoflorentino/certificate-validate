@@ -416,8 +416,12 @@ func TestWriteJSON(t *testing.T) {
 func TestWriteJSON_EncodeError(t *testing.T) {
 	w := httptest.NewRecorder()
 	writeJSON(w, http.StatusOK, map[string]chan int{"ch": make(chan int)})
-	if w.Code != http.StatusOK {
-		t.Errorf("got status %d; want 200", w.Code)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("got status %d; want 500 (marshal error must not send the requested status)", w.Code)
+	}
+	if body := w.Body.String(); !strings.Contains(body, "internal server error") {
+		t.Errorf("got body %q; want it to contain %q", body, "internal server error")
 	}
 }
 
@@ -507,20 +511,24 @@ func TestRateLimiter_Refill(t *testing.T) {
 }
 
 func TestWithMiddleware_RateLimit(t *testing.T) {
-	defaultLimiter := newRateLimiter(100, 200) // 100 req/s, burst 200
-
-	oldLimiter := defaultLimiter
-	defaultLimiter = newRateLimiter(0, 0)
-	t.Cleanup(func() { defaultLimiter = oldLimiter })
-
 	h := setupHandler(
-		&mockChecker{},
+		&mockChecker{
+			checkAllFunc: func(_ context.Context, _ []checker.Host, _ int) ([]*certificate.Certificate, []error) {
+				t.Error("handler reached despite exhausted rate limiter")
+				return nil, nil
+			},
+		},
 		&mockStore{recordFunc: func(results []*certificate.Certificate) {}},
 	)
 
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/cert/info/all", h.handleAll)
+
+	handler := withMiddleware(h, mux, newRateLimiter(0, 0)) // exhausted
+
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/cert/info/all", nil)
 	w := httptest.NewRecorder()
-	h.Router().ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusTooManyRequests {
 		t.Errorf("got status %d; want 429", w.Code)
