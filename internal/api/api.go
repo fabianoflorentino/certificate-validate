@@ -321,10 +321,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	}
 }
 
-var defaultLimiter = newRateLimiter(100, 200) // 100 req/s, burst 200
-
 // withMiddleware applies security headers, rate limiting, and optional API auth.
 func withMiddleware(h *Handler, next http.Handler) http.Handler {
+	defaultLimiter := newRateLimiter(100, 200) // 100 req/s, burst 200
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")

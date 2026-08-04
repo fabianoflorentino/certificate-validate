@@ -507,6 +507,8 @@ func TestRateLimiter_Refill(t *testing.T) {
 }
 
 func TestWithMiddleware_RateLimit(t *testing.T) {
+	defaultLimiter := newRateLimiter(100, 200) // 100 req/s, burst 200
+
 	oldLimiter := defaultLimiter
 	defaultLimiter = newRateLimiter(0, 0)
 	t.Cleanup(func() { defaultLimiter = oldLimiter })
