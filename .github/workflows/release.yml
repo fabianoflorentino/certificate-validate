@@ -2,6 +2,15 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run (skip publishing actions)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
   push:
     branches:
       - main
@@ -17,6 +26,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   version:
@@ -44,13 +54,142 @@ jobs:
           echo "Latest tag: ${LATEST:-<none>}  →  Next version: $NEXT"
           echo "next_version=$NEXT" >> "$GITHUB_OUTPUT"
 
-  tag:
-    name: Tag
-    needs: version
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Lint with golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.59.1
+          args: --timeout=5m
+
+      - name: Lint with go vet
+        run: go vet ./...
+
+  test:
+    name: Test & Coverage
+    needs: [lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests with race detector
+        run: |
+          go test -race -count=1 \
+            -coverprofile=coverage.out -covermode=atomic \
+            ./...
+
+      - name: Check coverage ≥ 80%
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out \
+            | grep '^total:' \
+            | awk '{print $3}' \
+            | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          if awk "BEGIN {exit !($COVERAGE < 80)}"; then
+            echo "FAIL: coverage ${COVERAGE}% is below the required 80%"
+            exit 1
+          fi
+          echo "PASS: coverage ${COVERAGE}% meets the 80% threshold"
+
+      - name: Build check
+        run: go build ./...
+
+  build:
+    name: Build binary
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux go build \
+            -ldflags="-s -w" \
+            -o certificate-validate \
+            ./cmd/certificate-validate
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: certificate-validate-linux-amd64
+          path: certificate-validate
+
+  docker:
+    name: Build and Push Docker image
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.dry_run != 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          IMAGE_REF="${{ github.repository }}:${{ needs.version.outputs.next_version }}"
+          echo "IMAGE_REF=${IMAGE_REF}" >> "$GITHUB_ENV"
+          docker build --no-cache --rm \
+            -t "${IMAGE_REF}" \
+            -f ./Dockerfile .
+
+      - name: Tag Docker image as latest
+        run: |
+          docker tag "${IMAGE_REF}" "${{ github.repository }}:latest"
+
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push "${IMAGE_REF}"
+          docker push "${{ github.repository }}:latest"
+
+  tag:
+    name: Tag
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.dry_run != 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Git
         run: |
@@ -68,14 +207,35 @@ jobs:
 
   release:
     name: Release
-    needs: [version, tag]
+    needs: [version, build, tag]
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.dry_run != 'true' }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.next_version }}
           name: ${{ needs.version.outputs.next_version }}
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: certificate-validate-linux-amd64
+          path: .
+
+      - name: Upload binary asset to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./certificate-validate
+          asset_name: certificate-validate-linux-amd64
+          asset_content_type: application/octet-stream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
