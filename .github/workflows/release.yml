@@ -2,10 +2,6 @@
 #   Environment: DOCKERHUB
 #     DOCKERHUB_USERNAME  Docker Hub login name
 #     DOCKERHUB_TOKEN     Docker Hub access token
-#
-#   Environment: GITHUB
-#     GIT_HUB_TOKEN  GitHub personal access token with contents:write + workflow scope
-#                    (optional — falls back to the runner-provided GITHUB_TOKEN)
 
 name: Image, Publish, Tag and Release
 
@@ -160,7 +156,6 @@ jobs:
   # ── Create and push Git tag ─────────────────────────────────────────────────
   tag:
     name: Tag
-    environment: GITHUB
     needs: [version, build_and_push, docker_scout]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.dry_run != 'true' }}
@@ -173,16 +168,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Ensure GITHUB_TOKEN env
-        run: |
-          if [ -n "${{ secrets.GIT_HUB_TOKEN }}" ]; then
-            echo "Using secrets.GIT_HUB_TOKEN as GITHUB_TOKEN"
-            echo "GITHUB_TOKEN=${{ secrets.GIT_HUB_TOKEN }}" >> "$GITHUB_ENV"
-          else
-            echo "Using runner-provided GITHUB_TOKEN"
-            echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV"
-          fi
 
       - name: Create and push tag
         id: create_tag
@@ -197,7 +182,7 @@ jobs:
 
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
         env:
-          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     outputs:
       tag_name: ${{ steps.create_tag.outputs.tag_name }}
@@ -205,7 +190,6 @@ jobs:
   # ── Create GitHub Release ───────────────────────────────────────────────────
   release:
     name: Release
-    environment: GITHUB
     needs: [version, build_and_push, docker_scout, tag]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.dry_run != 'true' }}
@@ -251,7 +235,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: ">=1.26"
+          go-version-file: go.mod
 
       - name: Checkout repository
         uses: actions/checkout@v6
