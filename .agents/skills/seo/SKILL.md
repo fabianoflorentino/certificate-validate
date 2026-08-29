@@ -11,12 +11,6 @@ metadata:
 
 Search engine optimization based on Lighthouse SEO audits and Google Search guidelines. Focus on technical SEO, on-page optimization, and structured data.
 
-## Language
-
-Everything in this repository stays in **English**: code comments, documentation, commit
-messages, plans, and PR descriptions. Never write Portuguese or mix languages in any
-artifact. If you find content in another language, translate it to English.
-
 ## SEO fundamentals
 
 Search ranking factors (approximate influence):

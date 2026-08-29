@@ -11,12 +11,6 @@ metadata:
 
 Comprehensive accessibility guidelines based on WCAG 2.2 and Lighthouse accessibility audits. Goal: make content usable by everyone, including people with disabilities.
 
-## Language
-
-Everything in this repository stays in **English**: code comments, documentation, commit
-messages, plans, and PR descriptions. Never write Portuguese or mix languages in any
-artifact. If you find content in another language, translate it to English.
-
 ## WCAG Principles: POUR
 
 | Principle | Description |

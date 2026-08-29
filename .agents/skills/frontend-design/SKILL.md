@@ -8,12 +8,6 @@ This skill guides creation of distinctive, production-grade frontend interfaces 
 
 The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
 
-## Language
-
-Everything in this repository stays in **English**: code comments, documentation, commit
-messages, plans, and PR descriptions. Never write Portuguese or mix languages in any
-artifact. If you find content in another language, translate it to English.
-
 ## Design Thinking
 
 Before coding, understand the context and commit to a BOLD aesthetic direction:
