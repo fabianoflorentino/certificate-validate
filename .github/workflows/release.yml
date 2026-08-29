@@ -1,21 +1,7 @@
-# Required secrets:
-#   Environment: DOCKERHUB
-#     DOCKERHUB_USERNAME  Docker Hub login name
-#     DOCKERHUB_TOKEN     Docker Hub access token
-
-name: Image, Publish, Tag and Release
+name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Dry-run (skip publishing actions)"
-        required: false
-        default: "false"
-        type: choice
-        options:
-          - "false"
-          - "true"
   push:
     branches:
       - main
@@ -31,10 +17,8 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
-  # ── Compute next semantic version from latest git tag ──────────────────────
   version:
     name: Compute next version
     runs-on: ubuntu-latest
@@ -42,7 +26,7 @@ jobs:
       next_version: ${{ steps.compute.outputs.next_version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -60,109 +44,13 @@ jobs:
           echo "Latest tag: ${LATEST:-<none>}  →  Next version: $NEXT"
           echo "next_version=$NEXT" >> "$GITHUB_OUTPUT"
 
-  # ── Run CI checks before releasing ──────────────────────────────────────────
-  ci:
-    name: CI checks
-    needs: version
-    uses: ./.github/workflows/ci.yml
-
-  # ── Build binary artifact (reusable) ────────────────────────────────────────
-  build:
-    name: Build (reusable)
-    needs: [version, ci]
-    uses: ./.github/workflows/build.yml
-    with:
-      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
-
-  # ── Build & push Docker image to Docker Hub ────────────────────────────────
-  build_and_push:
-    name: Build and Push to Docker Hub
-    environment: DOCKERHUB
-    needs: [version, build]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Log in to Docker Hub
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build Docker image
-        run: |
-          IMAGE_REF="${{ github.repository }}:${{ needs.version.outputs.next_version }}"
-          echo "IMAGE_REF=${IMAGE_REF}" >> "$GITHUB_ENV"
-          docker build --no-cache --rm \
-            -t "${IMAGE_REF}" \
-            -f ./Dockerfile .
-
-      - name: Smoke test — verify binary entrypoint
-        run: |
-          echo "Running smoke test on ${IMAGE_REF}"
-          set +e
-          OUTPUT=$(docker run --rm "${IMAGE_REF}" --help 2>&1)
-          set -e
-          echo "${OUTPUT}"
-          if ! echo "${OUTPUT}" | grep -qiE "check|serve|usage|certificate-validate"; then
-            echo "Smoke test FAILED: binary did not produce expected help output"
-            exit 1
-          fi
-          echo "Smoke test passed"
-
-      - name: Tag Docker image as latest
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: |
-          docker tag "${IMAGE_REF}" "${{ github.repository }}:latest"
-
-      - name: Push Docker image to Docker Hub
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: |
-          docker push "${IMAGE_REF}"
-          docker push "${{ github.repository }}:latest"
-
-  # ── Docker Scout CVE scan ───────────────────────────────────────────────────
-  docker_scout:
-    name: Docker Scout CVE Scan
-    environment: DOCKERHUB
-    needs: [version, build_and_push]
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.dry_run != 'true' }}
-
-    steps:
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Docker Scout CVE scan
-        uses: docker/scout-action@v1
-        with:
-          command: cves
-          image: ${{ github.repository }}:${{ needs.version.outputs.next_version }}
-          only-severities: critical,high
-          exit-code: true
-
-  # ── Create and push Git tag ─────────────────────────────────────────────────
   tag:
     name: Tag
-    needs: [version, build_and_push, docker_scout]
+    needs: version
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.dry_run != 'true' }}
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Git
         run: |
@@ -170,77 +58,24 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create and push tag
-        id: create_tag
         run: |
           TAG_NAME="${{ needs.version.outputs.next_version }}"
-          echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
-
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}"
-
           git tag "$TAG_NAME"
           git push origin "$TAG_NAME"
-
-          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    outputs:
-      tag_name: ${{ steps.create_tag.outputs.tag_name }}
-
-  # ── Create GitHub Release ───────────────────────────────────────────────────
   release:
     name: Release
-    needs: [version, build_and_push, docker_scout, tag]
+    needs: [version, tag]
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.dry_run != 'true' }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
       - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.tag.outputs.tag_name }}
-          name: ${{ needs.tag.outputs.tag_name }}
+          tag_name: ${{ needs.version.outputs.next_version }}
+          name: ${{ needs.version.outputs.next_version }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: certificate-validate-linux-amd64
-          path: .
-
-      - name: Upload binary asset to Release
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./certificate-validate
-          asset_name: certificate-validate-linux-amd64
-          asset_content_type: application/octet-stream
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ── Trigger pkg.go.dev to index the new version ─────────────────────────────
-  go_proxy:
-    name: pkg.go.dev
-    needs: [version, build_and_push, docker_scout, tag, release]
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.dry_run != 'true' }}
-
-    steps:
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Update pkg.go.dev
-        run: |
-          GOPROXY=https://proxy.golang.org \
-            go list -m github.com/fabianoflorentino/certificate-validate@${{ needs.version.outputs.next_version }}
