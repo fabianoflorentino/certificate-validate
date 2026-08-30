@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Security Audit Report Generator for certificate-validate
-Generates a professional PDF report with findings, charts, and GitHub issues.
+Security Audit Report Generator - Professional Version
+Generates a high-quality PDF report with findings, charts, and GitHub issues.
 """
 
 import os
@@ -11,48 +11,58 @@ from datetime import datetime
 try:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm, mm
-    from reportlab.lib.colors import HexColor, white, black
+    from reportlab.lib.colors import HexColor, white, black, Color
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
     from reportlab.platypus import (
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        PageBreak, Image, KeepTogether
+        PageBreak, Image, KeepTogether, ListFlowable, ListItem
     )
     from reportlab.platypus.flowables import HRFlowable
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
+    import numpy as np
 except ImportError:
     print("Installing required packages...")
-    os.system(f"{sys.executable} -m pip install reportlab matplotlib --quiet")
+    os.system(f"{sys.executable} -m pip install reportlab matplotlib numpy --quiet")
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm, mm
-    from reportlab.lib.colors import HexColor, white, black
+    from reportlab.lib.colors import HexColor, white, black, Color
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
     from reportlab.platypus import (
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        PageBreak, Image, KeepTogether
+        PageBreak, Image, KeepTogether, ListFlowable, ListItem
     )
     from reportlab.platypus.flowables import HRFlowable
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
+    import numpy as np
 
-# Colors
-CRITICAL = HexColor('#B91C1C')
-HIGH = HexColor('#EA580C')
-MEDIUM = HexColor('#D97706')
-LOW = HexColor('#2563EB')
-INFO = HexColor('#6B7280')
-STRONG = HexColor('#059669')
-BG_LIGHT = HexColor('#F9FAFB')
-BG_DARK = HexColor('#1F2937')
-TEXT_PRIMARY = HexColor('#111827')
-TEXT_SECONDARY = HexColor('#6B7280')
-BORDER = HexColor('#E5E7EB')
+# Professional color palette
+COLORS = {
+    'critical': HexColor('#DC2626'),
+    'high': HexColor('#EA580C'),
+    'medium': HexColor('#D97706'),
+    'low': HexColor('#2563EB'),
+    'info': HexColor('#6B7280'),
+    'strong': HexColor('#059669'),
+    'primary': HexColor('#1E40AF'),
+    'secondary': HexColor('#64748B'),
+    'success': HexColor('#10B981'),
+    'warning': HexColor('#F59E0B'),
+    'danger': HexColor('#EF4444'),
+    'bg_light': HexColor('#F8FAFC'),
+    'bg_dark': HexColor('#1E293B'),
+    'text_primary': HexColor('#0F172A'),
+    'text_secondary': HexColor('#475569'),
+    'border': HexColor('#E2E8F0'),
+    'border_dark': HexColor('#CBD5E1'),
+}
 
 # Project info
 PROJECT_NAME = "certificate-validate"
@@ -64,7 +74,7 @@ FINDINGS = [
     {
         "id": "SEC-001",
         "category": "CHAVES EXPOSTAS",
-        "severity": "media",
+        "severity": "medium",
         "title": "Comparação de API key vulnerável a timing attack",
         "file": "internal/api/api.go",
         "line": "332",
@@ -77,7 +87,7 @@ FINDINGS = [
     {
         "id": "SEC-002",
         "category": "INPUTS SEM TRATAMENTO (XSS)",
-        "severity": "baixa",
+        "severity": "low",
         "title": "Função escAttr() não escapa caracteres < e >",
         "file": "internal/api/static/app.js",
         "line": "559-561",
@@ -90,7 +100,7 @@ FINDINGS = [
     {
         "id": "SEC-003",
         "category": "INPUTS SEM TRATAMENTO (XSS)",
-        "severity": "baixa",
+        "severity": "low",
         "title": "Valor cert.port não é escapado no modal",
         "file": "internal/api/static/app.js",
         "line": "251",
@@ -103,7 +113,7 @@ FINDINGS = [
     {
         "id": "SEC-004",
         "category": "CHAVES EXPOSTAS",
-        "severity": "baixa",
+        "severity": "low",
         "title": "Ausência de validação de startup para API key padrão",
         "file": "internal/cmd/serve.go",
         "line": "202-205",
@@ -116,7 +126,7 @@ FINDINGS = [
     {
         "id": "SEC-005",
         "category": "CHAVES EXPOSTAS",
-        "severity": "informativa",
+        "severity": "info",
         "title": "Kubernetes Deployment não configura API key como Secret",
         "file": "kubernetes/Deployment.yml",
         "line": "28-48",
@@ -166,48 +176,6 @@ STRENGTHS = [
     },
 ]
 
-def color_to_hex(color):
-    """Convert reportlab HexColor to matplotlib-compatible hex string."""
-    return f"#{int(color.red*255):02x}{int(color.green*255):02x}{int(color.blue*255):02x}"
-
-def create_charts(output_dir):
-    """Create charts for the report."""
-    # Severity distribution (donut chart)
-    severity_counts = {"Crítica": 0, "Alta": 0, "Média": 1, "Baixa": 3, "Informativa": 1}
-    colors = [color_to_hex(CRITICAL), color_to_hex(HIGH), color_to_hex(MEDIUM), color_to_hex(LOW), color_to_hex(INFO)]
-    labels = list(severity_counts.keys())
-    sizes = list(severity_counts.values())
-
-    fig, ax = plt.subplots(figsize=(6, 4))
-    wedges, texts = ax.pie(sizes, colors=colors, startangle=90,
-                           wedgeprops=dict(width=0.5))
-    ax.legend(wedges, [f"{l} ({s})" for l, s in zip(labels, sizes)],
-              loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
-    ax.set_title("Distribuição por Severidade", fontsize=12, fontweight='bold')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'severity_chart.png'), dpi=150, bbox_inches='tight')
-    plt.close()
-
-    # Category distribution (bar chart)
-    categories = {}
-    for f in FINDINGS:
-        cat = f["category"]
-        categories[cat] = categories.get(cat, 0) + 1
-
-    fig, ax = plt.subplots(figsize=(8, 4))
-    bars = ax.barh(list(categories.keys()), list(categories.values()),
-                   color=[color_to_hex(MEDIUM)] * len(categories))
-    ax.set_xlabel("Número de Achados")
-    ax.set_title("Distribuição por Categoria", fontsize=12, fontweight='bold')
-    for bar, val in zip(bars, categories.values()):
-        ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height()/2,
-                str(val), va='center')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'category_chart.png'), dpi=150, bbox_inches='tight')
-    plt.close()
-
-    return os.path.join(output_dir, 'severity_chart.png'), os.path.join(output_dir, 'category_chart.png')
-
 def escape_html(text):
     """Escape HTML special characters for reportlab Paragraph."""
     return (text
@@ -217,62 +185,149 @@ def escape_html(text):
             .replace('"', '&quot;')
             .replace("'", '&#39;'))
 
+def create_professional_charts(output_dir):
+    """Create professional charts for the report."""
+    # Set style
+    plt.style.use('seaborn-v0_8-darkgrid')
+    
+    # Severity distribution (donut chart)
+    severity_counts = {"Crítica": 0, "Alta": 0, "Média": 1, "Baixa": 3, "Informativa": 1}
+    colors = ['#DC2626', '#EA580C', '#D97706', '#2563EB', '#6B7280']
+    labels = list(severity_counts.keys())
+    sizes = list(severity_counts.values())
+    
+    fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
+    wedges, texts, autotexts = ax.pie(
+        sizes, 
+        colors=colors, 
+        labels=labels,
+        autopct='%1.0f%%',
+        startangle=90,
+        wedgeprops=dict(width=0.5, edgecolor='white', linewidth=2),
+        textprops=dict(fontsize=11, fontweight='bold')
+    )
+    for autotext in autotexts:
+        autotext.set_color('white')
+        autotext.set_fontsize(10)
+        autotext.set_fontweight('bold')
+    
+    # Add legend with counts
+    legend_labels = [f"{label} ({count})" for label, count in zip(labels, sizes)]
+    ax.legend(wedges, legend_labels, title="Severidade", loc="center left", 
+              bbox_to_anchor=(1, 0, 0.5, 1), fontsize=10)
+    
+    ax.set_title("Distribuição de Achados por Severidade", 
+                 fontsize=14, fontweight='bold', pad=20, color='#0F172A')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'severity_chart.png'), 
+                dpi=200, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    # Category distribution (horizontal bar chart)
+    categories = {}
+    for f in FINDINGS:
+        cat = f["category"]
+        categories[cat] = categories.get(cat, 0) + 1
+    
+    fig, ax = plt.subplots(figsize=(10, 4), facecolor='white')
+    y_pos = np.arange(len(categories))
+    bars = ax.barh(y_pos, list(categories.values()), 
+                   color='#3B82F6', edgecolor='white', linewidth=2, height=0.6)
+    
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(categories.keys(), fontsize=10, fontweight='bold')
+    ax.set_xlabel('Número de Achados', fontsize=11, fontweight='bold', color='#0F172A')
+    ax.set_title('Distribuição por Categoria', 
+                 fontsize=14, fontweight='bold', pad=15, color='#0F172A')
+    
+    # Add value labels
+    for i, (bar, val) in enumerate(zip(bars, categories.values())):
+        ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height()/2,
+                str(val), va='center', ha='left', fontsize=11, fontweight='bold', color='#0F172A')
+    
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#E2E8F0')
+    ax.spines['bottom'].set_color('#E2E8F0')
+    ax.tick_params(colors='#64748B')
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'category_chart.png'), 
+                dpi=200, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    return os.path.join(output_dir, 'severity_chart.png'), os.path.join(output_dir, 'category_chart.png')
+
 def header_footer(canvas, doc):
-    """Add header and footer to each page."""
+    """Add professional header and footer to each page."""
     canvas.saveState()
+    
     # Header
     canvas.setFont('Helvetica-Bold', 9)
-    canvas.setFillColor(TEXT_SECONDARY)
+    canvas.setFillColor(COLORS['text_secondary'])
     canvas.drawString(2*cm, A4[1] - 1.2*cm, f"Relatório de Auditoria de Segurança — {PROJECT_NAME}")
     canvas.drawRightString(A4[0] - 2*cm, A4[1] - 1.2*cm, AUDIT_DATE)
-    canvas.setStrokeColor(BORDER)
-    canvas.line(2*cm, A4[1] - 1.4*cm, A4[0] - 2*cm, A4[1] - 1.4*cm)
-
+    
+    # Header line
+    canvas.setStrokeColor(COLORS['primary'])
+    canvas.setLineWidth(2)
+    canvas.line(2*cm, A4[1] - 1.5*cm, A4[0] - 2*cm, A4[1] - 1.5*cm)
+    
     # Footer
     canvas.setFont('Helvetica', 8)
-    canvas.setFillColor(TEXT_SECONDARY)
+    canvas.setFillColor(COLORS['text_secondary'])
     canvas.drawString(2*cm, 1.2*cm, f"certificate-validate — Auditoria de Segurança")
     canvas.drawRightString(A4[0] - 2*cm, 1.2*cm, f"Página {doc.page}")
+    
+    # Footer line
+    canvas.setStrokeColor(COLORS['border'])
+    canvas.setLineWidth(1)
     canvas.line(2*cm, 1.5*cm, A4[0] - 2*cm, 1.5*cm)
+    
     canvas.restoreState()
 
 def first_page(canvas, doc):
-    """Custom first page (cover)."""
+    """Professional cover page."""
     canvas.saveState()
+    
     # Background gradient effect
-    canvas.setFillColor(HexColor('#1F2937'))
-    canvas.rect(0, A4[1] - 8*cm, A4[0], 8*cm, fill=1, stroke=0)
-
+    canvas.setFillColor(COLORS['bg_dark'])
+    canvas.rect(0, A4[1] - 10*cm, A4[0], 10*cm, fill=1, stroke=0)
+    
+    # Accent line
+    canvas.setStrokeColor(COLORS['primary'])
+    canvas.setLineWidth(4)
+    canvas.line(2*cm, A4[1] - 10.2*cm, A4[0] - 2*cm, A4[1] - 10.2*cm)
+    
     # Title
     canvas.setFillColor(white)
-    canvas.setFont('Helvetica-Bold', 28)
-    canvas.drawCentredString(A4[0]/2, A4[1] - 4*cm, "Relatório de Auditoria")
-    canvas.drawCentredString(A4[0]/2, A4[1] - 5.2*cm, "de Segurança")
-
+    canvas.setFont('Helvetica-Bold', 32)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 4.5*cm, "Relatório de Auditoria")
+    canvas.drawCentredString(A4[0]/2, A4[1] - 5.8*cm, "de Segurança")
+    
     # Subtitle
-    canvas.setFont('Helvetica', 14)
-    canvas.setFillColor(HexColor('#9CA3AF'))
-    canvas.drawCentredString(A4[0]/2, A4[1] - 6.5*cm, PROJECT_NAME)
-
-    # Date
-    canvas.setFillColor(TEXT_PRIMARY)
-    canvas.setFont('Helvetica', 12)
-    canvas.drawCentredString(A4[0]/2, A4[1] - 10*cm, AUDIT_DATE)
-
-    # Scope
+    canvas.setFont('Helvetica', 16)
+    canvas.setFillColor(HexColor('#94A3B8'))
+    canvas.drawCentredString(A4[0]/2, A4[1] - 7.5*cm, PROJECT_NAME)
+    
+    # Date and scope
+    canvas.setFillColor(COLORS['text_primary'])
+    canvas.setFont('Helvetica-Bold', 12)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 12*cm, AUDIT_DATE)
+    
     canvas.setFont('Helvetica', 10)
-    canvas.setFillColor(TEXT_SECONDARY)
-    canvas.drawCentredString(A4[0]/2, A4[1] - 11.5*cm, SCOPE)
-
+    canvas.setFillColor(COLORS['text_secondary'])
+    canvas.drawCentredString(A4[0]/2, A4[1] - 13.5*cm, SCOPE)
+    
     canvas.restoreState()
 
 def generate_report():
-    """Generate the complete PDF report."""
+    """Generate the complete professional PDF report."""
     output_dir = os.path.dirname(os.path.abspath(__file__))
     output_file = os.path.join(output_dir, 'relatorio-auditoria-seguranca.pdf')
 
     # Create charts
-    severity_chart, category_chart = create_charts(output_dir)
+    severity_chart, category_chart = create_professional_charts(output_dir)
 
     # Create document
     doc = SimpleDocTemplate(
@@ -284,60 +339,83 @@ def generate_report():
         bottomMargin=2.5*cm
     )
 
-    # Styles
+    # Professional styles
     styles = getSampleStyleSheet()
+    
     styles.add(ParagraphStyle(
         'CustomTitle',
         parent=styles['Title'],
         fontSize=24,
         spaceAfter=30,
-        textColor=TEXT_PRIMARY
+        textColor=COLORS['text_primary'],
+        fontName='Helvetica-Bold'
     ))
+    
     styles.add(ParagraphStyle(
         'SectionTitle',
         parent=styles['Heading1'],
-        fontSize=16,
-        spaceBefore=20,
-        spaceAfter=10,
-        textColor=TEXT_PRIMARY
+        fontSize=18,
+        spaceBefore=25,
+        spaceAfter=12,
+        textColor=COLORS['primary'],
+        fontName='Helvetica-Bold',
+        borderWidth=0,
+        borderPadding=0,
+        borderColor=COLORS['primary'],
     ))
+    
     styles.add(ParagraphStyle(
         'SubsectionTitle',
         parent=styles['Heading2'],
-        fontSize=13,
-        spaceBefore=15,
-        spaceAfter=8,
-        textColor=TEXT_PRIMARY
+        fontSize=14,
+        spaceBefore=18,
+        spaceAfter=10,
+        textColor=COLORS['text_primary'],
+        fontName='Helvetica-Bold'
     ))
+    
     styles.add(ParagraphStyle(
         'CustomBody',
         parent=styles['Normal'],
         fontSize=10,
-        leading=14,
-        spaceAfter=10,
-        textColor=TEXT_PRIMARY,
-        alignment=TA_JUSTIFY
+        leading=15,
+        spaceAfter=12,
+        textColor=COLORS['text_primary'],
+        alignment=TA_JUSTIFY,
+        fontName='Helvetica'
     ))
+    
     styles.add(ParagraphStyle(
         'CodeBlock',
         parent=styles['Code'],
         fontSize=8,
-        leading=10,
-        leftIndent=10,
-        rightIndent=10,
-        spaceBefore=5,
-        spaceAfter=5,
-        backColor=HexColor('#F3F4F6'),
-        borderColor=BORDER,
+        leading=11,
+        leftIndent=15,
+        rightIndent=15,
+        spaceBefore=8,
+        spaceAfter=8,
+        backColor=HexColor('#F1F5F9'),
+        borderColor=COLORS['border'],
         borderWidth=1,
-        borderPadding=5
+        borderPadding=8,
+        fontName='Courier'
+    ))
+    
+    styles.add(ParagraphStyle(
+        'BulletPoint',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=14,
+        leftIndent=20,
+        spaceAfter=6,
+        textColor=COLORS['text_primary']
     ))
 
     story = []
 
     # Executive Summary
     story.append(Paragraph("Resumo Executivo", styles['SectionTitle']))
-    story.append(Spacer(1, 0.3*cm))
+    story.append(Spacer(1, 0.4*cm))
 
     summary_text = f"""
     Esta auditoria de segurança foi realizada no projeto <b>{PROJECT_NAME}</b> em {AUDIT_DATE}.
@@ -355,46 +433,77 @@ def generate_report():
     profundidade e documentação.
     """
     story.append(Paragraph(summary_text, styles['CustomBody']))
-    story.append(Spacer(1, 0.5*cm))
+    story.append(Spacer(1, 0.6*cm))
 
     # Charts
-    story.append(Image(severity_chart, width=12*cm, height=6*cm))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(Image(category_chart, width=14*cm, height=5*cm))
+    story.append(Image(severity_chart, width=14*cm, height=7*cm))
+    story.append(Spacer(1, 0.4*cm))
+    story.append(Image(category_chart, width=16*cm, height=5.5*cm))
     story.append(PageBreak())
 
     # Strengths
     story.append(Paragraph("Pontos Fortes", styles['SectionTitle']))
+    story.append(Spacer(1, 0.4*cm))
+    
+    story.append(Paragraph(
+        "O projeto demonstra implementação sólida de várias práticas de segurança. "
+        "Abaixo estão os pontos fortes verificados com evidências específicas:",
+        styles['CustomBody']
+    ))
     story.append(Spacer(1, 0.3*cm))
 
     for i, strength in enumerate(STRENGTHS, 1):
         strength_text = f"""
         <b>{i}. {strength['title']}</b><br/>
         {strength['description']}<br/>
-        <font color="#6B7280" size="8"><i>Evidência: {strength['evidence']}</i></font>
+        <font color="#64748B" size="8"><i>Evidência: {strength['evidence']}</i></font>
         """
         story.append(Paragraph(strength_text, styles['CustomBody']))
-        story.append(Spacer(1, 0.2*cm))
+        story.append(Spacer(1, 0.25*cm))
 
     story.append(PageBreak())
 
     # Findings
     story.append(Paragraph("Achados Detalhados", styles['SectionTitle']))
+    story.append(Spacer(1, 0.4*cm))
+    
+    story.append(Paragraph(
+        "Abaixo estão os achados de segurança identificados durante a auditoria, "
+        "organizados por ordem de severidade:",
+        styles['CustomBody']
+    ))
     story.append(Spacer(1, 0.3*cm))
 
+    severity_colors = {
+        "critical": COLORS['critical'],
+        "alta": COLORS['high'],
+        "high": COLORS['high'],
+        "medium": COLORS['medium'],
+        "média": COLORS['medium'],
+        "baixa": COLORS['low'],
+        "low": COLORS['low'],
+        "info": COLORS['info'],
+        "informativa": COLORS['info']
+    }
+    
+    severity_labels = {
+        "critical": "CRÍTICA",
+        "alta": "ALTA",
+        "high": "ALTA",
+        "medium": "MÉDIA",
+        "média": "MÉDIA",
+        "baixa": "BAIXA",
+        "low": "BAIXA",
+        "info": "INFORMATIVA",
+        "informativa": "INFORMATIVA"
+    }
+
     for finding in FINDINGS:
-        severity_colors = {
-            "critica": CRITICAL,
-            "alta": HIGH,
-            "media": MEDIUM,
-            "baixa": LOW,
-            "informativa": INFO
-        }
-        sev_color = severity_colors.get(finding["severity"], INFO)
+        sev_color = severity_colors.get(finding["severity"], COLORS['info'])
+        sev_label = severity_labels.get(finding["severity"], "INFO")
 
         finding_header = f"""
-        <font color="{sev_color}"><b>[{finding['severity'].upper()}]</b></font>
-        {finding['id']}: {finding['title']}
+        <font color="{sev_color}"><b>[{sev_label}]</b></font> {finding['id']}: {finding['title']}
         """
         story.append(Paragraph(finding_header, styles['SubsectionTitle']))
 
@@ -410,12 +519,18 @@ def generate_report():
 
         story.append(Paragraph("<b>Código:</b>", styles['CustomBody']))
         story.append(Paragraph(escape_html(finding['code']).replace('\n', '<br/>').replace(' ', '&nbsp;'), styles['CodeBlock']))
-        story.append(Spacer(1, 0.4*cm))
+        story.append(Spacer(1, 0.5*cm))
 
     story.append(PageBreak())
 
     # Recommendations
     story.append(Paragraph("Recomendações Priorizadas", styles['SectionTitle']))
+    story.append(Spacer(1, 0.4*cm))
+    
+    story.append(Paragraph(
+        "As recomendações abaixo estão organizadas por prioridade de implementação:",
+        styles['CustomBody']
+    ))
     story.append(Spacer(1, 0.3*cm))
 
     recommendations = [
@@ -429,22 +544,25 @@ def generate_report():
     for priority, severity, rec in recommendations:
         rec_text = f"<b>[{priority}]</b> <i>({severity})</i> {rec}"
         story.append(Paragraph(rec_text, styles['CustomBody']))
+        story.append(Spacer(1, 0.15*cm))
 
     story.append(PageBreak())
 
     # GitHub Issues
     story.append(Paragraph("Issues para o GitHub", styles['SectionTitle']))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph("Abaixo estão os textos completos das issues prontas para copiar e colar no GitHub.", styles['CustomBody']))
+    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph(
+        "Abaixo estão os textos completos das issues prontas para copiar e colar no GitHub. "
+        "Cada issue contém título, labels, descrição, evidência, impacto, correção e critérios de aceite.",
+        styles['CustomBody']
+    ))
     story.append(Spacer(1, 0.5*cm))
 
-    # Group related findings
     issues = [
         {
             "number": 1,
             "title": "[Segurança] Comparação de API key vulnerável a timing attack",
             "labels": "security, medium",
-            "findings": ["SEC-001"],
             "body": """## Descrição
 
 A comparação de API key no middleware de autenticação usa o operador `!=` diretamente, o que não é constante no tempo. Isso permite que um atacante determine o valor correto da API key medindo o tempo de resposta de múltiplas requisições (timing attack).
@@ -491,7 +609,6 @@ if subtle.ConstantTimeCompare(expected, provided) != 1 {
             "number": 2,
             "title": "[Segurança] Melhorar escaping de atributos HTML no frontend",
             "labels": "security, low",
-            "findings": ["SEC-002", "SEC-003"],
             "body": """## Descrição
 
 A função `escAttr()` no frontend JavaScript não escapa os caracteres `<` e `>`, apenas aspas. Além disso, alguns valores (como `cert.port`) são inseridos sem escaping em certas partes do modal.
@@ -553,7 +670,6 @@ function escAttr(str) {
             "number": 3,
             "title": "[Segurança] Adicionar validação de startup para API sem autenticação",
             "labels": "security, low, documentation",
-            "findings": ["SEC-004", "SEC-005"],
             "body": """## Descrição
 
 O servidor inicia sem autenticação se nenhuma API key for configurada. Não há warning no startup ou validação que previna deploys acidentais sem autenticação em ambientes de produção.
@@ -625,25 +741,34 @@ env:
     ]
 
     for issue in issues:
-        # Escape the body to avoid HTML parsing issues
-        escaped_body = escape_html(issue['body'])
-        issue_text = f"""
-        <b>--- ISSUE {issue['number']} ---</b><br/>
-        <b>Título:</b> {escape_html(issue['title'])}<br/>
-        <b>Labels:</b> {issue['labels']}<br/>
-        <br/>
-        <b>Descrição:</b><br/>
-        <font size="8"><pre>{escaped_body}</pre></font>
-        <b>--- FIM ISSUE {issue['number']} ---</b>
-        """
-        story.append(Paragraph(issue_text, styles['CustomBody']))
-        story.append(Spacer(1, 0.5*cm))
-        story.append(HRFlowable(width="100%", thickness=1, color=BORDER))
-        story.append(Spacer(1, 0.5*cm))
+        # Create issue box
+        issue_data = [
+            [Paragraph(f"<b>--- ISSUE {issue['number']} ---</b>", styles['CustomBody'])],
+            [Paragraph(f"<b>Título:</b> {escape_html(issue['title'])}", styles['CustomBody'])],
+            [Paragraph(f"<b>Labels:</b> {issue['labels']}", styles['CustomBody'])],
+            [Paragraph("<b>Descrição:</b>", styles['CustomBody'])],
+            [Paragraph(f"<font size='8'><pre>{escape_html(issue['body'])}</pre></font>", styles['CodeBlock'])],
+            [Paragraph(f"<b>--- FIM ISSUE {issue['number']} ---</b>", styles['CustomBody'])],
+        ]
+        
+        issue_table = Table(issue_data, colWidths=[16*cm])
+        issue_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), COLORS['bg_light']),
+            ('BOX', (0, 0), (-1, -1), 1, COLORS['border']),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, COLORS['border']),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        story.append(issue_table)
+        story.append(Spacer(1, 0.6*cm))
 
     # Build PDF
     doc.build(story, onFirstPage=first_page, onLaterPages=header_footer)
-    print(f"Relatório gerado: {output_file}")
+    print(f"✓ Relatório gerado com sucesso: {output_file}")
     return output_file
 
 if __name__ == "__main__":
