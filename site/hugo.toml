@@ -1,7 +1,6 @@
 baseURL = "https://fabianoflorentino.github.io/certificate-validate/"
 languageCode = "en-us"
 title = "certificate-validate"
-theme = "certificate-validate"
 
 [params]
   description = "A Go library and CLI for validating X.509 certificates, chains, and TLS endpoints"

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }} - {{ .Site.Title }}</title>
+    <meta name="description" content="{{ .Description | default .Site.Params.description }}">
+    <link rel="stylesheet" href="{{ "css/style.css" | relURL }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="site-header">
+        <nav>
+            <a href="{{ .Site.BaseURL }}" class="logo">{{ .Site.Title }}</a>
+            <ul class="nav-links">
+                {{ range .Site.Menus.main }}
+                <li><a href="{{ .URL }}">{{ .Name }}</a></li>
+                {{ end }}
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {{ block "main" . }}{{ end }}
+    </main>
+
+    <footer class="site-footer">
+        <p>
+            &copy; {{ now.Year }} {{ .Site.Params.author }} &middot;
+            <a href="{{ .Site.Params.license_url }}">{{ .Site.Params.license }}</a> &middot;
+            <a href="{{ .Site.Params.github }}">Source</a>
+        </p>
+    </footer>
+</body>
+</html>
