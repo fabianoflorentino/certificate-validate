@@ -24,9 +24,9 @@ import (
 )
 
 var (
-	tlsCertFile      string
-	tlsKeyFile       string
-	apiKeyFlag       string
+	tlsCertFile       string
+	tlsKeyFile        string
+	apiKeyFlag        string
 	allowInsecureFlag bool
 )
 
@@ -60,7 +60,7 @@ Send SIGHUP to reload configuration without restarting.`,
 			return err
 		}
 
-			var currentHandler atomic.Value
+		var currentHandler atomic.Value
 		currentHandler.Store(handler)
 
 		addr := fmt.Sprintf("%s:%s", getAPIHost(cfg), getAPIPort(cfg))
@@ -205,14 +205,14 @@ func buildDeps(cfg *config.Config) (http.Handler, *serverDeps, error) {
 	if apiToken == "" {
 		apiToken = cfg.APIKey
 	}
-	
+
 	// Warn if starting without authentication
 	if apiToken == "" && !allowInsecureFlag {
 		slog.Warn("API server starting WITHOUT authentication. " +
 			"Set api_key in config or use --api-key flag. " +
 			"Use --allow-insecure to suppress this warning.")
 	}
-	
+
 	h := api.New(svc, cfg, apiToken)
 
 	return h.Router(), &serverDeps{checker: c, registry: rec}, nil
