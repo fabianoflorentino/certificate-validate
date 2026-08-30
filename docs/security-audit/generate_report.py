@@ -290,34 +290,45 @@ def first_page(canvas, doc):
     """Professional cover page."""
     canvas.saveState()
     
-    # Background gradient effect
+    # Background gradient effect - start from top
     canvas.setFillColor(COLORS['bg_dark'])
-    canvas.rect(0, A4[1] - 10*cm, A4[0], 10*cm, fill=1, stroke=0)
+    canvas.rect(0, A4[1] - 12*cm, A4[0], 12*cm, fill=1, stroke=0)
     
     # Accent line
     canvas.setStrokeColor(COLORS['primary'])
     canvas.setLineWidth(4)
-    canvas.line(2*cm, A4[1] - 10.2*cm, A4[0] - 2*cm, A4[1] - 10.2*cm)
+    canvas.line(2*cm, A4[1] - 12.2*cm, A4[0] - 2*cm, A4[1] - 12.2*cm)
     
-    # Title
+    # Title - positioned with more space from top
     canvas.setFillColor(white)
     canvas.setFont('Helvetica-Bold', 32)
-    canvas.drawCentredString(A4[0]/2, A4[1] - 4.5*cm, "Relatório de Auditoria")
-    canvas.drawCentredString(A4[0]/2, A4[1] - 5.8*cm, "de Segurança")
+    canvas.drawCentredString(A4[0]/2, A4[1] - 5*cm, "Relatório de Auditoria")
+    canvas.drawCentredString(A4[0]/2, A4[1] - 6.3*cm, "de Segurança")
     
     # Subtitle
     canvas.setFont('Helvetica', 16)
     canvas.setFillColor(HexColor('#94A3B8'))
-    canvas.drawCentredString(A4[0]/2, A4[1] - 7.5*cm, PROJECT_NAME)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 8.5*cm, PROJECT_NAME)
     
-    # Date and scope
+    # Date and scope - below the dark area
     canvas.setFillColor(COLORS['text_primary'])
     canvas.setFont('Helvetica-Bold', 12)
-    canvas.drawCentredString(A4[0]/2, A4[1] - 12*cm, AUDIT_DATE)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 14*cm, AUDIT_DATE)
     
     canvas.setFont('Helvetica', 10)
     canvas.setFillColor(COLORS['text_secondary'])
-    canvas.drawCentredString(A4[0]/2, A4[1] - 13.5*cm, SCOPE)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 15.5*cm, SCOPE)
+    
+    # Add footer only (no header on cover)
+    canvas.setFont('Helvetica', 8)
+    canvas.setFillColor(COLORS['text_secondary'])
+    canvas.drawString(2*cm, 1.2*cm, f"certificate-validate — Auditoria de Segurança")
+    canvas.drawRightString(A4[0] - 2*cm, 1.2*cm, f"Página {doc.page}")
+    
+    # Footer line
+    canvas.setStrokeColor(COLORS['border'])
+    canvas.setLineWidth(1)
+    canvas.line(2*cm, 1.5*cm, A4[0] - 2*cm, 1.5*cm)
     
     canvas.restoreState()
 
