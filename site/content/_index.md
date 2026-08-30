@@ -34,6 +34,7 @@ docker run --rm fabianoflorentino/certificate-validate --help
 - **History** — Records check results in JSONL with automatic rotation
 - **Prometheus Metrics** — Exposes `certificate_days_left` and `certificate_expired` gauges
 - **Revocation Checks** — OCSP + CRL validation per certificate
+- **Kubernetes Monitoring** — `k8s monitor` scans TLS Secrets + Ingresses, exports metrics with K8s labels, and fires webhook alerts (read-only)
 - **Hot-Reload** — `SIGHUP` reloads config without restarting the server
 - **Self-Signed CAs** — Global and per-host trusted CA certificates
 - **Environment Variables** — `CV_` prefix overrides for all config fields
@@ -66,6 +67,12 @@ certificate-validate serve
 
 # Start API server with TLS
 certificate-validate serve --tls-cert cert.pem --tls-key key.pem
+
+# Kubernetes: single scan of TLS Secrets + Ingresses
+certificate-validate k8s monitor
+
+# Kubernetes: watch mode with metrics + webhook alerts
+certificate-validate k8s monitor --watch-interval=300 --metrics-addr=:9102 --webhook-url https://hooks.example.com/alert
 ```
 
 ### API Endpoints
@@ -133,11 +140,16 @@ docker run -p 5000:5000 -v $(pwd)/config:/app/config certificate-validate serve
 docker-compose up -d
 ```
 
-Kubernetes manifests and Helm chart available in the repository.
+Kubernetes manifests for the `k8s monitor` agent (DaemonSet, read-only RBAC,
+Service, ServiceMonitor) live in [`kubernetes/monitor/`](https://github.com/fabianoflorentino/certificate-validate/tree/main/kubernetes/monitor).
+A disposable dev environment (kind + cert-manager) is documented in
+[`dev/README.md`](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md)
+and driven by the `make dev/*` targets.
 
 ### Learn more
 
 - [Architecture Documentation](https://github.com/fabianoflorentino/certificate-validate/blob/main/docs/ARCHITECTURE.md)
+- [Kubernetes Integration Guide](https://github.com/fabianoflorentino/certificate-validate/blob/main/docs/K8S_INTEGRATION.md)
 - [Go Documentation](https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate)
 - [Docker Hub](https://hub.docker.com/r/fabianoflorentino/certificate-validate)
 - [GitHub Releases](https://github.com/fabianoflorentino/certificate-validate/releases)
