@@ -170,6 +170,38 @@ compose/exec: ## Execute a command in the running container (e.g. make compose/e
 compose/health: ## Check the health of the running service
 	$(DOCKER_COMPOSE) exec certificate-validate wget --quiet --tries=1 --spider http://localhost:5000/api/v1/cert/info/all
 
+# ---- Kubernetes Dev Container (disposable kind + cert-manager) -------------
+
+DEV_COMPOSE := $(DOCKER_COMPOSE) --profile dev
+
+.PHONY: dev/up
+dev/up: ## Build and start the disposable Kubernetes dev container
+	$(DEV_COMPOSE) up -d --build dev
+
+.PHONY: dev/shell
+dev/shell: ## Open a shell inside the dev container
+	$(DEV_COMPOSE) exec dev bash
+
+.PHONY: dev/setup
+dev/setup: ## Create kind cluster + cert-manager + deploy the monitor
+	$(DEV_COMPOSE) exec dev bash /usr/local/bin/dev-scripts/setup-cluster.sh
+
+.PHONY: dev/scan
+dev/scan: ## Run a one-off k8s monitor scan
+	$(DEV_COMPOSE) exec dev kubectl -n cert-manager exec daemonset/cert-validate-monitor -- certificate-validate k8s monitor
+
+.PHONY: dev/logs
+dev/logs: ## Stream the deployed monitor logs
+	$(DEV_COMPOSE) exec dev bash /usr/local/bin/dev-scripts/monitor-logs.sh
+
+.PHONY: dev/down
+dev/down: ## Stop the dev container
+	$(DEV_COMPOSE) down
+
+.PHONY: dev/destroy
+dev/destroy: ## Destroy the dev container and all cluster volume state
+	$(DEV_COMPOSE) down -v
+
 # ---- Help ------------------------------------------------------------------
 
 .PHONY: help

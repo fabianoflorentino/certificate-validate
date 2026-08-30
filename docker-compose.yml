@@ -1,8 +1,27 @@
+# Root docker-compose for certificate-validate.
+#
+# Two services share a single multi-stage Dockerfile:
+#   - certificate-validate:  the app (default; `docker compose up`)
+#       builds the `production` stage and serves the REST API.
+#   - dev:                   disposable Kubernetes dev environment to test the
+#       `k8s monitor` agent. It builds the `dev` stage, shares the host Docker
+#       socket (so `kind` creates its nodes on the host engine) and mounts the
+#       repo read-only. Everything else lives in the named `dev-state` volume
+#       and is destroyed with `docker compose down`.
+#
+# The `dev` service is opt-in via a profile, so `docker compose up` alone only
+# starts the application.
+#
+# Dev usage (see Makefile `dev/*` targets):
+#   docker compose up -d --build dev
+#   docker compose exec dev bash            # then: setup-cluster.sh
+#   docker compose down -v                  # destroy everything
+
 services:
   certificate-validate:
     build:
       context: .
-      dockerfile: Dockerfile
+      target: production
     image: fabianoflorentino/certificate-validate:latest
     container_name: certificate-validate
     ports:
@@ -21,6 +40,31 @@ services:
       start_period: 10s
     networks:
       - certificate-network
+
+  dev:
+    build:
+      context: .
+      target: dev
+    # Share the host network so the kind API server (bound to the host
+    # loopback) is reachable from within the dev container.
+    network_mode: host
+    environment:
+      # Point every kubectl/helm call at the cluster kubeconfig written by
+      # setup-cluster.sh into the persistent /data volume.
+      - KUBECONFIG=/data/kubeconfig
+      # Use the host's Docker engine (kind creates its nodes there).
+      - DOCKER_HOST=${DOCKER_HOST:-unix:///var/run/docker.sock}
+    volumes:
+      - .:/workspace:ro
+      - dev-state:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: []
+    command: ["sleep", "infinity"]
+    profiles:
+      - dev
+
+volumes:
+  dev-state:
 
 networks:
   certificate-network:
