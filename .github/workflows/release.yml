@@ -240,3 +240,20 @@ jobs:
           asset_content_type: application/octet-stream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  go_proxy:
+    name: pkg.go.dev
+    needs: [version, tag, release]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.dry_run != 'true' }}
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update pkg.go.dev
+        run: GOPROXY=https://proxy.golang.org go list -m github.com/fabianoflorentino/certificate-validate@${{ needs.version.outputs.next_version }}
