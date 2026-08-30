@@ -262,16 +262,16 @@ def header_footer(canvas, doc):
     """Add professional header and footer to each page."""
     canvas.saveState()
     
-    # Header
+    # Header - positioned within top margin area
     canvas.setFont('Helvetica-Bold', 9)
     canvas.setFillColor(COLORS['text_secondary'])
-    canvas.drawString(2*cm, A4[1] - 1.2*cm, f"Relatório de Auditoria de Segurança — {PROJECT_NAME}")
-    canvas.drawRightString(A4[0] - 2*cm, A4[1] - 1.2*cm, AUDIT_DATE)
+    canvas.drawString(2*cm, A4[1] - 1.5*cm, f"Relatório de Auditoria de Segurança — {PROJECT_NAME}")
+    canvas.drawRightString(A4[0] - 2*cm, A4[1] - 1.5*cm, AUDIT_DATE)
     
     # Header line
     canvas.setStrokeColor(COLORS['primary'])
     canvas.setLineWidth(2)
-    canvas.line(2*cm, A4[1] - 1.5*cm, A4[0] - 2*cm, A4[1] - 1.5*cm)
+    canvas.line(2*cm, A4[1] - 1.8*cm, A4[0] - 2*cm, A4[1] - 1.8*cm)
     
     # Footer
     canvas.setFont('Helvetica', 8)
@@ -292,32 +292,32 @@ def first_page(canvas, doc):
     
     # Background gradient effect - start from top
     canvas.setFillColor(COLORS['bg_dark'])
-    canvas.rect(0, A4[1] - 12*cm, A4[0], 12*cm, fill=1, stroke=0)
+    canvas.rect(0, A4[1] - 14*cm, A4[0], 14*cm, fill=1, stroke=0)
     
     # Accent line
     canvas.setStrokeColor(COLORS['primary'])
     canvas.setLineWidth(4)
-    canvas.line(2*cm, A4[1] - 12.2*cm, A4[0] - 2*cm, A4[1] - 12.2*cm)
+    canvas.line(2*cm, A4[1] - 14.2*cm, A4[0] - 2*cm, A4[1] - 14.2*cm)
     
     # Title - positioned with more space from top
     canvas.setFillColor(white)
     canvas.setFont('Helvetica-Bold', 32)
-    canvas.drawCentredString(A4[0]/2, A4[1] - 5*cm, "Relatório de Auditoria")
-    canvas.drawCentredString(A4[0]/2, A4[1] - 6.3*cm, "de Segurança")
+    canvas.drawCentredString(A4[0]/2, A4[1] - 6*cm, "Relatório de Auditoria")
+    canvas.drawCentredString(A4[0]/2, A4[1] - 7.3*cm, "de Segurança")
     
     # Subtitle
     canvas.setFont('Helvetica', 16)
     canvas.setFillColor(HexColor('#94A3B8'))
-    canvas.drawCentredString(A4[0]/2, A4[1] - 8.5*cm, PROJECT_NAME)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 9.5*cm, PROJECT_NAME)
     
     # Date and scope - below the dark area
     canvas.setFillColor(COLORS['text_primary'])
     canvas.setFont('Helvetica-Bold', 12)
-    canvas.drawCentredString(A4[0]/2, A4[1] - 14*cm, AUDIT_DATE)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 16*cm, AUDIT_DATE)
     
     canvas.setFont('Helvetica', 10)
     canvas.setFillColor(COLORS['text_secondary'])
-    canvas.drawCentredString(A4[0]/2, A4[1] - 15.5*cm, SCOPE)
+    canvas.drawCentredString(A4[0]/2, A4[1] - 17.5*cm, SCOPE)
     
     # Add footer only (no header on cover)
     canvas.setFont('Helvetica', 8)
