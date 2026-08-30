@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cert-validate-monitor
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: certificate-validate
+spec:
+  selector:
+    app.kubernetes.io/name: certificate-validate
+  ports:
+    - name: metrics
+      port: 9102
+      targetPort: 9102

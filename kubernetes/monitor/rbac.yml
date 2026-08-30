@@ -1,0 +1,33 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-validate-monitor
+  namespace: cert-manager
+---
+# Phase 1: read-only monitoring. The `update` verb on secrets and event
+# creation are added in Phase 2 (auto-renewal via annotation).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cert-validate-monitor
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cert-validate-monitor
+subjects:
+  - kind: ServiceAccount
+    name: cert-validate-monitor
+    namespace: cert-manager
+roleRef:
+  kind: ClusterRole
+  name: cert-validate-monitor
+  apiGroup: rbac.authorization.k8s.io
