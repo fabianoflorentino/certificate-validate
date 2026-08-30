@@ -146,7 +146,7 @@ function createCard(cert) {
         '<div class="card-header">' +
             '<div class="card-hostline">' +
                 '<span class="card-hostname">' + esc(cert.hostname) + '</span>' +
-                '<span class="card-port">:' + cert.port + '</span>' +
+                '<span class="card-port">:' + esc(String(cert.port)) + '</span>' +
             '</div>' +
             '<span class="card-days-compact ' + statusClass + '">' +
                 daysLeft + ' <span class="days-unit">d</span>' +
@@ -248,7 +248,7 @@ function showModal(cert) {
             '</div>' +
             '<div class="detail-row">' +
                 '<span class="detail-label">Port</span>' +
-                '<span class="detail-value">' + cert.port + '</span>' +
+                '<span class="detail-value">' + esc(String(cert.port)) + '</span>' +
             '</div>' +
             '<div class="detail-row">' +
                 '<span class="detail-label">Common Name</span>' +
@@ -557,7 +557,12 @@ function esc(str) {
 }
 
 function escAttr(str) {
-    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"embed"
 	"encoding/csv"
 	"encoding/json"
@@ -329,7 +330,8 @@ func withMiddleware(h *Handler, next http.Handler, limiter *rateLimiter) http.Ha
 
 		// API key authentication for non-health routes when a token is configured.
 		if h.apiToken != "" && r.URL.Path != "/health" {
-			if r.Header.Get("X-API-Key") != h.apiToken {
+			// Use constant-time comparison to prevent timing attacks
+			if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-API-Key")), []byte(h.apiToken)) != 1 {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
 

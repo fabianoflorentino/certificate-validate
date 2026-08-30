@@ -24,9 +24,10 @@ import (
 )
 
 var (
-	tlsCertFile string
-	tlsKeyFile  string
-	apiKeyFlag  string
+	tlsCertFile      string
+	tlsKeyFile       string
+	apiKeyFlag       string
+	allowInsecureFlag bool
 )
 
 type serverDeps struct {
@@ -163,6 +164,7 @@ func init() {
 	serveCmd.Flags().StringVarP(&tlsCertFile, "tls-cert", "", "", "path to TLS certificate file")
 	serveCmd.Flags().StringVarP(&tlsKeyFile, "tls-key", "", "", "path to TLS private key file")
 	serveCmd.Flags().StringVarP(&apiKeyFlag, "api-key", "", "", "API key for authenticating requests (overrides config/api_key)")
+	serveCmd.Flags().BoolVarP(&allowInsecureFlag, "allow-insecure", "", false, "suppress warning when starting without API key authentication")
 	rootCmd.AddCommand(serveCmd)
 }
 
@@ -203,6 +205,14 @@ func buildDeps(cfg *config.Config) (http.Handler, *serverDeps, error) {
 	if apiToken == "" {
 		apiToken = cfg.APIKey
 	}
+	
+	// Warn if starting without authentication
+	if apiToken == "" && !allowInsecureFlag {
+		slog.Warn("API server starting WITHOUT authentication. " +
+			"Set api_key in config or use --api-key flag. " +
+			"Use --allow-insecure to suppress this warning.")
+	}
+	
 	h := api.New(svc, cfg, apiToken)
 
 	return h.Router(), &serverDeps{checker: c, registry: rec}, nil

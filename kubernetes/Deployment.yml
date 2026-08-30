@@ -1,4 +1,8 @@
 ---
+# Create API key secret before deploying:
+# kubectl create secret generic certificate-validate-api-key \
+#   --from-literal=API_KEY=your-secret-key-here \
+#   -n certificate-validate
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -46,6 +50,13 @@ spec:
                 configMapKeyRef:
                   name: certificate-validate-settings
                   key: HOME
+            # Optional: Configure API key for authentication
+            # Uncomment and create the secret first
+            # - name: CV_API_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: certificate-validate-api-key
+            #       key: API_KEY
           resources:
             requests:
               cpu: "32m"
