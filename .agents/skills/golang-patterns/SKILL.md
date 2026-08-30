@@ -15,6 +15,23 @@ Idiomatic Go patterns and best practices for building robust, efficient, and mai
 - Refactoring existing Go code
 - Designing Go packages/modules
 
+## Project Conventions (Mandatory)
+
+These apply to all work in this repository and are enforced by CI/git hooks.
+
+1. **English only.** All code (identifiers, comments), commit messages, docs, and
+   site content must be written in English. No Portuguese or other languages in
+   any file.
+
+2. **SOLID, applied lightly.** Keep responsibilities focused, depend on
+   abstractions, and compose small pieces. Do not over-engineer; state this style
+   explicitly as a design goal (see the SOLID section below).
+
+3. **Always validate with lefthook.** Do not commit or push without ensuring the
+   `pre-commit` (lint, vet) and `pre-push` (verify-deps, lint, vet, test -race,
+   coverage ≥ 80%) hooks pass. Run `lefthook run pre-commit` / `lefthook run
+   pre-push` before finalizing any change.
+
 ## Core Principles
 
 ### 1. Simplicity and Clarity
@@ -293,6 +310,78 @@ func safeFetch(ctx context.Context, url string) <-chan []byte {
     }()
     return ch
 }
+```
+
+## SOLID (Applied Lightly)
+
+Use SOLID as a gentle design compass, not dogma. The goal is consistency,
+focused responsibilities, and easy maintenance without over-engineering.
+
+### S — Single Responsibility
+
+Each type/function/package should have one clear reason to change. If a struct is
+growing unrelated concerns, extract them.
+
+```go
+// Good: One responsibility per type
+type Reporter struct { dashboard *Dashboard }
+func (r *Reporter) Emit(metrics []Metric) error { ... }
+
+// Bad: The same struct also knows how to persist, email, and format JSON
+type UberReporter struct{}
+```
+
+### O — Open/Closed
+
+Prefer extending behavior through interfaces/embedding rather than modifying
+working code.
+
+```go
+// Good: New output formats add a new implementation, not an if/else chain
+type Output interface{ Write(io.Writer, []Metric) error }
+
+// Bad: Every new format edits this switch
+func write(w io.Writer, f string, m []Metric) error {
+    switch f {
+    case "json": ...
+    case "csv": ...
+    case "yaml": ... // add another case here
+    }
+}
+```
+
+### L — Liskov Substitution
+
+Implementations passed where an interface is expected should behave according to
+the interface contract:
+
+```go
+// Good: FakeWebhook and RealWebhook both satisfy Notifier correctly
+type Notifier interface{ Notify(ctx context.Context, m Message) error }
+```
+
+### I — Interface Segregation
+
+Keep interfaces small and focused; consumers depend only on what they use. This
+is already Go's recommended style (see "Small, Focused Interfaces" below).
+
+```go
+// Good: Sized consumer only needs Size()
+type Sizer interface{ Size() int }
+
+// Bad: Consumer is forced to know about unrelated methods
+type Everything interface { Size() int; Write(p []byte) error; Close() error }
+```
+
+### D — Dependency Inversion
+
+Depend on abstractions, inject concrete dependencies — never reach for package
+globals or construct dependencies internally (see "Avoid Package-Level State").
+
+```go
+// Good: Dependency injected through the constructor
+type Handler struct { validate Validator }
+func NewHandler(v Validator) *Handler { return &Handler{validate: v} }
 ```
 
 ## Interface Design
@@ -626,6 +715,8 @@ issues:
 
 | Idiom | Description |
 |-------|-------------|
+| English everywhere | All code, comments, commits, and docs in English |
+| SOLID lightly | Focused responsibilities + abstractions, without over-engineering |
 | Accept interfaces, return structs | Functions accept interface params, return concrete types |
 | Errors are values | Treat errors as first-class values, not exceptions |
 | Don't communicate by sharing memory | Use channels for coordination between goroutines |
@@ -634,6 +725,7 @@ issues:
 | Clear is better than clever | Prioritize readability over cleverness |
 | gofmt is no one's favorite but everyone's friend | Always format with gofmt/goimports |
 | Return early | Handle errors first, keep happy path unindented |
+| Validate with lefthook | Run pre-commit/pre-push hooks before committing/pushing |
 
 ## Anti-Patterns to Avoid
 
@@ -671,4 +763,4 @@ func (c *Counter) Increment() { c.n++ }        // Pointer receiver
 // Pick one style and be consistent
 ```
 
-**Remember**: Go code should be boring in the best way - predictable, consistent, and easy to understand. When in doubt, keep it simple.
+**Remember**: Go code should be boring in the best way - predictable, consistent, and easy to understand. When in doubt, keep it simple. Keep everything in English, apply SOLID lightly, and always validate with lefthook before committing or pushing.

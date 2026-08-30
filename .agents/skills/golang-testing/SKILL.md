@@ -8,6 +8,22 @@ origin: ECC
 
 Comprehensive Go testing patterns for writing reliable, maintainable tests following TDD methodology.
 
+## Project Conventions (Mandatory)
+
+These apply to every test written in this repository and are enforced by CI/git hooks.
+
+1. **Coverage is always ≥ 80%.** The project's `pre-push` lefthook hook fails if
+   total coverage drops below 80%. Every new or changed code path must be covered;
+   never introduce production code without tests. Aim higher than the floor for
+   critical logic (see Coverage Targets).
+
+2. **Always validate with lefthook.** Run `lefthook run pre-commit` and
+   `lefthook run pre-push` (which include `go test -race` and the coverage gate)
+   before finishing any change. Do not push if coverage or tests fail.
+
+3. **English only.** Test names, comments, error messages, and commit messages
+   must be written in English.
+
 ## When to Activate
 
 - Writing new Go functions or methods
@@ -542,12 +558,26 @@ go test -race -coverprofile=coverage.out ./...
 
 ### Coverage Targets
 
+This project enforces a **hard minimum of 80% total coverage** (checked by the
+`pre-push` lefthook hook). Within that floor, use these targets:
+
 | Code Type | Target |
 |-----------|--------|
 | Critical business logic | 100% |
 | Public APIs | 90%+ |
-| General code | 80%+ |
+| General code | 80%+ (hard minimum, enforced) |
 | Generated code | Exclude |
+
+Use the exact gate the hook runs before pushing to confirm:
+
+```bash
+go test -race -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out | grep total | \
+  awk '{print $3}' | awk -F'%' '{if ($1 < 80) {print "Coverage: " $1 "% (minimum 80%)"; exit 1}}'
+```
+
+Aim to keep coverage comfortably above 80%, not hovering right at the limit, so
+refactors and new features do not accidentally cross below the gate.
 
 ### Excluding Generated Code from Coverage
 
@@ -717,4 +747,4 @@ test:
         awk -F'%' '{if ($1 < 80) exit 1}'
 ```
 
-**Remember**: Tests are documentation. They show how your code is meant to be used. Write them clearly and keep them up to date.
+**Remember**: Tests are documentation. They show how your code is meant to be used. Write them clearly and keep them up to date. Keep coverage at or above 80% at all times and validate every change with lefthook (pre-commit and pre-push) before committing or pushing.
