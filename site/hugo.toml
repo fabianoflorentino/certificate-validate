@@ -1,0 +1,37 @@
+baseURL = "https://fabianoflorentino.github.io/certificate-validate/"
+languageCode = "en-us"
+title = "certificate-validate"
+theme = "certificate-validate"
+
+[params]
+  description = "A Go library and CLI for validating X.509 certificates, chains, and TLS endpoints"
+  github = "https://github.com/fabianoflorentino/certificate-validate"
+  docker  = "https://hub.docker.com/r/fabianoflorentino/certificate-validate"
+  pkg_go = "https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate"
+  version = "v1.0.4"
+  tagline = "Validate X.509 certificates. Check chains. Verify TLS endpoints."
+  subtitle = "A Go library and CLI for validating certificates, chains, and TLS endpoints with support for CRL, OCSP, and custom roots."
+  author  = "Fabiano Florentino"
+  license = "Apache License 2.0"
+  license_url = "https://www.apache.org/licenses/LICENSE-2.0"
+
+[menu]
+  [[menu.main]]
+    name   = "Features"
+    url    = "/#features"
+    weight = 1
+  [[menu.main]]
+    name   = "Docs"
+    url    = "https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate"
+    weight = 2
+  [[menu.main]]
+    name   = "GitHub"
+    url    = "https://github.com/fabianoflorentino/certificate-validate"
+    weight = 3
+
+[markup]
+  [markup.highlight]
+    style     = "github-dark"
+    noClasses = false
+  [markup.goldmark.renderer]
+    unsafe = true
