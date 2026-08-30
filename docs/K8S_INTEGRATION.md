@@ -4,6 +4,14 @@ This document describes how **certificate-validate** can act as a monitoring, va
 and automated renewal agent for TLS certificates in Kubernetes clusters, integrated with
 Let's Encrypt and the CNCF ecosystem.
 
+> **Phase status**
+>
+> | Phase | Scope | Status |
+> |-------|-------|--------|
+> | Phase 1 | `k8s monitor` command (CLI + DaemonSet, read-only monitoring) | ✅ **Implemented** (see [§11](#11-phase-1-implementation--k8s-monitor)) |
+> | Phase 2 | Auto-renew via cert-manager (annotation + post-renewal validation) | ⏳ Planned |
+> | Phase 3 | Predictive + Grafana dashboard | ⏳ Planned |
+
 ---
 
 ## Table of Contents
@@ -18,6 +26,7 @@ Let's Encrypt and the CNCF ecosystem.
 8. [Extended Data Model](#8-extended-data-model)
 9. [Metrics and Alerts](#9-metrics-and-alerts)
 10. [Route Decisions](#10-route-decisions)
+11. [Phase 1 Implementation — `k8s monitor`](#11-phase-1-implementation--k8s-monitor)
 
 ---
 
@@ -441,6 +450,11 @@ flowchart LR
 
 ### 6.1 DaemonSet (recommended mode)
 
+The shipped Phase 1 manifest lives in `kubernetes/monitor/daemonset.yml` and is verified
+in the disposable dev environment ([`dev/`](../dev/README.md)). It runs read-only
+monitoring: a periodic scan that updates Prometheus metrics and fires webhook alerts,
+**without** auto-renewal flags (those arrive in Phase 2).
+
 ```yaml
 apiVersion: apps/v1
 kind: DaemonSet
@@ -464,24 +478,30 @@ spec:
       serviceAccountName: cert-validate-monitor
       containers:
       - name: monitor
-        image: certificate-validate:k8s
+        image: docker.io/fabianoflorentino/certificate-validate:latest
         args:
           - k8s
           - monitor
           - --watch-interval=300
-          - --alert-threshold=15
-          - --renew-threshold=10
-          - --enable-auto-renew
-          - --issuer-name=letsencrypt-prod
-          - --issuer-kind=ClusterIssuer
+          - --check-revocation
+          - --webhook-url=$(ALERT_WEBHOOK_URL)
+          - --webhook-threshold=15
           - --metrics-addr=:9102
-          - --history-file=/data/history.jsonl
+        env:
+        - name: ALERT_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: cert-validate-monitor-webhook
+              key: url
+              optional: true
         ports:
         - containerPort: 9102
           name: metrics
-        volumeMounts:
-        - name: data
-          mountPath: /data
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
         resources:
           requests:
             cpu: 50m
@@ -489,15 +509,11 @@ spec:
           limits:
             cpu: 200m
             memory: 256Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          runAsUser: 65534
-      volumes:
-      - name: data
-        emptyDir: {}
 ```
+
+> The webhook URL comes from a Secret `cert-validate-monitor-webhook` (key `url`), which
+> is **optional** — the monitor runs fine with no webhook configured. Point this at your
+> Slack/PagerDuty endpoint to receive expiring-cert alerts.
 
 ### 6.2 ServiceMonitor (Prometheus Operator)
 
@@ -550,27 +566,28 @@ flowchart TB
 
     subgraph CR["ClusterRole\ncert-validate-monitor"]
         direction TB
-        R1["secrets: get, list, watch, update"]
+        R1["secrets: get, list, watch"]
         R2["ingresses: get, list, watch"]
-        R3["certificates.cert-manager.io: get, list, watch"]
-        R4["events: create, update, patch"]
-        R5["namespaces: list (optional)"]
     end
 
     subgraph RB["RoleBinding\n(namespace: cert-manager)"]
     end
 
-    SA --> RB
-    RB --> CR
+    SA --> CRB
+    CRB --> CR
 
     subgraph CRB["ClusterRoleBinding\n(cluster-wide)"]
     end
 
-    SA --> CRB
-    CRB --> CR
+    SA --> RB
+    RB --> CR
 ```
 
-### Full manifest
+> **Phase 1 is read-only.** No `update` on Secrets, no `events` creation, and no
+> cert-manager CRD permissions are granted yet — they land in **Phase 2** (auto-renewal
+> via annotation + K8s events). See the shipped manifest `kubernetes/monitor/rbac.yml`.
+
+### Full manifest (Phase 1, read-only)
 
 ```yaml
 ---
@@ -585,35 +602,31 @@ kind: ClusterRole
 metadata:
   name: cert-validate-monitor
 rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "list", "watch", "update"]
-- apiGroups: ["networking.k8s.io"]
-  resources: ["ingresses"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: ["cert-manager.io"]
-  resources: ["certificates", "certificates/status", "issuers", "clusterissuers"]
-  verbs: ["get", "list", "watch", "update"]
-- apiGroups: [""]
-  resources: ["events"]
-  verbs: ["create", "update", "patch"]
-- apiGroups: [""]
-  resources: ["namespaces"]
-  verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: cert-validate-monitor
 subjects:
-- kind: ServiceAccount
-  name: cert-validate-monitor
-  namespace: cert-manager
+  - kind: ServiceAccount
+    name: cert-validate-monitor
+    namespace: cert-manager
 roleRef:
   kind: ClusterRole
   name: cert-validate-monitor
   apiGroup: rbac.authorization.k8s.io
 ```
+
+The **Phase 2** ClusterRole will add:
+- `secrets` → `update` (to annotate `cert-manager.io/force-renew`)
+- `cert-manager.io` → `certificates`, `issuers` (get/list/watch)
+- `events` → `create`, `update`, `patch`
 
 ---
 
@@ -677,22 +690,33 @@ const (
 
 ### 9.1 Exported Prometheus Metrics
 
+**Implemented in Phase 1** (served by `k8s monitor --metrics-addr`):
+
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `certificate_days_left` | Gauge | `namespace`, `secret`, `hostname`, `issuer` | Days left until certificate expiry |
-| `certificate_renewal_total` | Counter | `namespace`, `secret`, `status` | Renewal counter (success/failure) |
-| `certificate_renewal_duration_seconds` | Histogram | `namespace`, `secret` | Duration of the renewal cycle |
-| `certificate_renewal_attempts` | Gauge | `namespace`, `secret` | Attempt count of the current renewal |
-| `certificate_stuck_issuance` | Gauge | `namespace`, `secret` | 1 if the serial hasn't changed in the last N cycles |
-| `certificate_expired` | Gauge | `namespace`, `secret` | 1 if expired, 0 otherwise |
-| `certificate_total` | Gauge | `namespace` | Total monitored certificates |
-| `certificate_revoked` | Gauge | `namespace`, `secret`, `method` | 1 if OCSP or CRL reports revoked |
+| `certificate_days_left` | Gauge | `namespace`, `name`, `kind` | Days left until certificate expiry |
+| `certificate_expired` | Gauge | `namespace`, `name`, `kind` | 1 if expired, 0 otherwise |
+| `certificate_revoked` | Gauge | `namespace`, `name`, `kind` | 1 if OCSP/CRL reports revoked, 0 otherwise |
 
-> **Unified names** with the existing `internal/metrics` package in the core
-> (`certificate_days_left`, `certificate_expired` — see `internal/metrics/metrics.go`).
-> The new metrics in this section follow the same `certificate_` prefix. Phase 1 **extends**
-> the existing package rather than creating a parallel registry. Without this, the
-> PrometheusRules below would never match the real gauges.
+Where `kind` is `Secret` or `Ingress` (the resource the certificate was discovered
+from), and `name` is the Secret name.
+
+> **Registry note (Phase 1 divergence):** the Kubernetes monitor uses a **dedicated
+> Prometheus registry** (`internal/k8smonitor/metrics.go`) rather than extending the
+> core `internal/metrics` package. The core `certificate_days_left` / `certificate_expired`
+> are registered on the default registry (and can collide when both are exposed by the
+> same binary), so the K8s monitor isolates its metrics on its own handler. The metric
+> **names** stay unified (`certificate_` prefix) so existing PrometheusRules can still match.
+
+**Planned for Phases 2–3** (not yet implemented):
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `certificate_renewal_total` | Counter | `namespace`, `name`, `status` | Renewal counter (success/failure) |
+| `certificate_renewal_duration_seconds` | Histogram | `namespace`, `name` | Duration of the renewal cycle |
+| `certificate_renewal_attempts` | Gauge | `namespace`, `name` | Attempt count of the current renewal |
+| `certificate_stuck_issuance` | Gauge | `namespace`, `name` | 1 if the serial hasn't changed in the last N cycles |
+| `certificate_total` | Gauge | `namespace` | Total monitored certificates |
 
 ### 9.2 Alerts (PrometheusRule)
 
@@ -712,8 +736,8 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "Certificate {{ $labels.secret }} expiring in {{ $value }} days"
-        description: "Secret {{ $labels.namespace }}/{{ $labels.secret }} ({{ $labels.hostname }}) expires in {{ $value }} days"
+        summary: "Certificate {{ $labels.name }} expiring in {{ $value }} days"
+        description: "{{ $labels.kind }} {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value }} days"
 
     - alert: CertificateExpired
       expr: certificate_days_left <= 0
@@ -721,26 +745,8 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "Certificate {{ $labels.secret }} has expired"
-        description: "Secret {{ $labels.namespace }}/{{ $labels.secret }} expired {{ $value }} days ago"
-
-    - alert: CertificateRenewalFailed
-      expr: certificate_renewal_total{status="failure"} > 1
-      for: 5m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Certificate renewal failed for {{ $labels.secret }}"
-        description: "Renewal has failed {{ $value }} times for {{ $labels.namespace }}/{{ $labels.secret }}"
-
-    - alert: CertificateStuckIssuance
-      expr: certificate_stuck_issuance == 1
-      for: 10m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Certificate {{ $labels.secret }} issuance is stuck"
-        description: "Serial number has not changed for {{ $labels.namespace }}/{{ $labels.secret }} across multiple scan cycles"
+        summary: "Certificate {{ $labels.name }} has expired"
+        description: "{{ $labels.kind }} {{ $labels.namespace }}/{{ $labels.name }} expired {{ $value }} days ago"
 
     - alert: CertificateRevoked
       expr: certificate_revoked == 1
@@ -748,9 +754,12 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "Certificate {{ $labels.secret }} has been revoked"
-        description: "OCSP/CRL reports {{ $labels.secret }} as revoked"
+        summary: "Certificate {{ $labels.name }} has been revoked"
+        description: "OCSP/CRL reports {{ $labels.namespace }}/{{ $labels.name }} as revoked"
 ```
+
+> The `CertificateRenewalFailed` and `CertificateStuckIssuance` rules rely on metrics
+> that land in Phase 2 (auto-renewal); they are not actionable in Phase 1.
 
 ### 9.3 Grafana Dashboard (panel suggestions)
 
@@ -808,12 +817,14 @@ Phase 0 ──── Engine Fundamentals ─────────────
   └── Unified CSV export (CLI = API)
   ──→ Prerequisite for Phases 1-3 (details in docs/WHY.md §8)
 
-Phase 1 ──── `k8s monitor` command (CLI) ─────── Effort: days
-  ├── Reads TLS Secrets from the cluster via client-go
-  ├── Analyzes validity, chain, OCSP, CRL
-  ├── Exports Prometheus metrics with K8s labels
-  ├── Fires webhook alerts (already implemented)
-  └── Grand Finale: kubectl cert-validate monitor
+Phase 1 ──── `k8s monitor` command (CLI) ─────── ✅ DONE (see §11)
+  ├── [x] Reads TLS Secrets + Ingresses from the cluster via client-go
+  ├── [x] Analyzes validity, chain, OCSP, CRL
+  ├── [x] Exports Prometheus metrics with K8s labels (dedicated registry)
+  ├── [x] Fires webhook alerts with rate limiting
+  ├── [x] DaemonSet + read-only RBAC + Service manifests
+  ├── [x] Disposable dev environment (kind + cert-manager), see dev/README.md
+  └── Grand Finale (future): kubectl cert-validate monitor completion
 
 Phase 2 ──── Auto-renew via cert-manager ─────── Effort: 1-2 weeks
   ├── Detects certs near expiry (≤15d)
@@ -840,9 +851,10 @@ gantt
     Notifier/history/metrics + build      :a0b, after a0, 4d
 
     section Phase 1: k8s monitor CLI
-    Secrets/Ingress discovery             :a1, after a0b, 3d
+    Secrets/Ingress discovery             :a1, 2026-07-10, 3d
     Certificate parse + validation        :a2, after a1, 2d
     Prometheus metrics + alerts           :a3, after a2, 2d
+    Disposable dev env (kind + CM)        :a4, after a3, 2d
 
     section Phase 2: Auto-Renew
     Annotate → cert-manager renewal       :b1, after a3, 3d
@@ -856,10 +868,139 @@ gantt
     End-to-end tests (Kind cluster)       :c3, after c2, 3d
 ```
 
-The deployment manifests (`DaemonSet`, `ServiceAccount`, `ClusterRole`, `PrometheusRule`,
-`ServiceMonitor`) and the skeleton of the `k8s monitor` command can be generated directly
-from the repository — the Kubernetes client (`client-go`) would already be the only new
-external dependency.
+The deployment manifests (`DaemonSet`, `ServiceAccount`, `ClusterRole`, `ServiceMonitor`)
+and the `k8s monitor` command are **implemented** in the repository under
+`kubernetes/monitor/` and `internal/k8smonitor/` + `internal/cmd/k8s.go`. The Kubernetes
+client (`client-go` v0.37.0) is the only new external dependency added for Phase 1.
+
+> **Phase 0 (Engine Fundamentals) is a prerequisite for Phases 2–3** — without API cache
+> and efficient revocation, the scan at scale and strict post-renewal validation
+> (semantics of §4) aren't viable. The detailed backlog is in
+> [`docs/WHY.md`](WHY.md#8-engineering-fundamentals-backlog) §8.
+
+---
+
+## 11. Phase 1 Implementation — `k8s monitor`
+
+Phase 1 delivers a **read-only Kubernetes monitoring agent** for TLS certificates. It is
+the first working slice of the roadmap: discovery, analysis, metrics, and webhook alerts,
+without any write access to the cluster (auto-renewal is Phase 2).
+
+### 11.1 Command
+
+```
+certificate-validate k8s monitor [flags]
+```
+
+By default it performs a **single scan** and prints each discovered certificate as JSON.
+Use `--watch-interval` to run periodically (updating metrics and firing webhook alerts),
+or `--metrics-addr` to serve Prometheus metrics.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-n, --namespace` | all | Namespaces to scan (repeatable, comma-separated) |
+| `--kubeconfig` | in-cluster / `~/.kube/config` | Path to kubeconfig |
+| `--check-revocation` | `false` | Perform OCSP/CRL revocation checks |
+| `--watch-interval` | `0` (single scan) | Repeat scan every N seconds |
+| `--webhook-url` | empty | URL to POST expiring-cert alerts |
+| `--webhook-threshold` | `15` | Alert when days-left is at/below this value |
+| `--webhook-interval` | `300` | Min seconds between alerts per resource |
+| `--metrics-addr` | empty | Serve Prometheus metrics on this address (e.g. `:9102`) |
+
+**Discovery** collects: all Secrets of type `kubernetes.io/tls`, plus every Ingress whose
+`tls[].secretName` references a TLS Secret (each appears as a distinct `kind`). Each cert
+is parsed with the core `internal/certificate` model and analyzed for validity, chain, and
+(optionally) OCSP/CRL revocation.
+
+### 11.2 Output model
+
+Each scan emits a `K8sCertificate` (see `internal/k8smonitor/model.go`), which embeds the
+core `certificate.Certificate` and adds:
+
+- `k8s_namespace`, `k8s_name`, `k8s_kind` (`Secret` | `Ingress`)
+- `k8s_annotations`, `k8s_labels` (e.g. cert-manager issuer/labels)
+- `renewal_state`, `serial_number`, `renewal_count`, `renewal_attempts` (populated by
+  Phase 2 — `none` in Phase 1)
+
+Example (single scan against a cert-manager-issued cert):
+
+```json
+{
+  "commonName": "",
+  "subjectAltName": ["example.com"],
+  "daysLeft": 89,
+  "revocationStatus": "unknown",
+  "hostname": "example-tls-secret",
+  "port": 443,
+  "chain": [
+    { "subject": "", "issuer": "", "notAfter": "2026-11-28 23:06:10",
+      "fingerprint": "ccd5a9..." }
+  ],
+  "k8s_namespace": "default",
+  "k8s_name": "example-tls-secret",
+  "k8s_kind": "Secret",
+  "k8s_annotations": {
+    "cert-manager.io/certificate-name": "example-tls",
+    "cert-manager.io/issuer-kind": "Issuer",
+    "cert-manager.io/issuer-name": "selfsigned"
+  },
+  "renewal_state": "none",
+  "serial_number": "34303242...",
+  "renewal_count": 0
+}
+```
+
+### 11.3 Webhook alerts
+
+When `--webhook-url` is set, `k8s monitor` POSTs a JSON alert for any certificate whose
+`daysLeft <= --webhook-threshold`, respecting `--webhook-interval` (rate-limited per
+`namespace/name/kind`) to avoid alert storms:
+
+```json
+{
+  "namespace": "default",
+  "name": "example-tls-secret",
+  "kind": "Secret",
+  "hostname": "example-tls-secret",
+  "commonName": "",
+  "issuer": "",
+  "daysLeft": 12,
+  "threshold": 15,
+  "message": "Certificate default/example-tls-secret (Secret) expires in 12 days"
+}
+```
+
+### 11.4 Source layout
+
+```
+internal/k8smonitor/
+  client.go      # client-go setup + cluster discovery (Secrets/Ingresses)
+  analyzer.go    # bundle parse + chain/OCSP/CRL analysis
+  monitor.go     # Monitor orchestration (single scan + watch loop)
+  model.go       # K8sCertificate model + Kind / RenewalState
+  metrics.go     # dedicated Prometheus registry + gauges
+  webhook.go     # rate-limited alert webhook
+  *_test.go      # unit tests
+
+internal/cmd/k8s.go          # `k8s monitor` Cobra command
+kubernetes/monitor/
+  rbac.yml          # read-only ServiceAccount + ClusterRole + Binding
+  daemonset.yml     # monitor DaemonSet (watch mode, :9102)
+  service.yml       # metrics Service
+  servicemonitor.yml# Prometheus Operator ServiceMonitor (optional)
+```
+
+### 11.5 Verified in the disposable dev environment
+
+`dev/` provides a reproducible, disposable environment (see `dev/README.md`). It was used
+to validate Phase 1 end-to-end against a real cluster:
+
+- kind cluster (K8s **v1.36.1**) + cert-manager **v1.21.1** installed via Helm
+- cert-manager-issued certificate (`Issuer: selfsigned` + `Certificate`) discovered as a
+  TLS Secret and as an Ingress reference
+- `k8s monitor` reported `days_left=89`, `expired=0`, `revoked=0` on both `kind`s
+- Prometheus gauges exposed with `namespace`/`name`/`kind` labels
+- RBAC used is strictly read-only (no `update` on Secrets)
 
 > **Phase 0 (Engine Fundamentals) is a prerequisite for Phases 1–3** — without API cache
 > and efficient revocation, the scan at scale and strict post-renewal validation

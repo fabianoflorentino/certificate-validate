@@ -12,6 +12,7 @@ A modern, extensible SSL/TLS certificate validation tool written in Go. Fetches 
 - **History** — Records check results in JSONL with automatic rotation
 - **Prometheus Metrics** — Exposes `certificate_days_left` and `certificate_expired` gauges
 - **Revocation Checks** — OCSP + CRL validation per certificate
+- **Kubernetes monitoring** — `k8s monitor` scans TLS Secrets + Ingresses, exports Prometheus metrics with K8s labels, and fires webhook alerts (read-only; see `docs/K8S_INTEGRATION.md`)
 - **Hot-Reload** — `SIGHUP` reloads config without restarting the server
 - **Self-Signed CAs** — Global and per-host trusted CA certificates
 - **Environment Variables** — `CV_` prefix overrides for all config fields
@@ -45,6 +46,8 @@ docker build -t certificate-validate .
 | Resource | Description |
 | --- | --- |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architecture overview with 13 Mermaid flowcharts |
+| [`docs/K8S_INTEGRATION.md`](docs/K8S_INTEGRATION.md) | Kubernetes integration roadmap + Phase 1 `k8s monitor` implementation |
+| [`dev/README.md`](dev/README.md) | Disposable Kubernetes dev environment (kind + cert-manager) |
 | Swagger UI | Interactive API docs at `http://localhost:5000/swagger/` (when server is running) |
 | [`docs/swagger.yaml`](docs/swagger.yaml) | OpenAPI 3.0 specification |
 
@@ -73,6 +76,7 @@ certificate-validate/
 │   │   ├── check.go               # Check certificates
 │   │   ├── serve.go               # HTTP API server
 │   │   ├── export.go              # Export JSON/CSV
+│   │   ├── k8s.go                 # `k8s monitor` (Kubernetes agent)
 │   │   └── version.go             # Version info
 │   ├── config/                    # YAML loader + env var overrides
 │   │   └── config.go              # Load, Validate, applyEnvOverrides
@@ -82,6 +86,13 @@ certificate-validate/
 │   │   └── formatter.go           # FormatTable, FormatJSON, FormatCSV
 │   ├── history/                   # JSONL history recorder
 │   │   └── history.go             # Record, rotate, query
+│   ├── k8smonitor/                # Kubernetes certificate monitoring (Phase 1)
+│   │   ├── client.go              # client-go setup + discovery (Secrets/Ingresses)
+│   │   ├── analyzer.go            # Bundle parse + chain/OCSP/CRL analysis
+│   │   ├── monitor.go             # Scan orchestration (single scan + watch)
+│   │   ├── model.go               # K8sCertificate model
+│   │   ├── metrics.go             # Dedicated Prometheus registry + gauges
+│   │   └── webhook.go             # Rate-limited alert webhook
 │   ├── metrics/                   # Prometheus exposition
 │   │   └── metrics.go             # Gauges + /metrics handler
 │   ├── notifier/                  # Webhook alerts
@@ -90,8 +101,13 @@ certificate-validate/
 │   │   └── revocation.go          # CheckOCSP, CheckCRL
 │   └── service/                   # Facade layer
 │       └── service.go             # CertService
-├── Dockerfile
-├── docker-compose.yml
+├── kubernetes/
+│   └── monitor/                   # K8s monitor deployment (rbac, daemonset, service, servicemonitor)
+├── scripts/                       # Dev environment helper scripts (setup-cluster, teardown, monitor-logs)
+├── dev/
+│   └── README.md                  # Disposable Kubernetes dev environment guide
+├── Dockerfile                     # Multi-stage: `production` (default) + `dev`
+├── docker-compose.yml             # Services: certificate-validate (app) + dev (profile)
 ├── Makefile
 └── README.md
 ```
@@ -232,6 +248,43 @@ Export certificate data to JSON or CSV.
 | --- | --- |
 | `-f, --format` | Output format: `json` (default) or `csv` |
 | `-o, --output-file` | Write to file instead of stdout |
+
+### `certificate-validate k8s monitor`
+
+Monitor TLS certificates in a Kubernetes cluster (Phase 1 of the [Kubernetes
+integration](docs/K8S_INTEGRATION.md)). Discovers TLS Secrets and Ingresses, analyzes
+each certificate, exports Prometheus metrics, and optionally fires webhook alerts —
+all **read-only** (no cluster writes).
+
+```bash
+# Single scan, print each certificate as JSON
+./certificate-validate k8s monitor
+
+# Watch mode: scan every 5 minutes, serve metrics on :9102, alert on webhook
+./certificate-validate k8s monitor \
+  --watch-interval=300 \
+  --metrics-addr=:9102 \
+  --webhook-url https://hooks.example.com/alert \
+  --check-revocation
+
+# Restrict to specific namespaces
+./certificate-validate k8s monitor -n cert-manager -n default
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-n, --namespace` | all | Namespaces to scan (repeatable / comma-separated) |
+| `--kubeconfig` | in-cluster / `~/.kube/config` | Path to kubeconfig |
+| `--check-revocation` | `false` | Perform OCSP/CRL revocation checks |
+| `--watch-interval` | `0` (single scan) | Repeat scan every N seconds |
+| `--webhook-url` | empty | URL to POST expiring-cert alerts |
+| `--webhook-threshold` | `15` | Alert when days-left is at/below this value |
+| `--webhook-interval` | `300` | Min seconds between alerts per resource |
+| `--metrics-addr` | empty | Serve Prometheus metrics on this address (e.g. `:9102`) |
+
+Deployment manifests (DaemonSet, read-only RBAC, Service, ServiceMonitor) live in
+[`kubernetes/monitor/`](kubernetes/monitor/). Test locally with the disposable dev
+environment (`make dev/up` … `make dev/setup`, see `dev/README.md`).
 
 ### `certificate-validate version`
 
@@ -390,6 +443,15 @@ make docker/run/serve    # Build and run API server in container
 make compose/up          # Start Docker Compose
 make compose/down        # Stop Docker Compose
 make compose/logs        # Follow logs
+
+# Disposable Kubernetes dev environment (kind + cert-manager)
+make dev/up              # Build + start the disposable dev container
+make dev/shell           # Open a shell in the dev container
+make dev/setup           # Create kind cluster + cert-manager + deploy monitor
+make dev/scan            # One-off `k8s monitor` scan via the DaemonSet
+make dev/logs            # Stream the deployed monitor logs
+make dev/down            # Stop the dev container
+make dev/destroy         # Remove container + cluster state (zero residue)
 ```
 
 ## License
