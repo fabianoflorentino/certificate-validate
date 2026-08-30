@@ -1,11 +1,11 @@
 ---
 title: "certificate-validate"
-description: "A Go library and CLI for validating X.509 certificates, chains, and TLS endpoints"
+description: "A modern SSL/TLS certificate validation tool with CLI, HTTP API, and web dashboard"
 ---
 
-## Validate X.509 certificates. Check chains. Verify TLS endpoints.
+## SSL/TLS certificate validation. CLI, API, and dashboard.
 
-A Go library and CLI for validating certificates, chains, and TLS endpoints with support for CRL, OCSP, and custom roots.
+A modern Go tool for monitoring certificates with real-time checks, revocation validation (OCSP/CRL), Prometheus metrics, webhook alerts, and an interactive web dashboard.
 
 ### Quickstart
 
@@ -25,52 +25,119 @@ docker run --rm fabianoflorentino/certificate-validate --help
 
 ### Key features
 
-- **X.509 validation**: Validate certificates and chains
-- **TLS endpoints**: Check remote servers (HTTPS, SMTP+STARTTLS, etc.)
-- **CRL support**: Check certificate revocation lists
-- **OCSP support**: Online Certificate Status Protocol
-- **Custom roots**: Use your own CA bundle
-- **Go library**: Import and use in your own projects
+- **CLI Mode** — Check certificates with JSON/table output, watch mode, and filtering
+- **HTTP API** — RESTful API with Swagger UI, rate limiting, and optional API key auth
+- **Web Dashboard** — Interactive UI with search, sort, history charts, and dark/light themes
+- **Export** — Export certificate data to JSON or CSV via CLI or API
+- **Watch Mode** — Continuous checking with configurable interval
+- **Alert Webhook** — POST alerts when certificates approach expiration
+- **History** — Records check results in JSONL with automatic rotation
+- **Prometheus Metrics** — Exposes `certificate_days_left` and `certificate_expired` gauges
+- **Revocation Checks** — OCSP + CRL validation per certificate
+- **Hot-Reload** — `SIGHUP` reloads config without restarting the server
+- **Self-Signed CAs** — Global and per-host trusted CA certificates
+- **Environment Variables** — `CV_` prefix overrides for all config fields
+- **Concurrent Processing** — Parallel certificate fetching with semaphore
+- **Minimal Image** — Small Docker image (~10MB) with non-root user
 
-### Usage
+### CLI Usage
 
 ```bash
-# Validate a TLS endpoint
-certificate-validate check example.com
+# Check all hosts from config
+certificate-validate check
 
-# Validate a certificate file
-certificate-validate check --cert cert.pem
+# Table output
+certificate-validate check -o table
 
-# With custom CA bundle
-certificate-validate check --ca-bundle custom-ca.pem example.com
+# Single host, no config needed
+certificate-validate check --host github.com --port 443
 
-# Check with verbose output
-certificate-validate check --verbose example.com
+# Filter by days remaining
+certificate-validate check --min-days 30
+
+# Continuous watch mode
+certificate-validate check --watch
+
+# Export to CSV
+certificate-validate export -f csv -o certs.csv
+
+# Start API server
+certificate-validate serve
+
+# Start API server with TLS
+certificate-validate serve --tls-cert cert.pem --tls-key key.pem
 ```
 
-### As a Go library
+### API Endpoints
 
-```go
-package main
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/` | Web Dashboard |
+| GET | `/swagger/` | Swagger UI (interactive API docs) |
+| GET | `/health` | Health check |
+| GET | `/api/v1/cert/info/all` | All certificates |
+| GET | `/api/v1/cert/info/{hostname}` | Certificate for a specific host |
+| GET | `/api/v1/cert/export/json` | Download as JSON |
+| GET | `/api/v1/cert/export/csv` | Download as CSV |
+| GET | `/api/v1/cert/history/{hostname}` | Check history |
+| GET | `/metrics` | Prometheus metrics |
 
-import (
-    "fmt"
-    "github.com/fabianoflorentino/certificate-validate/internal/validator"
-)
+### Configuration
 
-func main() {
-    v := validator.New()
-    result, err := v.CheckEndpoint("example.com:443")
-    if err != nil {
-        fmt.Printf("Error: %v\n", err)
-        return
-    }
-    fmt.Printf("Valid: %v\n", result.Valid)
-}
+```yaml
+check_time: 30                    # Check interval (seconds)
+api_key: "sk-1234"                # Optional API key auth
+
+app_configs:
+  - name: 'certificate-validate'
+    host: '0.0.0.0'
+    port: '5000'
+
+hosts:
+  - name: "GitHub"
+    url: 'github.com'
+    port: '443'
+    # ports: [443, 8443]          # Multiple ports
+    # timeout: 10                 # Per-host timeout
+    # trusted_cas:                # Per-host CAs
+    #   - '/certs/internal-ca.pem'
+
+prometheus:
+  enabled: false                  # Enable /metrics endpoint
+
+webhook:
+  url: 'https://hooks.example.com/alert'
+  threshold: 15                   # Alert when days left < threshold
+  interval: 1800
+
+history:
+  enabled: true
+  file_path: "data/history.jsonl"
+  max_entries: 10000
+  max_days: 90
+
+trusted_cas:
+  - '/etc/certificates/my-ca.pem'
 ```
+
+### Docker & Kubernetes
+
+```bash
+# Docker CLI
+docker run -v $(pwd)/config:/app/config certificate-validate check
+
+# Docker API server
+docker run -p 5000:5000 -v $(pwd)/config:/app/config certificate-validate serve
+
+# Docker Compose
+docker-compose up -d
+```
+
+Kubernetes manifests and Helm chart available in the repository.
 
 ### Learn more
 
+- [Architecture Documentation](https://github.com/fabianoflorentino/certificate-validate/blob/main/docs/ARCHITECTURE.md)
 - [Go Documentation](https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate)
 - [Docker Hub](https://hub.docker.com/r/fabianoflorentino/certificate-validate)
 - [GitHub Releases](https://github.com/fabianoflorentino/certificate-validate/releases)
