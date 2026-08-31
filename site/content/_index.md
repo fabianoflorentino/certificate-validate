@@ -34,7 +34,7 @@ docker run --rm fabianoflorentino/certificate-validate --help
 - **History** — Records check results in JSONL with automatic rotation
 - **Prometheus Metrics** — Exposes `certificate_days_left` and `certificate_expired` gauges
 - **Revocation Checks** — OCSP + CRL validation per certificate
-- **Kubernetes Monitoring** — `k8s monitor` scans TLS Secrets + Ingresses, exports metrics with K8s labels, and fires webhook alerts (read-only)
+- **Kubernetes Monitoring** — `k8s monitor` scans TLS Secrets + Ingresses, exports metrics with K8s labels, fires webhook alerts, and can auto-renew expiring certs via cert-manager (read-only by default; opt-in via `--renew-threshold`)
 - **Hot-Reload** — `SIGHUP` reloads config without restarting the server
 - **Self-Signed CAs** — Global and per-host trusted CA certificates
 - **Environment Variables** — `CV_` prefix overrides for all config fields
@@ -73,6 +73,9 @@ certificate-validate k8s monitor
 
 # Kubernetes: watch mode with metrics + webhook alerts
 certificate-validate k8s monitor --watch-interval=300 --metrics-addr=:9102 --webhook-url https://hooks.example.com/alert
+
+# Kubernetes: enable auto-renewal of expiring certs via cert-manager
+certificate-validate k8s monitor --renew-threshold=15
 ```
 
 ### API Endpoints
@@ -140,8 +143,8 @@ docker run -p 5000:5000 -v $(pwd)/config:/app/config certificate-validate serve
 docker-compose up -d
 ```
 
-Kubernetes manifests for the `k8s monitor` agent (DaemonSet, read-only RBAC,
-Service, ServiceMonitor) live in [`kubernetes/monitor/`](https://github.com/fabianoflorentino/certificate-validate/tree/main/kubernetes/monitor).
+Kubernetes manifests for the `k8s monitor` agent (DaemonSet, RBAC, Service,
+ServiceMonitor) live in [`kubernetes/monitor/`](https://github.com/fabianoflorentino/certificate-validate/tree/main/kubernetes/monitor).
 A disposable dev environment (kind + cert-manager) is documented in
 [`dev/README.md`](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md)
 and driven by the `make dev/*` targets.

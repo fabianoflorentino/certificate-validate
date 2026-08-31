@@ -9,7 +9,7 @@ Let's Encrypt and the CNCF ecosystem.
 > | Phase | Scope | Status |
 > |-------|-------|--------|
 > | Phase 1 | `k8s monitor` command (CLI + DaemonSet, read-only monitoring) | ✅ **Implemented** (see [§11](#11-phase-1-implementation--k8s-monitor)) |
-> | Phase 2 | Auto-renew via cert-manager (annotation + post-renewal validation) | ⏳ Planned |
+> | Phase 2 | Auto-renew via cert-manager (annotation + post-renewal validation) | ✅ **Implemented** (see [§12](#12-phase-2-implementation--auto-renewal)) |
 > | Phase 3 | Predictive + Grafana dashboard | ⏳ Planned |
 
 ---
@@ -27,6 +27,7 @@ Let's Encrypt and the CNCF ecosystem.
 9. [Metrics and Alerts](#9-metrics-and-alerts)
 10. [Route Decisions](#10-route-decisions)
 11. [Phase 1 Implementation — `k8s monitor`](#11-phase-1-implementation--k8s-monitor)
+12. [Phase 2 Implementation — Auto-Renewal](#12-phase-2-implementation--auto-renewal)
 
 ---
 
@@ -450,10 +451,10 @@ flowchart LR
 
 ### 6.1 DaemonSet (recommended mode)
 
-The shipped Phase 1 manifest lives in `kubernetes/monitor/daemonset.yml` and is verified
-in the disposable dev environment ([`dev/`](../dev/README.md)). It runs read-only
-monitoring: a periodic scan that updates Prometheus metrics and fires webhook alerts,
-**without** auto-renewal flags (those arrive in Phase 2).
+The shipped manifest lives in `kubernetes/monitor/daemonset.yml` and is verified
+in the disposable dev environment ([`dev/`](../dev/README.md)). It runs a periodic scan
+that updates Prometheus metrics and fires webhook alerts, and (Phase 2) auto-renews
+certificates via `--renew-threshold`. Remove that flag to restore read-only monitoring.
 
 ```yaml
 apiVersion: apps/v1
@@ -583,11 +584,11 @@ flowchart TB
     RB --> CR
 ```
 
-> **Phase 1 is read-only.** No `update` on Secrets, no `events` creation, and no
-> cert-manager CRD permissions are granted yet — they land in **Phase 2** (auto-renewal
-> via annotation + K8s events). See the shipped manifest `kubernetes/monitor/rbac.yml`.
+> **Phases 1–2.** Phase 1 is read-only; Phase 2 adds `update` on Secrets, event
+> creation, and readable cert-manager CRDs for auto-renewal via annotation. See the
+> shipped manifest `kubernetes/monitor/rbac.yml`.
 
-### Full manifest (Phase 1, read-only)
+### Full manifest (Phase 2, read-write)
 
 ```yaml
 ---
@@ -623,7 +624,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ```
 
-The **Phase 2** ClusterRole will add:
+The shipped Phase 2 ClusterRole (see `kubernetes/monitor/rbac.yml`) adds:
 - `secrets` → `update` (to annotate `cert-manager.io/force-renew`)
 - `cert-manager.io` → `certificates`, `issuers` (get/list/watch)
 - `events` → `create`, `update`, `patch`
@@ -701,6 +702,14 @@ const (
 Where `kind` is `Secret` or `Ingress` (the resource the certificate was discovered
 from), and `name` is the Secret name.
 
+**Implemented in Phase 2** (auto-renewal, see [§12](#12-phase-2-implementation--auto-renewal)):
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `certificate_renewal_total` | Counter | `namespace`, `name`, `status` | Renewal counter (success/failure) |
+| `certificate_renewal_attempts` | Gauge | `namespace`, `name` | Attempt count of the current renewal |
+| `certificate_stuck_issuance` | Gauge | `namespace`, `name` | 1 if the serial hasn't changed in the last N cycles |
+
 > **Registry note (Phase 1 divergence):** the Kubernetes monitor uses a **dedicated
 > Prometheus registry** (`internal/k8smonitor/metrics.go`) rather than extending the
 > core `internal/metrics` package. The core `certificate_days_left` / `certificate_expired`
@@ -708,14 +717,11 @@ from), and `name` is the Secret name.
 > same binary), so the K8s monitor isolates its metrics on its own handler. The metric
 > **names** stay unified (`certificate_` prefix) so existing PrometheusRules can still match.
 
-**Planned for Phases 2–3** (not yet implemented):
+**Planned for Phase 3** (not yet implemented):
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `certificate_renewal_total` | Counter | `namespace`, `name`, `status` | Renewal counter (success/failure) |
 | `certificate_renewal_duration_seconds` | Histogram | `namespace`, `name` | Duration of the renewal cycle |
-| `certificate_renewal_attempts` | Gauge | `namespace`, `name` | Attempt count of the current renewal |
-| `certificate_stuck_issuance` | Gauge | `namespace`, `name` | 1 if the serial hasn't changed in the last N cycles |
 | `certificate_total` | Gauge | `namespace` | Total monitored certificates |
 
 ### 9.2 Alerts (PrometheusRule)
@@ -758,8 +764,29 @@ spec:
         description: "OCSP/CRL reports {{ $labels.namespace }}/{{ $labels.name }} as revoked"
 ```
 
-> The `CertificateRenewalFailed` and `CertificateStuckIssuance` rules rely on metrics
-> that land in Phase 2 (auto-renewal); they are not actionable in Phase 1.
+> The `CertificateRenewalFailed` and `CertificateStuckIssuance` rules use the renewal
+> metrics (`certificate_renewal_total`, `certificate_renewal_attempts`,
+> `certificate_stuck_issuance`) delivered in Phase 2 (auto-renewal). Example rules:
+
+```yaml
+- alert: CertificateRenewalFailed
+  expr: rate(certificate_renewal_total{result="failed"}[5m]) > 0
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Certificate {{ $labels.name }} renewal failed"
+    description: "{{ $labels.namespace }}/{{ $labels.name }} renewal did not complete in time"
+
+- alert: CertificateStuckIssuance
+  expr: certificate_stuck_issuance == 1
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Certificate {{ $labels.name }} stuck issuance"
+    description: "{{ $labels.namespace }}/{{ $labels.name }} serial did not change after forced renewal"
+```
 
 ### 9.3 Grafana Dashboard (panel suggestions)
 
@@ -826,12 +853,12 @@ Phase 1 ──── `k8s monitor` command (CLI) ─────── ✅ DONE 
   ├── [x] Disposable dev environment (kind + cert-manager), see dev/README.md
   └── Grand Finale (future): kubectl cert-validate monitor completion
 
-Phase 2 ──── Auto-renew via cert-manager ─────── Effort: 1-2 weeks
-  ├── Detects certs near expiry (≤15d)
-  ├── Annotate Secret → cert-manager re-issues
-  ├── Post-renewal validation (chain, OCSP, CRL)
-  ├── Detects stuck issuance (serial unchanged)
-  └── K8s Events at every step
+Phase 2 ──── Auto-renew via cert-manager ─────── ✅ DONE (see §12)
+  ├── [x] Detects certs near expiry (≤15d)
+  ├── [x] Annotate Secret → cert-manager re-issues
+  ├── [x] Post-renewal validation (chain, OCSP, CRL)
+  ├── [x] Detects stuck issuance (serial unchanged)
+  └── [x] K8s Events at every step
 
 Phase 3 ──── Predictive + Dashboard ──────────── Effort: 1-2 weeks
   ├── History → daysLeft trend (linear regression)
@@ -1006,3 +1033,67 @@ to validate Phase 1 end-to-end against a real cluster:
 > and efficient revocation, the scan at scale and strict post-renewal validation
 > (semantics of §4) aren't viable. The detailed backlog is in
 > [`docs/WHY.md`](WHY.md#8-engineering-fundamentals-backlog) §8.
+
+---
+
+## 12. Phase 2 Implementation — Auto-Renewal
+
+Phase 2 adds **read-write auto-renewal** on top of the Phase 1 monitor. When a
+certificate is at or below the renewal threshold (default 15 days), the agent annotates
+the owning Secret with `cert-manager.io/force-renew: "true"` to trigger a new issuance,
+waits for cert-manager to rotate the serial, then validates the renewed certificate.
+Progress is recorded as Prometheus metrics and Kubernetes events.
+
+> **Enabled by default?** No. Auto-renewal is opt-in via the `--renew-threshold` flag
+> (0 disables it). The Phase 1 read-only behavior is preserved when it is not set.
+
+### 12.1 Command flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--renew-threshold` | `0` (disabled) | Auto-renew certificates at or below this many days left |
+| `--renew-timeout` | `120` | Max seconds to wait for cert-manager to re-issue (default: 120) |
+
+### 12.2 Renewal flow (`internal/k8smonitor/renewer.go`)
+
+`Renewer` orchestrates the cycle:
+
+1. **NeedsRenewal** — a certificate qualifies when `0 < daysLeft <= threshold`.
+2. **Annotate** — sets `cert-manager.io/force-renew: "true"` on the Secret via `update`.
+3. **Wait** — polls the Secret until its leaf serial differs from the previously
+   observed serial (2s interval, bounded by `--renew-timeout`). If the serial never
+   changes, the attempt is classified as a **stuck issuance**.
+4. **Validate** — parses the renewed bundle and asserts it has at least 80 days of
+   remaining validity; with strict revocation checking enabled, an OCSP/CRL status
+   other than `good` (including `not_ready`) is a failure (implicit rollback: the
+   previous certificate is kept).
+
+Each step emits a Kubernetes `Event` (`CertRenewFailed`, `CertRenewValidation`,
+`CertRenewed`) when write access to events is configured.
+
+### 12.3 Metrics
+
+See [§9.1](#91-exported-prometheus-metrics): `certificate_renewal_total{status}`,
+`certificate_renewal_attempts`, and `certificate_stuck_issuance` are now exported on the
+monitor's dedicated registry.
+
+### 12.4 RBAC
+
+The shipped `kubernetes/monitor/rbac.yml` now grants `update` on Secrets (for the
+annotation), `create/update/patch` on Events, and read access to `cert-manager.io`
+certificates/issuers. See [§7](#7-rbac-and-permissions).
+
+### 12.5 Source layout
+
+```
+internal/k8smonitor/
+  renewer.go        # Renewer: annotate → wait → validate (+ stuck detection)
+  renewer_test.go   # unit tests with a fake clientset
+```
+
+### 12.6 Tests and coverage
+
+`internal/k8smonitor/renewer_test.go` covers renewal success, stuck issuance (serial
+unchanged → timeout), validation failures (too-short validity, revoked), annotate
+errors, and missing previous serial, using the client-go fake clientset with injected
+reactors — no live cluster required.

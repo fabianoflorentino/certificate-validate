@@ -16,7 +16,7 @@ A modern, extensible SSL/TLS certificate validation tool written in Go. Fetches 
 - **History** — Records check results in JSONL with automatic rotation
 - **Prometheus Metrics** — Exposes `certificate_days_left` and `certificate_expired` gauges
 - **Revocation Checks** — OCSP + CRL validation per certificate
-- **Kubernetes monitoring** — `k8s monitor` scans TLS Secrets + Ingresses, exports Prometheus metrics with K8s labels, and fires webhook alerts (read-only; see `docs/K8S_INTEGRATION.md`)
+- **Kubernetes monitoring** — `k8s monitor` scans TLS Secrets + Ingresses, exports Prometheus metrics with K8s labels, fires webhook alerts, and can auto-renew expiring certs via cert-manager (read-only by default, opt-in renewal; see `docs/K8S_INTEGRATION.md`)
 - **Hot-Reload** — `SIGHUP` reloads config without restarting the server
 - **Self-Signed CAs** — Global and per-host trusted CA certificates
 - **Environment Variables** — `CV_` prefix overrides for all config fields
@@ -50,7 +50,7 @@ docker build -t certificate-validate .
 | Resource | Description |
 | --- | --- |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architecture overview with 13 Mermaid flowcharts |
-| [`docs/K8S_INTEGRATION.md`](docs/K8S_INTEGRATION.md) | Kubernetes integration roadmap + Phase 1 `k8s monitor` implementation |
+| [`docs/K8S_INTEGRATION.md`](docs/K8S_INTEGRATION.md) | Kubernetes integration roadmap + Phases 1–2 `k8s monitor` implementation |
 | [`dev/README.md`](dev/README.md) | Disposable Kubernetes dev environment (kind + cert-manager) |
 | Swagger UI | Interactive API docs at `http://localhost:5000/swagger/` (when server is running) |
 | [`docs/swagger.yaml`](docs/swagger.yaml) | OpenAPI 3.0 specification |
@@ -90,10 +90,11 @@ certificate-validate/
 │   │   └── formatter.go           # FormatTable, FormatJSON, FormatCSV
 │   ├── history/                   # JSONL history recorder
 │   │   └── history.go             # Record, rotate, query
-│   ├── k8smonitor/                # Kubernetes certificate monitoring (Phase 1)
+│   ├── k8smonitor/                # Kubernetes certificate monitoring (Phases 1–2)
 │   │   ├── client.go              # client-go setup + discovery (Secrets/Ingresses)
 │   │   ├── analyzer.go            # Bundle parse + chain/OCSP/CRL analysis
 │   │   ├── monitor.go             # Scan orchestration (single scan + watch)
+│   │   ├── renewer.go             # Auto-renewal (annotate → wait → validate)
 │   │   ├── model.go               # K8sCertificate model
 │   │   ├── metrics.go             # Dedicated Prometheus registry + gauges
 │   │   └── webhook.go             # Rate-limited alert webhook
@@ -255,10 +256,11 @@ Export certificate data to JSON or CSV.
 
 ### `certificate-validate k8s monitor`
 
-Monitor TLS certificates in a Kubernetes cluster (Phase 1 of the [Kubernetes
+Monitor TLS certificates in a Kubernetes cluster (Phases 1–2 of the [Kubernetes
 integration](docs/K8S_INTEGRATION.md)). Discovers TLS Secrets and Ingresses, analyzes
-each certificate, exports Prometheus metrics, and optionally fires webhook alerts —
-all **read-only** (no cluster writes).
+each certificate, exports Prometheus metrics, and optionally fires webhook alerts.
+By default it is **read-only** (no cluster writes); set `--renew-threshold` to enable
+Phase 2 auto-renewal of expiring certificates via cert-manager.
 
 ```bash
 # Single scan, print each certificate as JSON
@@ -273,6 +275,9 @@ all **read-only** (no cluster writes).
 
 # Restrict to specific namespaces
 ./certificate-validate k8s monitor -n cert-manager -n default
+
+# Auto-renew certificates at or below 15 days left (via cert-manager)
+./certificate-validate k8s monitor --watch-interval=300 --renew-threshold=15
 ```
 
 | Flag | Default | Description |
@@ -284,9 +289,11 @@ all **read-only** (no cluster writes).
 | `--webhook-url` | empty | URL to POST expiring-cert alerts |
 | `--webhook-threshold` | `15` | Alert when days-left is at/below this value |
 | `--webhook-interval` | `300` | Min seconds between alerts per resource |
+| `--renew-threshold` | `0` (disabled) | Auto-renew certs at/below this many days left |
+| `--renew-timeout` | `120` | Max seconds to wait for cert-manager to re-issue |
 | `--metrics-addr` | empty | Serve Prometheus metrics on this address (e.g. `:9102`) |
 
-Deployment manifests (DaemonSet, read-only RBAC, Service, ServiceMonitor) live in
+Deployment manifests (DaemonSet, RBAC, Service, ServiceMonitor) live in
 [`kubernetes/monitor/`](kubernetes/monitor/). Test locally with the disposable dev
 environment (`make dev/up` … `make dev/setup`, see `dev/README.md`).
 
