@@ -7,7 +7,10 @@ import (
 	"log/slog"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 )
 
 // Monitor orchestrates scanning, analyzing, and alerting on Kubernetes TLS
@@ -17,6 +20,7 @@ type Monitor struct {
 	analyzer   *Analyzer
 	namespaces []string
 	webhook    *Webhook
+	renewer    *Renewer
 }
 
 // Config configures the Kubernetes monitor.
@@ -28,6 +32,8 @@ type Config struct {
 	WebhookURL       string
 	WebhookThreshold int
 	WebhookInterval  time.Duration
+	RenewThreshold   int
+	RenewTimeout     time.Duration
 }
 
 // NewMonitor builds a Monitor from the given configuration, connecting to the
@@ -50,6 +56,21 @@ func NewMonitor(cfg Config) (*Monitor, error) {
 			interval = 5 * time.Minute
 		}
 		m.webhook = newWebhook(cfg.WebhookURL, cfg.WebhookThreshold, interval)
+	}
+
+	if cfg.RenewThreshold > 0 {
+		timeout := cfg.RenewTimeout
+		if timeout <= 0 {
+			timeout = 2 * time.Minute
+		}
+		renewer := NewRenewer(client.Clientset, m.analyzer, cfg.RenewThreshold, timeout, 80).
+			WithRevocation(cfg.CheckRevocation)
+
+		broadcaster := record.NewBroadcaster()
+		source := corev1.EventSource{Component: "certificate-validate-monitor"}
+		renewer.WithEventEmitter(broadcaster.NewRecorder(k8sscheme.Scheme, source))
+
+		m.renewer = renewer
 	}
 
 	return m, nil
@@ -140,6 +161,9 @@ func (m *Monitor) watchLoop(ctx context.Context, interval time.Duration) error {
 		if m.webhook != nil {
 			m.webhook.AlertIfNeeded(certs)
 		}
+		if m.renewer != nil {
+			m.renewCerts(ctx, certs)
+		}
 		slog.Info("kubernetes monitor scan", "certificates", len(certs))
 	}
 
@@ -152,6 +176,30 @@ func (m *Monitor) watchLoop(ctx context.Context, interval time.Duration) error {
 		case <-ticker.C:
 			runOnce()
 		}
+	}
+}
+
+// renewCerts triggers auto-renewal for any certificate approaching expiration
+// and records the result as Prometheus metrics.
+func (m *Monitor) renewCerts(ctx context.Context, certs []*K8sCertificate) {
+	if m.renewer == nil {
+		return
+	}
+	for _, c := range certs {
+		if c == nil || !m.renewer.NeedsRenewal(c) {
+			continue
+		}
+
+		outcome := m.renewer.Renew(ctx, c.K8sNamespace, c.K8sName, c.SerialNumber)
+		status := "success"
+		if !outcome.Renewed {
+			status = "failure"
+		}
+		RecordRenewal(c.K8sNamespace, c.K8sName, status)
+		SetStuckIssuance(c.K8sNamespace, c.K8sName, outcome.State == RenewalStateStuck)
+		slog.Info("certificate renewal attempted",
+			"namespace", c.K8sNamespace, "name", c.K8sName,
+			"state", outcome.State, "reason", outcome.Reason)
 	}
 }
 

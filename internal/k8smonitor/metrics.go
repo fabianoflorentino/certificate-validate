@@ -37,12 +37,36 @@ var (
 		},
 		[]string{"namespace", "name", "kind"},
 	)
+	renewalTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "certificate_renewal_total",
+			Help: "Total number of renewal attempts by status (success/failure)",
+		},
+		[]string{"namespace", "name", "status"},
+	)
+	renewalAttempts = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "certificate_renewal_attempts",
+			Help: "Number of renewal attempts for the current certificate",
+		},
+		[]string{"namespace", "name"},
+	)
+	stuckIssuance = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "certificate_stuck_issuance",
+			Help: "Whether certificate renewal is stuck (1=stuck, 0=not stuck)",
+		},
+		[]string{"namespace", "name"},
+	)
 )
 
 func init() {
 	registry.MustRegister(daysLeftGauge)
 	registry.MustRegister(expiredGauge)
 	registry.MustRegister(revokedGauge)
+	registry.MustRegister(renewalTotal)
+	registry.MustRegister(renewalAttempts)
+	registry.MustRegister(stuckIssuance)
 }
 
 // UpdateMetrics updates the Prometheus gauges from a set of K8s certificates.
@@ -70,6 +94,27 @@ func UpdateMetrics(certs []*K8sCertificate) {
 		}
 		revokedGauge.With(labels).Set(revoked)
 	}
+}
+
+// RecordRenewal increments the renewal counter for a certificate with the
+// given status label.
+func RecordRenewal(ns, name, status string) {
+	renewalTotal.WithLabelValues(ns, name, status).Inc()
+}
+
+// SetRenewalAttempts records how many attempts a certificate's renewal has
+// taken.
+func SetRenewalAttempts(ns, name string, attempts int) {
+	renewalAttempts.WithLabelValues(ns, name).Set(float64(attempts))
+}
+
+// SetStuckIssuance marks whether a certificate's renewal is stuck.
+func SetStuckIssuance(ns, name string, stuck bool) {
+	val := 0.0
+	if stuck {
+		val = 1.0
+	}
+	stuckIssuance.WithLabelValues(ns, name).Set(val)
 }
 
 // MetricsHandler returns an http.Handler serving Prometheus metrics from the

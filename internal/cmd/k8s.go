@@ -21,6 +21,8 @@ var (
 	k8sWebhookThreshold int
 	k8sWebhookInterval  int
 	k8sMetricsAddr      string
+	k8sRenewThreshold   int
+	k8sRenewTimeout     int
 )
 
 var k8sCmd = &cobra.Command{
@@ -43,6 +45,10 @@ By default performs a single scan and prints each certificate as JSON.
 Use --watch to run periodically, updating Prometheus metrics and firing
 webhook alerts for certificates approaching expiration.
 
+Set --renew-threshold to enable auto-renewal: certificates at or below that
+many days left are annotated with the cert-manager force-renew annotation,
+then re-validated after issuance.
+
 The command connects using in-cluster configuration when running inside a
 cluster, or the default kubeconfig otherwise. Use --kubeconfig to override.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,6 +60,8 @@ cluster, or the default kubeconfig otherwise. Use --kubeconfig to override.`,
 			WebhookURL:       k8sWebhookURL,
 			WebhookThreshold: k8sWebhookThreshold,
 			WebhookInterval:  time.Duration(k8sWebhookInterval) * time.Second,
+			RenewThreshold:   k8sRenewThreshold,
+			RenewTimeout:     time.Duration(k8sRenewTimeout) * time.Second,
 		})
 		if err != nil {
 			return fmt.Errorf("create kubernetes monitor: %w", err)
@@ -87,6 +95,10 @@ func init() {
 		"minimum seconds between alerts for the same certificate (default: 300)")
 	k8sMonitorCmd.Flags().StringVar(&k8sMetricsAddr, "metrics-addr", "",
 		"address to serve Prometheus metrics (e.g. :9102)")
+	k8sMonitorCmd.Flags().IntVar(&k8sRenewThreshold, "renew-threshold", 0,
+		"auto-renew certificates at or below this many days left (0 = disabled)")
+	k8sMonitorCmd.Flags().IntVar(&k8sRenewTimeout, "renew-timeout", 0,
+		"max seconds to wait for cert-manager to renew (default: 120)")
 	k8sCmd.AddCommand(k8sMonitorCmd)
 	rootCmd.AddCommand(k8sCmd)
 }
