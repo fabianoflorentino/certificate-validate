@@ -508,6 +508,238 @@ func NewServer(db *sql.DB) *Server {
 }
 ```
 
+## Documentation (Godoc)
+
+Go documentation is written as comments and extracted by godoc to generate
+documentation. Follow these conventions for idiomatic Go documentation.
+
+### Package Documentation (doc.go)
+
+Every package should have a `doc.go` file with a package-level comment that
+explains the package's purpose, key types, and usage examples.
+
+```go
+// Package certificate provides types and utilities for parsing, analyzing,
+// and representing SSL/TLS certificate information.
+//
+// The package defines the core Certificate type that holds extracted information
+// from X.509 certificates, including subject, issuer, validity period, revocation
+// status, and the certificate chain.
+//
+// # Certificate Model
+//
+// The Certificate struct is the central type, containing all relevant information
+// extracted from a TLS connection:
+//
+//   - CommonName and SubjectAltNames for identity
+//   - Issuer and chain information
+//   - Validity period (NotBefore, NotAfter, DaysLeft)
+//   - Revocation status (OCSP/CRL)
+//   - TLS version and cipher suite
+//
+// # Usage
+//
+// Build a Certificate from an x509.Certificate:
+//
+//	cert := certificate.FromX509(x509Cert, "example.com", 443)
+//	cert.Chain = certificate.BuildChain(peerCerts)
+package certificate
+```
+
+**Key points:**
+- Start with `// Package <name> ...` to identify the package
+- Use `#` for section headers (rendered as headings in godoc)
+- Include usage examples with proper indentation (godoc recognizes code blocks)
+- Explain the "why" and "what", not the "how" (code shows the how)
+
+### Exported Types and Functions
+
+Every exported type, function, method, and constant should have a doc comment
+starting with the name of the thing being documented.
+
+```go
+// Analyzer parses and validates Kubernetes TLS certificates.
+type Analyzer struct {
+    checkRevocation bool
+}
+
+// NewAnalyzer creates an Analyzer. When checkRevocation is true, OCSP/CRL
+// checks are performed using the configured short timeout.
+func NewAnalyzer(checkRevocation bool) *Analyzer {
+    return &Analyzer{checkRevocation: checkRevocation}
+}
+
+// ParseBundle parses the tls.crt PEM bytes and returns the leaf certificate
+// and its chain.
+func (a *Analyzer) ParseBundle(pemBytes []byte) (*x509.Certificate, []*x509.Certificate, error) {
+    // ...
+}
+```
+
+**Key points:**
+- Start with the name: `// TypeName ...` or `// FuncName ...`
+- For methods: `// MethodName ...` (the receiver is implicit)
+- Explain what it does, not how (the code shows the how)
+- Document edge cases, zero values, and error conditions
+
+### Interface Documentation
+
+Document the contract, not the implementation:
+
+```go
+// Store is the interface for recording and querying certificate history.
+// Consumers (api) depend on this, not on the concrete Recorder.
+type Store interface {
+    Record(results []*certificate.Certificate)
+    GetHistory(hostname string) ([]Entry, error)
+}
+```
+
+### Constants and Variables
+
+Group related constants and document the group:
+
+```go
+// Revocation status values returned by OCSP and CRL checks.
+const (
+    // RevocationUnknown indicates the revocation status could not be determined.
+    RevocationUnknown RevocationStatus = "unknown"
+
+    // RevocationGood indicates the certificate is not revoked.
+    RevocationGood RevocationStatus = "good"
+
+    // RevocationRevoked indicates the certificate has been revoked.
+    RevocationRevoked RevocationStatus = "revoked"
+
+    // RevocationNotReady indicates no OCSP or CRL endpoints are available.
+    RevocationNotReady RevocationStatus = "not_ready"
+)
+```
+
+**Key points:**
+- Document the group with a comment before the `const (` or `var (` block
+- Document each constant individually when the meaning is not obvious from the name
+- Use full sentences for complex constants
+
+### Sentinel Errors
+
+Document sentinel errors with their meaning and usage:
+
+```go
+// Sentinel errors returned by certificate fetching operations.
+// Use errors.Is to check for specific error conditions.
+var (
+    // ErrHostUnreachable indicates the host could not be reached (DNS failure,
+    // connection refused, or network timeout).
+    ErrHostUnreachable = errors.New("host unreachable")
+
+    // ErrInvalidHostname indicates the hostname is invalid or could not be resolved.
+    ErrInvalidHostname = errors.New("invalid hostname")
+
+    // ErrCertificateFetch indicates a general failure during certificate fetching.
+    ErrCertificateFetch = errors.New("failed to fetch certificate")
+
+    // ErrNoCertificate indicates the server did not present a certificate during
+    // the TLS handshake.
+    ErrNoCertificate = errors.New("no peer certificate presented")
+)
+```
+
+**Key points:**
+- Group related errors in a `var (...)` block
+- Document the group with a comment explaining the category
+- Document each error with its meaning and when it's returned
+- Mention how to check for the error (e.g., "Use errors.Is")
+
+### Function Documentation Patterns
+
+#### Constructor Functions (New*)
+
+Document what the function creates and any important parameters:
+
+```go
+// New creates a new Checker with the given dependencies.
+// The fetcher retrieves certificates, the formatter formats output.
+func New(fetcher Fetcher, formatter Formatter) *Checker {
+    return &Checker{
+        fetcher:   fetcher,
+        formatter: formatter,
+    }
+}
+```
+
+#### Methods
+
+Document what the method does, parameters, and return values:
+
+```go
+// Check fetches certificate info for a single host.
+// Returns the certificate or an error if the fetch fails.
+func (c *Checker) Check(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
+    return c.fetcher.Fetch(ctx, hostname, port)
+}
+```
+
+#### Complex Functions
+
+For functions with complex behavior, document edge cases and error conditions:
+
+```go
+// CheckOCSP queries OCSP responders to verify certificate revocation status.
+// Tries each server in order, returning the first definitive result.
+// Returns RevocationNotReady if no OCSP servers are available.
+// Returns RevocationUnknown if all queries fail or return unknown status.
+func CheckOCSP(leaf *x509.Certificate, issuer *x509.Certificate, servers []string) certificate.RevocationStatus {
+    // ...
+}
+```
+
+#### Background Goroutines
+
+Document the lifecycle and cancellation behavior:
+
+```go
+// StartUpdater periodically fetches certificates in the background and updates Prometheus gauges.
+// The goroutine stops when the context is cancelled.
+func StartUpdater(ctx context.Context, c checker.CertChecker, hosts []checker.Host, interval time.Duration) {
+    // ...
+}
+```
+
+### Examples
+
+For complex packages, add example functions that godoc can render:
+
+```go
+// ExampleNew demonstrates creating and using a Fetcher.
+func ExampleNew() {
+    f := fetcher.New(10 * time.Second)
+    cert, err := f.Fetch(context.Background(), "example.com", 443)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Certificate expires in %d days\n", cert.DaysLeft)
+    // Output: Certificate expires in 90 days
+}
+```
+
+### Documentation Checklist
+
+When reviewing Go code, verify:
+
+- [ ] Every package has a `doc.go` with package-level documentation
+- [ ] All exported types have doc comments starting with the type name
+- [ ] All exported functions/methods have doc comments
+- [ ] All exported constants/variables are documented
+- [ ] Interfaces document the contract, not implementation
+- [ ] Error conditions are documented
+- [ ] Usage examples are included for complex packages
+- [ ] Comments explain "why", not "what" (code shows the what)
+- [ ] Constructor functions document what they create
+- [ ] Methods document parameters and return values
+- [ ] Background goroutines document lifecycle and cancellation
+- [ ] Sentinel errors document their meaning and usage
+
 ## Struct Design
 
 ### Functional Options Pattern
@@ -725,6 +957,7 @@ issues:
 | Clear is better than clever | Prioritize readability over cleverness |
 | gofmt is no one's favorite but everyone's friend | Always format with gofmt/goimports |
 | Return early | Handle errors first, keep happy path unindented |
+| Document everything exported | Every package, type, function, and constant needs godoc |
 | Validate with lefthook | Run pre-commit/pre-push hooks before committing/pushing |
 
 ## Anti-Patterns to Avoid
