@@ -118,7 +118,8 @@ func SetStuckIssuance(ns, name string, stuck bool) {
 }
 
 // MetricsHandler returns an http.Handler serving Prometheus metrics from the
-// monitor's dedicated registry.
+// monitor's dedicated registry. This avoids metric name collisions with the
+// core metrics package.
 func MetricsHandler() http.Handler {
 	return promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 }

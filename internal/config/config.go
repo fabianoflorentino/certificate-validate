@@ -15,6 +15,8 @@ import (
 )
 
 // Config represents the application configuration from settings.yml.
+// It includes settings for certificate checking, API server, Prometheus metrics,
+// webhooks, history recording, and trusted CAs.
 type Config struct {
 	CheckTime  int            `yaml:"check_time"`
 	APIKey     string         `yaml:"api_key"`
@@ -66,7 +68,8 @@ type AppConfig struct {
 	Debug       bool   `yaml:"debug"`
 }
 
-// PortInt converts the string port to an integer. Returns 443 on error.
+// PortInt converts the string port to an integer. Returns 443 as the default
+// if the port string is empty, non-numeric, or out of range.
 func (h HostConfig) PortInt() int {
 	p, err := strconv.Atoi(h.Port)
 	if err != nil || p <= 0 {
@@ -75,7 +78,8 @@ func (h HostConfig) PortInt() int {
 	return p
 }
 
-// PortInts returns all ports for this host. Falls back to PortInt() if Ports is empty.
+// PortInts returns all ports for this host.
+// Falls back to PortInt() if Ports is empty.
 func (h HostConfig) PortInts() []int {
 	if len(h.Ports) > 0 {
 		return h.Ports
@@ -84,6 +88,8 @@ func (h HostConfig) PortInts() []int {
 }
 
 // ToCheckerHosts converts HostConfig entries to checker.Host, expanding multiple ports.
+// Each port in a host's Ports list creates a separate checker.Host entry.
+// If Ports is empty, uses the single Port field.
 func ToCheckerHosts(cfgHosts []HostConfig) []checker.Host {
 	var hosts []checker.Host
 	for _, h := range cfgHosts {
@@ -102,6 +108,7 @@ func ToCheckerHosts(cfgHosts []HostConfig) []checker.Host {
 
 // LoadPerHostCAs reads per-host CA paths from HostConfig entries.
 // Returns a map of host URL to certificate pool.
+// Returns an error if any CA file cannot be read or parsed.
 func LoadPerHostCAs(hosts []HostConfig) (map[string]*x509.CertPool, error) {
 	m := make(map[string]*x509.CertPool)
 	for _, h := range hosts {
@@ -118,7 +125,9 @@ func LoadPerHostCAs(hosts []HostConfig) (map[string]*x509.CertPool, error) {
 }
 
 // Validate checks the configuration for common issues.
-// Returns a list of warnings and an error if the configuration is invalid.
+// Returns a list of warnings (non-fatal) and an error if the configuration is invalid.
+// Warnings include missing host names, invalid ports, and empty CA paths.
+// Errors include missing hosts and invalid configuration values.
 func (cfg *Config) Validate() ([]string, error) {
 	var warnings []string
 
@@ -227,6 +236,8 @@ func (cfg *Config) applyEnvOverrides() {
 }
 
 // Load reads and parses a YAML configuration file.
+// Applies environment variable overrides (CV_ prefix) after loading.
+// Returns the configuration or an error if the file cannot be read or parsed.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

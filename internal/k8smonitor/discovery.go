@@ -28,6 +28,8 @@ func (c *Client) Discover(ctx context.Context, namespaces []string) ([]*SecretCe
 }
 
 // SecretCert references a TLS Secret that carries kubernetes.io/tls data.
+// It holds the raw certificate data along with Kubernetes metadata for
+// analysis and metric labeling.
 type SecretCert struct {
 	Namespace   string
 	Name        string
@@ -62,6 +64,7 @@ func (c *Client) discoverSecrets(ctx context.Context, namespaces []string) ([]*S
 }
 
 // IngressCert references an Ingress that references a TLS secret.
+// It holds the TLS configuration from the Ingress spec for certificate analysis.
 type IngressCert struct {
 	Namespace   string
 	Name        string

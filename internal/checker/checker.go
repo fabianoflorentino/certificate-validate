@@ -18,11 +18,14 @@ type Host struct {
 }
 
 // Fetcher fetches certificate info from a host.
+// Implementations should handle TLS handshake, certificate extraction,
+// and revocation checking.
 type Fetcher interface {
 	Fetch(ctx context.Context, hostname string, port int) (*certificate.Certificate, error)
 }
 
 // Formatter formats certificate data for output.
+// Implementations include JSON, table, and CSV formatters.
 type Formatter interface {
 	Format(cert *certificate.Certificate) ([]byte, error)
 }
@@ -35,12 +38,14 @@ type CertChecker interface {
 }
 
 // Checker orchestrates fetching and formatting certificates.
+// It implements CertChecker and Formatter interfaces.
 type Checker struct {
 	fetcher   Fetcher
 	formatter Formatter
 }
 
 // New creates a new Checker with the given dependencies.
+// The fetcher retrieves certificates, the formatter formats output.
 func New(fetcher Fetcher, formatter Formatter) *Checker {
 	return &Checker{
 		fetcher:   fetcher,
@@ -52,11 +57,12 @@ func New(fetcher Fetcher, formatter Formatter) *Checker {
 var _ CertChecker = (*Checker)(nil)
 
 // Check fetches certificate info for a single host.
+// Returns the certificate or an error if the fetch fails.
 func (c *Checker) Check(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
 	return c.fetcher.Fetch(ctx, hostname, port)
 }
 
-// Format formats a certificate as bytes.
+// Format formats a certificate as bytes using the configured formatter.
 func (c *Checker) Format(cert *certificate.Certificate) ([]byte, error) {
 	return c.formatter.Format(cert)
 }
@@ -68,6 +74,8 @@ type checkResult struct {
 }
 
 // CheckAll fetches certificates for multiple hosts concurrently.
+// maxParallel controls the maximum number of concurrent fetches (0 = 10).
+// Returns a slice of certificates (nil for failed hosts) and a slice of errors.
 func (c *Checker) CheckAll(ctx context.Context, hosts []Host, maxParallel int) ([]*certificate.Certificate, []error) {
 	return assembleResults(c.fetchAll(ctx, hosts, maxParallel), hosts)
 }

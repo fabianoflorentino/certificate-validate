@@ -62,6 +62,7 @@ func (l *rateLimiter) allow() bool {
 var staticFiles embed.FS
 
 // Handler holds dependencies for HTTP handlers.
+// Provides certificate info, export, history, and health check endpoints.
 type Handler struct {
 	svc      *service.CertService
 	cfg      *config.Config
@@ -78,7 +79,10 @@ func New(svc *service.CertService, cfg *config.Config, apiToken string) *Handler
 	}
 }
 
-// Router returns an http.Handler with all routes registered.
+// Router returns an http.Handler with all API routes registered.
+// Routes include certificate info, export, history, health check, metrics (if enabled),
+// and the embedded web dashboard. API key authentication is enforced on /api/* routes
+// when configured.
 func (h *Handler) Router() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/cert/info/all", h.handleAll)

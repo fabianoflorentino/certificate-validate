@@ -68,6 +68,9 @@ func LoadRootCAs(paths []string) (*x509.CertPool, error) {
 	return pool, nil
 }
 
+// Fetch performs a TLS handshake with the specified host and port, extracts
+// the peer certificate chain, and returns a Certificate with all metadata
+// including revocation status. The context controls the overall timeout.
 func (f *tlsFetcher) Fetch(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
 	addr := net.JoinHostPort(hostname, strconv.Itoa(port))
 

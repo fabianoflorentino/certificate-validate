@@ -10,15 +10,18 @@ import (
 )
 
 // MetricsUpdater is a function type for updating metrics from certificate results.
+// Implementations update Prometheus gauges or other metrics systems.
 type MetricsUpdater func([]*certificate.Certificate)
 
 // CheckResult holds the certificates fetched and any errors encountered.
+// Certificates may be nil for failed hosts. Errors contains error messages.
 type CheckResult struct {
 	Certificates []*certificate.Certificate
 	Errors       []string
 }
 
 // CertService orchestrates certificate checking, history recording, and metrics.
+// Dependencies are injected via the constructor for testability.
 type CertService struct {
 	checker  checker.CertChecker
 	recorder history.Store
@@ -37,6 +40,7 @@ func NewCertService(c checker.CertChecker, recorder history.Store, metrics Metri
 
 // CheckAll fetches all certificates from configured hosts, filters nils,
 // records history if enabled, and updates Prometheus metrics if enabled.
+// Returns a CheckResult with certificates and error messages.
 func (s *CertService) CheckAll(ctx context.Context, cfgHosts []config.HostConfig) CheckResult {
 	hosts := config.ToCheckerHosts(cfgHosts)
 	certs, errs := s.checker.CheckAll(ctx, hosts, 10)
@@ -67,12 +71,14 @@ func (s *CertService) CheckAll(ctx context.Context, cfgHosts []config.HostConfig
 	}
 }
 
-// CheckSingle fetches a single certificate by hostname.
+// CheckSingle fetches a single certificate by hostname and port.
+// Unlike CheckAll, this does not record history or update metrics.
 func (s *CertService) CheckSingle(ctx context.Context, hostname string, port int) (*certificate.Certificate, error) {
 	return s.checker.Check(ctx, hostname, port)
 }
 
-// GetHistory returns history entries for a hostname.
+// GetHistory returns history entries for a hostname, newest first.
+// Returns nil if history recording is disabled.
 func (s *CertService) GetHistory(hostname string) ([]history.Entry, error) {
 	if s.recorder == nil {
 		return nil, nil

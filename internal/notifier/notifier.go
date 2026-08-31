@@ -15,6 +15,8 @@ import (
 )
 
 // Config holds webhook notification settings.
+// URL is the webhook endpoint. Threshold is the days-left trigger.
+// Interval is the minimum time between alerts per certificate.
 type Config struct {
 	URL       string
 	Threshold int
@@ -22,6 +24,7 @@ type Config struct {
 }
 
 // Notifier sends webhook alerts when certificates approach expiration.
+// Rate-limits alerts per certificate to avoid spam.
 type Notifier struct {
 	cfg     Config
 	checker checker.CertChecker
@@ -42,7 +45,8 @@ type alertPayload struct {
 	Message    string `json:"message"`
 }
 
-// New creates a new Notifier.
+// New creates a new Notifier with the given configuration.
+// The checker fetches certificates, hosts are the targets to check.
 func New(cfg Config, c checker.CertChecker, hosts []checker.Host) *Notifier {
 	return &Notifier{
 		cfg:         cfg,
@@ -53,7 +57,10 @@ func New(cfg Config, c checker.CertChecker, hosts []checker.Host) *Notifier {
 	}
 }
 
-// Start begins the periodic alert check loop.
+// Start begins the periodic alert check loop in a background goroutine.
+// The goroutine checks all configured hosts at the configured interval and
+// sends webhook alerts for certificates at or below the threshold.
+// The goroutine stops when the context is cancelled.
 func (n *Notifier) Start(ctx context.Context) {
 	ticker := time.NewTicker(n.cfg.Interval)
 	go func() {

@@ -15,6 +15,7 @@ import (
 )
 
 // Entry is a single history record for one certificate check.
+// Records the host, days left at check time, and timestamp.
 type Entry struct {
 	Host      string `json:"host"`
 	DaysLeft  int    `json:"daysLeft"`
@@ -22,6 +23,9 @@ type Entry struct {
 }
 
 // Config holds the recorder settings.
+// FilePath is the JSONL file path (default: data/history.jsonl).
+// MaxEntries limits the number of entries (default: 10000).
+// MaxDays limits the age of entries in days (default: 90).
 type Config struct {
 	FilePath   string
 	MaxEntries int
@@ -39,6 +43,7 @@ type Store interface {
 var _ Store = (*Recorder)(nil)
 
 // Recorder manages append and rotation of the JSONL history file.
+// Thread-safe for concurrent writes.
 type Recorder struct {
 	mu         sync.Mutex
 	path       string
@@ -46,7 +51,8 @@ type Recorder struct {
 	maxDays    int
 }
 
-// New creates a Recorder. Defaults: data/history.jsonl, 10000 entries, 90 days.
+// New creates a Recorder with the given configuration.
+// Defaults: data/history.jsonl, 10000 entries, 90 days.
 func New(cfg Config) *Recorder {
 	if cfg.FilePath == "" {
 		cfg.FilePath = "data/history.jsonl"
@@ -65,6 +71,8 @@ func New(cfg Config) *Recorder {
 }
 
 // Record appends certificate check results to the history file.
+// Creates the directory if it doesn't exist. Triggers rotation after recording.
+// Thread-safe for concurrent writes.
 func (r *Recorder) Record(results []*certificate.Certificate) {
 	if len(results) == 0 {
 		return
@@ -107,6 +115,7 @@ func (r *Recorder) Record(results []*certificate.Certificate) {
 }
 
 // GetHistory returns entries for a given host, newest first.
+// Returns nil if the file doesn't exist or no entries match.
 func (r *Recorder) GetHistory(hostname string) ([]Entry, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -131,7 +140,9 @@ func (r *Recorder) GetHistory(hostname string) ([]Entry, error) {
 	return filtered, nil
 }
 
-// StartRecorder periodically fetches all hosts and records history.
+// StartRecorder starts a background goroutine that periodically fetches all
+// configured hosts and records their certificate information to the history file.
+// The goroutine stops when the context is cancelled.
 func StartRecorder(ctx context.Context, r *Recorder, c *checker.Checker, hosts []checker.Host, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {

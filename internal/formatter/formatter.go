@@ -12,6 +12,7 @@ import (
 )
 
 // Formatter is the interface for formatting certificate information.
+// Implementations include JSON, table, and CSV formatters.
 type Formatter interface {
 	Format(cert *certificate.Certificate) ([]byte, error)
 }
@@ -21,11 +22,12 @@ type JSONFormatter struct {
 	indent string
 }
 
-// New creates a new JSONFormatter.
+// New creates a new JSONFormatter with 2-space indentation.
 func New() *JSONFormatter {
 	return &JSONFormatter{indent: "  "}
 }
 
+// Format formats a certificate as indented JSON bytes.
 func (f *JSONFormatter) Format(cert *certificate.Certificate) ([]byte, error) {
 	data, err := json.MarshalIndent(cert, "", f.indent)
 	if err != nil {
@@ -35,6 +37,8 @@ func (f *JSONFormatter) Format(cert *certificate.Certificate) ([]byte, error) {
 }
 
 // FormatTable formats certificates as an aligned table for CLI output.
+// The table includes columns for host, port, days left, status, revocation,
+// issuer, and TLS version.
 func FormatTable(certs []*certificate.Certificate) ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -87,7 +91,7 @@ func statusLabel(days int) string {
 	}
 }
 
-// FormatJSON formats multiple certificates as a JSON array.
+// FormatJSON formats multiple certificates as a JSON array with 2-space indentation.
 func FormatJSON(certs []*certificate.Certificate) ([]byte, error) {
 	data, err := json.MarshalIndent(certs, "", "  ")
 	if err != nil {
@@ -97,6 +101,8 @@ func FormatJSON(certs []*certificate.Certificate) ([]byte, error) {
 }
 
 // FormatCSV formats certificates as CSV with a header row.
+// Columns: hostname, port, commonName, issuer, notBefore, notAfter, daysLeft,
+// revocationStatus, tlsVersion, cipherSuite.
 func FormatCSV(certs []*certificate.Certificate) ([]byte, error) {
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)

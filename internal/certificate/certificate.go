@@ -21,10 +21,18 @@ type ChainEntry struct {
 // RevocationStatus represents the revocation status of a certificate.
 type RevocationStatus string
 
+// Revocation status constants returned by OCSP and CRL checks.
 const (
-	RevocationUnknown  RevocationStatus = "unknown"
-	RevocationGood     RevocationStatus = "good"
-	RevocationRevoked  RevocationStatus = "revoked"
+	// RevocationUnknown indicates the revocation status could not be determined.
+	RevocationUnknown RevocationStatus = "unknown"
+
+	// RevocationGood indicates the certificate is not revoked.
+	RevocationGood RevocationStatus = "good"
+
+	// RevocationRevoked indicates the certificate has been revoked.
+	RevocationRevoked RevocationStatus = "revoked"
+
+	// RevocationNotReady indicates no OCSP or CRL endpoints are available.
 	RevocationNotReady RevocationStatus = "not_ready"
 )
 

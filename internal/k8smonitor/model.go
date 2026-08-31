@@ -9,22 +9,40 @@ import (
 // Kind identifies the Kubernetes resource a certificate was discovered from.
 type Kind string
 
+// Kind constants for Kubernetes resource types.
 const (
-	KindSecret      Kind = "Secret"
-	KindIngress     Kind = "Ingress"
+	// KindSecret indicates the certificate was discovered from a TLS Secret.
+	KindSecret Kind = "Secret"
+
+	// KindIngress indicates the certificate was discovered from an Ingress.
+	KindIngress Kind = "Ingress"
+
+	// KindCertificate indicates the certificate was discovered from a cert-manager Certificate CRD.
 	KindCertificate Kind = "CertificateCRD"
 )
 
-// RenewalState tracks the lifecycle of a certificate.
+// RenewalState tracks the lifecycle of a certificate during auto-renewal.
 type RenewalState string
 
+// RenewalState constants for tracking certificate renewal progress.
 const (
-	RenewalStateNone       RenewalState = "none"
-	RenewalStatePending    RenewalState = "pending"
+	// RenewalStateNone indicates no renewal has been attempted.
+	RenewalStateNone RenewalState = "none"
+
+	// RenewalStatePending indicates a renewal is pending (not yet started).
+	RenewalStatePending RenewalState = "pending"
+
+	// RenewalStateInProgress indicates a renewal is in progress.
 	RenewalStateInProgress RenewalState = "in_progress"
-	RenewalStateSuccess    RenewalState = "success"
-	RenewalStateFailed     RenewalState = "failed"
-	RenewalStateStuck      RenewalState = "stuck"
+
+	// RenewalStateSuccess indicates the renewal completed successfully.
+	RenewalStateSuccess RenewalState = "success"
+
+	// RenewalStateFailed indicates the renewal failed.
+	RenewalStateFailed RenewalState = "failed"
+
+	// RenewalStateStuck indicates the renewal is stuck (serial unchanged after timeout).
+	RenewalStateStuck RenewalState = "stuck"
 )
 
 // K8sCertificate extends the core Certificate model with Kubernetes metadata

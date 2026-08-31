@@ -14,9 +14,10 @@ import (
 	"github.com/fabianoflorentino/certificate-validate/internal/certificate"
 )
 
-// CheckOCSP queries the OCSP responder to verify certificate revocation status.
-// Returns the OCSP response status or an error if the query fails.
+// CheckOCSP queries OCSP responders to verify certificate revocation status.
+// Tries each server in order, returning the first definitive result.
 // Returns RevocationNotReady if no OCSP servers are available.
+// Returns RevocationUnknown if all queries fail or return unknown status.
 func CheckOCSP(leaf *x509.Certificate, issuer *x509.Certificate, servers []string) certificate.RevocationStatus {
 	if len(servers) == 0 || leaf == nil || issuer == nil {
 		return certificate.RevocationNotReady
@@ -71,7 +72,9 @@ func tryOCSPServer(ctx context.Context, server string, reqBytes []byte, issuer *
 	}
 }
 
-// CheckCRL downloads and parses a CRL to verify if a certificate is revoked.
+// CheckCRL downloads and parses CRLs from the given URLs to verify if a
+// certificate is revoked. Returns RevocationUnknown if no CRL URLs are provided
+// or all checks fail.
 func CheckCRL(leaf *x509.Certificate, crlURLs []string) certificate.RevocationStatus {
 	for _, url := range crlURLs {
 		status := tryCRL(context.Background(), leaf, url)
@@ -132,6 +135,8 @@ var httpPost = func(ctx context.Context, url, contentType string, body []byte) (
 }
 
 // Check performs OCSP and CRL revocation checks on a certificate.
+// OCSP is preferred when servers are available; CRL is used as fallback.
+// Returns RevocationNotReady if neither OCSP servers nor CRL URLs are provided.
 func Check(leaf *x509.Certificate, issuer *x509.Certificate, ocspServers, crlURLs []string) certificate.RevocationStatus {
 	if len(ocspServers) > 0 {
 		status := CheckOCSP(leaf, issuer, ocspServers)
@@ -147,7 +152,8 @@ func Check(leaf *x509.Certificate, issuer *x509.Certificate, ocspServers, crlURL
 	return certificate.RevocationNotReady
 }
 
-// LogRevocation logs the revocation status of a certificate.
+// LogRevocation logs a warning if the certificate revocation status is Revoked.
+// This is a convenience function for consistent logging across the application.
 func LogRevocation(cert *certificate.Certificate, status certificate.RevocationStatus) {
 	if status == certificate.RevocationRevoked {
 		slog.Warn("certificate is revoked",

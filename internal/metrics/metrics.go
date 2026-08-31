@@ -33,6 +33,7 @@ var (
 )
 
 // Update updates Prometheus gauges from certificate results.
+// Sets certificate_days_left and certificate_expired for each certificate.
 func Update(certs []*certificate.Certificate) {
 	for _, c := range certs {
 		if c == nil {
@@ -43,6 +44,7 @@ func Update(certs []*certificate.Certificate) {
 }
 
 // StartUpdater periodically fetches certificates in the background and updates Prometheus gauges.
+// The goroutine stops when the context is cancelled.
 func StartUpdater(ctx context.Context, c checker.CertChecker, hosts []checker.Host, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
@@ -82,7 +84,8 @@ func setGauges(hostname string, port, daysLeft int) {
 	expiredGauge.WithLabelValues(hostname, portStr).Set(v)
 }
 
-// Handler returns an http.Handler that serves Prometheus metrics.
+// Handler returns an http.Handler that serves Prometheus metrics on the /metrics
+// endpoint. This uses the default Prometheus registry.
 func Handler() http.Handler {
 	return promhttp.Handler()
 }
