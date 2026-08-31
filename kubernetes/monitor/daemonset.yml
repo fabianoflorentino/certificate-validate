@@ -30,6 +30,9 @@ spec:
             - --check-revocation
             - --webhook-url=$(ALERT_WEBHOOK_URL)
             - --webhook-threshold=15
+            # Phase 2: enables auto-renewal (annotate → cert-manager re-issues).
+            # Remove this flag to restore the read-only Phase 1 behavior.
+            - --renew-threshold=15
             - --metrics-addr=:9102
           env:
             - name: ALERT_WEBHOOK_URL

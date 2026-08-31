@@ -5,8 +5,9 @@ metadata:
   name: cert-validate-monitor
   namespace: cert-manager
 ---
-# Phase 1: read-only monitoring. The `update` verb on secrets and event
-# creation are added in Phase 2 (auto-renewal via annotation).
+# Phase 2: read-only monitoring plus auto-renewal. `update` on secrets
+# enables the cert-manager force-renew annotation, `events` records renewal
+# progress, and cert-manager CRDs are readable for post-renewal validation.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -14,9 +15,15 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "issuers"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
