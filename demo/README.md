@@ -6,6 +6,11 @@ public certificate authorities:
 - **Compose demo** — TLS origin, API server, Prometheus, and webhook receiver.
 - **Kubernetes demo** — kind + cert-manager + `k8s monitor` + webhook alerts.
 
+| Demo | Command | What it proves | CI job |
+| --- | --- | --- | --- |
+| Compose | `make demo/test` | CLI, API, metrics, webhook, Prometheus scraping | `compose-demo` |
+| Kubernetes | `make demo/kind` | kind deploy, Secret/Ingress discovery, metrics, webhook | `kind-demo` |
+
 Both start from a short-lived **self-signed certificate**. Switching the compose
 demo to real certificates only requires dropping the certificate files in
 `demo/compose/certs/` and setting `DEMO_HOST`; see

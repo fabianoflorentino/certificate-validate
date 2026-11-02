@@ -558,6 +558,11 @@ See [`dev/README.md`](dev/README.md#end-to-end-monitoring-and-alerting-demo).
 Two self-contained demos use only **self-signed certificates** and local
 Docker DNS — no Let's Encrypt, public DNS, or external CA required.
 
+| Demo | Command | What it proves |
+| --- | --- | --- |
+| Compose | `make demo/test` | CLI, API, metrics, webhook, Prometheus scraping |
+| Kubernetes | `make demo/kind` | kind deploy, Secret/Ingress discovery, metrics, webhook |
+
 ```bash
 make demo/up       # TLS origin + API + Prometheus + webhook receiver
 make demo/verify   # asserts API, metrics, webhook, Prometheus, and CLI

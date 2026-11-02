@@ -54,6 +54,17 @@ jobs:
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts/compose
         run: make demo/verify
 
+      - name: Publish compose demo summary
+        if: always()
+        run: |
+          mkdir -p artifacts/compose
+          if [ -f artifacts/compose/summary.md ]; then
+            cat artifacts/compose/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '## Compose demo\n\n❌ Demo did not complete. See the logs and uploaded artifacts.\n' \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Collect diagnostics
         if: always()
         run: |
@@ -100,12 +111,32 @@ jobs:
         with:
           version: v3.21.4
 
+      - name: Ensure demo tools
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+          jq --version
+
       - name: Run kind demo
         env:
           REPO_ROOT: ${{ github.workspace }}
           STATE_DIR: ${{ runner.temp }}/cv-demo
           KUBECONFIG: ${{ runner.temp }}/cv-demo/kubeconfig
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts/kind
         run: ./demo/kind/run.sh
+
+      - name: Publish kind demo summary
+        if: always()
+        run: |
+          mkdir -p artifacts/kind
+          if [ -f artifacts/kind/summary.md ]; then
+            cat artifacts/kind/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '## Kubernetes demo\n\n❌ Demo did not complete. See the logs and uploaded artifacts.\n' \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Collect diagnostics
         if: always()

@@ -119,19 +119,29 @@ printf '%s\n' "${cli_out}" > "${TMP_DIR}/cli-check.json"
 jq -e --arg host "${DEMO_HOST}" '.hostname == $host and .daysLeft > 0' \
     "${TMP_DIR}/cli-check.json" >/dev/null 2>&1 || fail "CLI check did not return a valid certificate"
 
+summary_content="$(cat <<EOF
+## Compose demo
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| API health | ✅ | \`ok\` |
+| Certificate API | ✅ | \`${DEMO_HOST}:${DEMO_PORT}\` |
+| Prometheus metrics | ✅ | \`certificate_days_left\` exposed |
+| Webhook alert | ✅ | payload delivered |
+| Prometheus query | ✅ | \`certificate_days_left\` returned data |
+| CLI check | ✅ | config check passed |
+
+**Target:** \`${DEMO_HOST}:${DEMO_PORT}\` · **Days left:** \`${days_left}\`
+EOF
+)"
+
 if [[ -n "${ARTIFACTS_DIR}" ]]; then
     cp "${TMP_DIR}/cert.json" "${ARTIFACTS_DIR}/certificate.json"
     cp "${TMP_DIR}/metrics.txt" "${ARTIFACTS_DIR}/metrics.txt"
     cp "${TMP_DIR}/webhook-alerts.jsonl" "${ARTIFACTS_DIR}/webhook-alerts.jsonl"
     cp "${TMP_DIR}/prometheus.json" "${ARTIFACTS_DIR}/prometheus.json"
     cp "${TMP_DIR}/cli-check.json" "${ARTIFACTS_DIR}/cli-check.json"
+    printf '%s\n' "${summary_content}" > "${ARTIFACTS_DIR}/summary.md"
 fi
 
-log ""
-log "Compose demo verified:"
-log "  host:        ${DEMO_HOST}:${DEMO_PORT}"
-log "  days left:   ${days_left}"
-log "  metrics:     certificate_days_left present"
-log "  webhook:     alert delivered"
-log "  prometheus:  query returned data"
-log "  CLI:         config check passed"
+printf '\n%s\n' "${summary_content}"
