@@ -44,7 +44,7 @@ flowchart TB
     subgraph Cluster["☸️ Kubernetes Cluster"]
         IM["certificate-validate\nMonitor Agent\n(DaemonSet / Operator)"]
 
-        subgraph Observabilidade["📊 Observability"]
+        subgraph Observability["📊 Observability"]
             PROM["Prometheus Operator\nServiceMonitor"]
             GRAF["Grafana\nDashboard"]
             EVENTS["K8s Events"]
@@ -766,11 +766,11 @@ spec:
 
 > The `CertificateRenewalFailed` and `CertificateStuckIssuance` rules use the renewal
 > metrics (`certificate_renewal_total`, `certificate_renewal_attempts`,
-> `certificate_stuck_issuance`) delivered in Phase 2 (auto-renewal). Example rules:
+> `certificate_stuck_issuance`) implemented in Phase 2 (auto-renewal). Example rules:
 
 ```yaml
 - alert: CertificateRenewalFailed
-  expr: rate(certificate_renewal_total{result="failed"}[5m]) > 0
+  expr: rate(certificate_renewal_total{status="failure"}[5m]) > 0
   for: 5m
   labels:
     severity: warning
