@@ -21,21 +21,68 @@ docker run --rm fabianoflorentino/certificate-validate --help
 
 ## Features
 
-- **CLI Mode** — Check certificates with JSON/table output, watch mode, and filtering
-- **HTTP API** — RESTful API with Swagger UI, rate limiting, and optional API key auth
-- **Web Dashboard** — Interactive UI with search, sort, history charts, and dark/light themes
-- **Export** — Export certificate data to JSON or CSV via CLI or API
-- **Watch Mode** — Continuous checking with configurable interval
-- **Alert Webhook** — POST alerts when certificates approach expiration
-- **History** — Records check results in JSONL with automatic rotation
-- **Prometheus Metrics** — Exposes `certificate_days_left` and `certificate_expired` gauges
-- **Revocation Checks** — OCSP + CRL validation per certificate
-- **Kubernetes Monitoring** — `k8s monitor` scans TLS Secrets + Ingresses, exports metrics with K8s labels, fires webhook alerts, and can auto-renew expiring certs via cert-manager (read-only by default; opt-in via `--renew-threshold`)
-- **Hot-Reload** — `SIGHUP` reloads config without restarting the server
-- **Self-Signed CAs** — Global and per-host trusted CA certificates
-- **Environment Variables** — `CV_` prefix overrides for all config fields
-- **Concurrent Processing** — Parallel certificate fetching with semaphore
-- **Minimal Image** — Small Docker image (~10MB) with non-root user
+<div class="feature-grid">
+    <article class="feature-card">
+        <span class="feature-kicker">01 · CLI</span>
+        <h3>CLI &amp; export</h3>
+        <p>Check one host or every configured endpoint. Emit JSON or aligned tables, and export to CSV from the CLI or API.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">02 · API</span>
+        <h3>HTTP API &amp; dashboard</h3>
+        <p>REST endpoints, Swagger UI, API-key auth, rate limiting, and an embedded dashboard with history charts.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">03 · MONITOR</span>
+        <h3>Watch mode</h3>
+        <p>Re-check on an interval and surface certificates that cross your days-left threshold.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">04 · REVOCATION</span>
+        <h3>OCSP + CRL</h3>
+        <p>Verify revocation with OCSP first and fall back to CRL distribution points when needed.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">05 · KUBERNETES</span>
+        <h3>Cluster monitor</h3>
+        <p>Discover TLS Secrets and Ingresses, analyze chains, export metrics, and auto-renew via cert-manager when enabled.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">06 · METRICS</span>
+        <h3>Prometheus ready</h3>
+        <p>Expose <code>certificate_days_left</code>, <code>certificate_expired</code>, <code>certificate_revoked</code>, and renewal counters.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">07 · ALERTS</span>
+        <h3>Webhook alerts</h3>
+        <p>POST structured JSON when a certificate approaches expiry, rate-limited per resource to avoid alert spam.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">08 · OPS</span>
+        <h3>History &amp; hot reload</h3>
+        <p>Record check results as JSONL with automatic rotation, and reload configuration on <code>SIGHUP</code> without a restart.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">09 · TRUST</span>
+        <h3>Private CAs</h3>
+        <p>Trust global or per-host CA bundles for internal, self-signed, and privately-signed certificates.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">10 · RUNTIME</span>
+        <h3>Concurrent fetching</h3>
+        <p>Check many hosts in parallel with a bounded semaphore, keeping scans fast and predictable.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">11 · CONFIG</span>
+        <h3>Environment overrides</h3>
+        <p>Override any configuration field with <code>CV_</code>-prefixed environment variables.</p>
+    </article>
+    <article class="feature-card">
+        <span class="feature-kicker">12 · IMAGE</span>
+        <h3>Minimal footprint</h3>
+        <p>Ship a ~10 MB non-root container image with the CLI, API, and Kubernetes monitor in one binary.</p>
+    </article>
+</div>
 
 ## CLI Usage
 

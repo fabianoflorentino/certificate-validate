@@ -8,8 +8,7 @@ title = "certificate-validate"
   docker  = "https://hub.docker.com/r/fabianoflorentino/certificate-validate"
   pkg_go = "https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate"
   swagger = "https://fabianoflorentino.github.io/certificate-validate/swagger/"
-  version = "v1.0.4"
-  eyebrow = "Open source · Go · Kubernetes · Prometheus"
+  version = "v1.0.12"
   tagline = "Certificates expire."
   headline_accent = "Your uptime shouldn't."
   subtitle = "Validate TLS from the CLI or HTTP API, monitor Kubernetes Secrets and Ingresses, verify OCSP/CRL revocation, and ship Prometheus metrics and webhook alerts before expiry becomes an outage."
@@ -30,10 +29,6 @@ title = "certificate-validate"
     name   = "Docs"
     url    = "https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate"
     weight = 3
-  [[menu.main]]
-    name   = "GitHub"
-    url    = "https://github.com/fabianoflorentino/certificate-validate"
-    weight = 4
 
 [markup]
   [markup.highlight]

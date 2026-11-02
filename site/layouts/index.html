@@ -1,71 +1,105 @@
 {{ define "main" }}
 <article class="home">
     <section class="hero">
-        <div class="hero-copy">
-            <p class="eyebrow">{{ .Site.Params.eyebrow }}</p>
-            <h1>
-                {{ .Site.Params.tagline }}<br>
-                <span class="accent">{{ .Site.Params.headline_accent }}</span>
-            </h1>
-            <p class="subtitle">{{ .Site.Params.subtitle }}</p>
+        <canvas id="particle-canvas" aria-hidden="true"></canvas>
 
-            <div class="hero-actions">
-                <a href="#quickstart" class="btn btn-primary">Quickstart <span aria-hidden="true">→</span></a>
-                <a href="{{ .Site.Params.github }}" class="btn btn-secondary">GitHub</a>
-                <a href="{{ .Site.Params.pkg_go }}" class="btn btn-ghost">Go Docs</a>
-                <a href="{{ .Site.Params.docker }}" class="btn btn-ghost">Docker Hub</a>
-            </div>
+        <div class="hero-inner">
+            <div class="hero-copy">
+                <a class="hero-badge" href="{{ .Site.Params.github }}/releases">
+                    <span class="badge-dot" aria-hidden="true"></span>
+                    {{ .Site.Params.version }} — Latest release
+                    <span class="badge-arrow" aria-hidden="true">→</span>
+                </a>
 
-            <div class="install">
-                <span class="install-label" aria-hidden="true">$</span>
-                <code>go install github.com/fabianoflorentino/certificate-validate/cmd/certificate-validate@latest</code>
-                <button class="install-copy" type="button"
-                    data-copy="go install github.com/fabianoflorentino/certificate-validate/cmd/certificate-validate@latest">
-                    copy
-                </button>
-            </div>
-        </div>
+                <h1 class="hero-headline">
+                    {{ .Site.Params.tagline }}<br>
+                    <span class="gradient-text">{{ .Site.Params.headline_accent }}</span>
+                </h1>
 
-        <div class="hero-panel" aria-hidden="true">
-            <div class="terminal">
-                <div class="terminal-bar">
-                    <span></span><span></span><span></span>
-                    <em>certificate-validate check</em>
+                <p class="hero-sub">{{ .Site.Params.subtitle }}</p>
+
+                <div class="hero-actions">
+                    <a href="#quickstart" class="btn btn-primary">Get started <span aria-hidden="true">→</span></a>
+                    <a href="{{ .Site.Params.github }}" class="btn btn-outline">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
+                            <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5Z"/>
+                        </svg>
+                        GitHub
+                    </a>
+                    <a href="{{ .Site.Params.docker }}" class="btn btn-ghost">Docker Hub</a>
                 </div>
-                <div class="terminal-body">
-                    <div class="term-row term-head">
-                        <span>host</span><span>days</span><span>status</span>
-                    </div>
-                    <div class="term-row">
-                        <span>github.com</span><span>87</span><span class="ok">valid</span>
-                    </div>
-                    <div class="term-row">
-                        <span>api.internal</span><span>14</span><span class="warn">expiring</span>
-                    </div>
-                    <div class="term-row">
-                        <span>vault.internal</span><span>41</span><span class="ok">valid</span>
-                    </div>
-                    <div class="term-row">
-                        <span>legacy.example</span><span>—</span><span class="ok">valid</span>
+
+                <div class="hero-install">
+                    <div class="install-snippet">
+                        <span class="install-prompt" aria-hidden="true">$</span>
+                        <code>go install github.com/fabianoflorentino/certificate-validate/cmd/certificate-validate@latest</code>
+                        <button class="install-copy" type="button"
+                            data-copy="go install github.com/fabianoflorentino/certificate-validate/cmd/certificate-validate@latest">
+                            copy
+                        </button>
                     </div>
                 </div>
-                <div class="terminal-foot">
-                    <span class="dot"></span>
-                    3 certificates · 0 expired · 1 expiring
-                </div>
             </div>
-            <div class="panel-badge">
-                <span>next expiry</span>
-                <strong>14 days</strong>
+
+            <div class="hero-terminal" aria-hidden="true">
+                <div class="terminal-window">
+                    <div class="terminal-chrome">
+                        <span class="terminal-dots">
+                            <i class="dot-red"></i><i class="dot-yellow"></i><i class="dot-green"></i>
+                        </span>
+                        <span class="terminal-title">certificate-validate — scan</span>
+                    </div>
+                    <div class="terminal-body">
+                        <p class="terminal-cmd"><span>$</span> certificate-validate check --min-days 30</p>
+
+                        <div class="terminal-summary">
+                            <span class="ok">4 checked</span>
+                            <span class="warn">1 expiring</span>
+                            <span class="ok">0 expired</span>
+                            <span>2 webhooks</span>
+                        </div>
+
+                        <div class="terminal-table">
+                            <div class="terminal-row terminal-head">
+                                <span>host</span><span>days</span><span>health</span><span>status</span>
+                            </div>
+                            <div class="terminal-row">
+                                <span>github.com</span><span>87</span>
+                                <span class="health"><i style="--w: 87%"></i></span>
+                                <span class="ok">valid</span>
+                            </div>
+                            <div class="terminal-row">
+                                <span>api.internal</span><span>14</span>
+                                <span class="health warn"><i style="--w: 14%"></i></span>
+                                <span class="warn">expiring</span>
+                            </div>
+                            <div class="terminal-row">
+                                <span>vault.internal</span><span>41</span>
+                                <span class="health"><i style="--w: 41%"></i></span>
+                                <span class="ok">valid</span>
+                            </div>
+                            <div class="terminal-row">
+                                <span>legacy.example</span><span>64</span>
+                                <span class="health"><i style="--w: 64%"></i></span>
+                                <span class="ok">valid</span>
+                            </div>
+                        </div>
+
+                        <div class="terminal-alert">
+                            ⚠ api.internal expires in 14 days — webhook alert sent
+                        </div>
+                        <p class="terminal-hint">q quit · r rescan · a acknowledge · ? help</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
-    <section class="fact-strip" aria-label="Core capabilities">
-        <div><span>OCSP + CRL</span><strong>Revocation aware</strong></div>
-        <div><span>TLS 1.2 / 1.3</span><strong>Chain inspection</strong></div>
-        <div><span>Kubernetes</span><strong>Secrets + Ingresses</strong></div>
-        <div><span>Prometheus</span><strong>Metrics + webhooks</strong></div>
+    <section class="signal-strip" aria-label="Core capabilities">
+        <div><span>01</span><strong>OCSP + CRL</strong><em>Revocation aware</em></div>
+        <div><span>02</span><strong>TLS 1.2 / 1.3</strong><em>Chain inspection</em></div>
+        <div><span>03</span><strong>Kubernetes</strong><em>Secrets + Ingresses</em></div>
+        <div><span>04</span><strong>Prometheus</strong><em>Metrics + webhooks</em></div>
     </section>
 
     <section class="content">
