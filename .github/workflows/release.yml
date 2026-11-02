@@ -20,8 +20,11 @@ on:
       - 'docs/**'
       - '**/*.md'
       - 'scripts/**'
+      - 'demo/**'
+      - 'site/**'
       - 'Makefile'
       - '.agents/**'
+      - '.github/**'
       - '.*/**'
 
 permissions:
@@ -249,13 +252,13 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.dry_run != 'true' }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Update pkg.go.dev
         run: GOPROXY=https://proxy.golang.org go list -m github.com/fabianoflorentino/certificate-validate@${{ needs.version.outputs.next_version }}
