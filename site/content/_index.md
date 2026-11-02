@@ -1,13 +1,9 @@
 ---
 title: "certificate-validate"
-description: "A modern SSL/TLS certificate validation tool with CLI, HTTP API, and web dashboard"
+description: "Monitor SSL/TLS certificates from the CLI, HTTP API, or Kubernetes with OCSP/CRL checks, Prometheus metrics, and webhook alerts."
 ---
 
-## SSL/TLS certificate validation. CLI, API, and dashboard.
-
-A modern Go tool for monitoring certificates with real-time checks, revocation validation (OCSP/CRL), Prometheus metrics, webhook alerts, and an interactive web dashboard.
-
-### Quickstart
+## Quickstart
 
 Install via Go:
 
@@ -23,7 +19,7 @@ docker pull fabianoflorentino/certificate-validate:latest
 docker run --rm fabianoflorentino/certificate-validate --help
 ```
 
-### Key features
+## Features
 
 - **CLI Mode** — Check certificates with JSON/table output, watch mode, and filtering
 - **HTTP API** — RESTful API with Swagger UI, rate limiting, and optional API key auth
@@ -41,7 +37,7 @@ docker run --rm fabianoflorentino/certificate-validate --help
 - **Concurrent Processing** — Parallel certificate fetching with semaphore
 - **Minimal Image** — Small Docker image (~10MB) with non-root user
 
-### CLI Usage
+## CLI Usage
 
 ```bash
 # Check all hosts from config
@@ -78,7 +74,7 @@ certificate-validate k8s monitor --watch-interval=300 --metrics-addr=:9102 --web
 certificate-validate k8s monitor --renew-threshold=15
 ```
 
-### API Endpoints
+## API Endpoints
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -92,7 +88,7 @@ certificate-validate k8s monitor --renew-threshold=15
 | GET | `/api/v1/cert/history/{hostname}` | Check history |
 | GET | `/metrics` | Prometheus metrics |
 
-### Observability
+## Observability
 
 Prometheus metrics are exposed at `/metrics` (core server) or on the
 `k8s monitor` metrics address, using the `certificate_` prefix:
@@ -117,7 +113,7 @@ end-to-end demo (kind + cert-manager + webhook receiver) is available through
 `make dev/up`, `make dev/setup`, and `make dev/alert-demo`; see the
 [development guide](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md#end-to-end-monitoring-and-alerting-demo).
 
-### Configuration
+## Configuration
 
 ```yaml
 check_time: 30                    # Check interval (seconds)
@@ -155,7 +151,7 @@ trusted_cas:
   - '/etc/certificates/my-ca.pem'
 ```
 
-### Docker & Kubernetes
+## Docker & Kubernetes
 
 ```bash
 # Docker CLI
@@ -174,7 +170,7 @@ A disposable dev environment (kind + cert-manager) is documented in
 [`dev/README.md`](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md)
 and driven by the `make dev/*` targets.
 
-### Learn more
+## Learn more
 
 - [Architecture Documentation](https://github.com/fabianoflorentino/certificate-validate/blob/main/docs/ARCHITECTURE.md)
 - [Kubernetes Integration Guide](https://github.com/fabianoflorentino/certificate-validate/blob/main/docs/K8S_INTEGRATION.md)

@@ -3,17 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .Title }} - {{ .Site.Title }}</title>
-    <meta name="description" content="{{ .Description | default .Site.Params.description }}">
-    <link rel="stylesheet" href="{{ "css/style.css" | relURL }}">
+    <title>{{ if .IsHome }}TLS certificate validation &amp; monitoring · {{ .Site.Title }}{{ else }}{{ .Title }} · {{ .Site.Title }}{{ end }}</title>
+    {{ $description := .Description | default .Site.Params.description }}
+    <meta name="description" content="{{ $description }}">
+    <meta name="theme-color" content="#070b09">
+    <link rel="canonical" href="{{ .Permalink }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} · {{ .Site.Title }}{{ end }}">
+    <meta property="og:description" content="{{ $description }}">
+    <meta property="og:url" content="{{ .Permalink }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} · {{ .Site.Title }}{{ end }}">
+    <meta name="twitter:description" content="{{ $description }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ "css/style.css" | relURL }}">
 </head>
 <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
     <header class="site-header">
         <nav>
-            <a href="{{ .Site.BaseURL }}" class="logo">{{ .Site.Title }}</a>
+            <a href="{{ .Site.BaseURL }}" class="logo">
+                <span class="logo-mark" aria-hidden="true"></span>
+                {{ .Site.Title }}
+            </a>
             <ul class="nav-links">
                 {{ range .Site.Menus.main }}
                 <li><a href="{{ .URL }}">{{ .Name }}</a></li>
@@ -22,7 +37,7 @@
         </nav>
     </header>
 
-    <main>
+    <main id="main">
         {{ block "main" . }}{{ end }}
     </main>
 
@@ -33,5 +48,7 @@
             <a href="{{ .Site.Params.github }}">Source</a>
         </p>
     </footer>
+
+    <script src="{{ "js/main.js" | relURL }}" defer></script>
 </body>
 </html>
