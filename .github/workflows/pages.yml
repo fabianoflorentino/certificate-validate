@@ -6,6 +6,8 @@ on:
     paths:
       - 'site/**'
       - '.github/workflows/pages.yml'
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -34,6 +36,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve site version
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          if [ -z "${VERSION}" ]; then
+            VERSION="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          fi
+          if [ -z "${VERSION}" ]; then
+            VERSION="$(grep -E '^  version = ' site/hugo.toml | head -1 | sed -E 's/.*"(.*)"/\1/')"
+          fi
+          echo "HUGO_SITE_VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "Site version: ${VERSION}"
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
