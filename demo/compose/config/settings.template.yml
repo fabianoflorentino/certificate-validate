@@ -1,0 +1,27 @@
+check_time: __CHECK_TIME__
+
+app_configs:
+  - name: 'certificate-validate'
+    host: '0.0.0.0'
+    port: '5000'
+    environment: 'demo'
+    debug: false
+
+prometheus:
+  enabled: true
+  address: ':5000'  # /metrics is served by the API listener in this demo
+
+webhook:
+  url: 'http://webhook-receiver:9099/alert'
+  threshold: __ALERT_THRESHOLD__
+  interval: __ALERT_INTERVAL__
+
+history:
+  enabled: false
+
+trusted_cas: [__TRUSTED_CA__]
+
+hosts:
+  - name: 'Demo TLS origin'
+    url: '__DEMO_HOST__'
+    port: '__DEMO_PORT__'

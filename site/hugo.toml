@@ -3,30 +3,31 @@ languageCode = "en-us"
 title = "certificate-validate"
 
 [params]
-  description = "A modern SSL/TLS certificate validation tool with CLI, HTTP API, and web dashboard"
+  description = "Monitor SSL/TLS certificates from the CLI, HTTP API, or Kubernetes with OCSP/CRL checks, Prometheus metrics, and webhook alerts."
   github = "https://github.com/fabianoflorentino/certificate-validate"
   docker  = "https://hub.docker.com/r/fabianoflorentino/certificate-validate"
   pkg_go = "https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate"
   swagger = "https://fabianoflorentino.github.io/certificate-validate/swagger/"
-  version = "v1.0.4"
-  tagline = "SSL/TLS certificate validation. CLI, API, dashboard, and Kubernetes."
-  subtitle = "A modern Go tool for monitoring certificates with real-time checks, revocation validation (OCSP/CRL), Prometheus metrics, webhook alerts, Kubernetes monitoring (k8s monitor), and an interactive web dashboard."
+  version = "v1.0.12"
+  tagline = "Certificates expire."
+  headline_accent = "Your uptime shouldn't."
+  subtitle = "Validate TLS from the CLI or HTTP API, monitor Kubernetes Secrets and Ingresses, verify OCSP/CRL revocation, and ship Prometheus metrics and webhook alerts before expiry becomes an outage."
   author  = "Fabiano Florentino"
   license = "Apache License 2.0"
   license_url = "https://www.apache.org/licenses/LICENSE-2.0"
 
 [menu]
   [[menu.main]]
+    name   = "Quickstart"
+    url    = "/#quickstart"
+    weight = 1
+  [[menu.main]]
     name   = "Features"
     url    = "/#features"
-    weight = 1
+    weight = 2
   [[menu.main]]
     name   = "Docs"
     url    = "https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate"
-    weight = 2
-  [[menu.main]]
-    name   = "GitHub"
-    url    = "https://github.com/fabianoflorentino/certificate-validate"
     weight = 3
 
 [markup]

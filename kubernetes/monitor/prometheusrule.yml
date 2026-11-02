@@ -1,0 +1,58 @@
+---
+# Requires the Prometheus Operator CRDs (monitoring.coreos.com/v1).
+# Alerts are evaluated against the metrics served by `k8s monitor --metrics-addr`.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cert-validate-alerts
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: certificate-validate
+spec:
+  groups:
+    - name: certificate-validate
+      rules:
+        - alert: CertificateExpiringSoon
+          expr: certificate_days_left < 15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.name }} expiring in {{ $value }} days"
+            description: "{{ $labels.kind }} {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value }} days"
+
+        - alert: CertificateExpired
+          expr: certificate_days_left <= 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} has expired"
+            description: "{{ $labels.kind }} {{ $labels.namespace }}/{{ $labels.name }} expired {{ $value }} days ago"
+
+        - alert: CertificateRevoked
+          expr: certificate_revoked == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} has been revoked"
+            description: "OCSP/CRL reports {{ $labels.namespace }}/{{ $labels.name }} as revoked"
+
+        - alert: CertificateRenewalFailed
+          expr: rate(certificate_renewal_total{status="failure"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.name }} renewal failed"
+            description: "{{ $labels.namespace }}/{{ $labels.name }} renewal did not complete in time"
+
+        - alert: CertificateStuckIssuance
+          expr: certificate_stuck_issuance == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} stuck issuance"
+            description: "{{ $labels.namespace }}/{{ $labels.name }} serial did not change after forced renewal"

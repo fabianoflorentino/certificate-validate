@@ -6,6 +6,7 @@
 #   Docker:        docker/build, docker/run, docker/stop, docker/rm
 #   Docker Compose: compose/up, compose/down, compose/logs, compose/build,
 #                   compose/restart, compose/ps, compose/exec
+#   Demo:          demo/up, demo/verify, demo/test, demo/logs, demo/down, demo/kind
 # =============================================================================
 
 BINARY_NAME    := certificate-validate
@@ -190,6 +191,10 @@ dev/setup: ## Create kind cluster + cert-manager + deploy the monitor
 dev/scan: ## Run a one-off k8s monitor scan
 	$(DEV_COMPOSE) exec dev kubectl -n cert-manager exec daemonset/cert-validate-monitor -- certificate-validate k8s monitor
 
+.PHONY: dev/alert-demo
+dev/alert-demo: ## Run the end-to-end metrics + webhook alert demo
+	$(DEV_COMPOSE) exec dev bash /usr/local/bin/dev-scripts/alert-demo.sh
+
 .PHONY: dev/logs
 dev/logs: ## Stream the deployed monitor logs
 	$(DEV_COMPOSE) exec dev bash /usr/local/bin/dev-scripts/monitor-logs.sh
@@ -201,6 +206,35 @@ dev/down: ## Stop the dev container
 .PHONY: dev/destroy
 dev/destroy: ## Destroy the dev container and all cluster volume state
 	$(DEV_COMPOSE) down -v
+
+# ---- Deterministic demo ----------------------------------------------------
+
+DEMO_COMPOSE_FILE := demo/compose/docker-compose.yml
+DEMO_ENV_FILE     := $(wildcard demo/compose/.env)
+DEMO_COMPOSE      := docker compose -f $(DEMO_COMPOSE_FILE) $(if $(DEMO_ENV_FILE),--env-file $(DEMO_ENV_FILE))
+
+.PHONY: demo/up
+demo/up: ## Build and start the deterministic TLS/API/metrics/webhook demo
+	$(DEMO_COMPOSE) up -d --build
+
+.PHONY: demo/verify
+demo/verify: ## Verify API, metrics, webhook, Prometheus, and CLI in the demo
+	./demo/compose/verify.sh
+
+.PHONY: demo/test
+demo/test: demo/up demo/verify ## Start the demo and run all assertions
+
+.PHONY: demo/logs
+demo/logs: ## Follow the demo stack logs
+	$(DEMO_COMPOSE) logs -f
+
+.PHONY: demo/down
+demo/down: ## Stop the demo and remove its volumes
+	$(DEMO_COMPOSE) down -v
+
+.PHONY: demo/kind
+demo/kind: ## Run the kind + cert-manager end-to-end demo
+	./demo/kind/run.sh
 
 # ---- Help ------------------------------------------------------------------
 
@@ -218,3 +252,6 @@ help: ## Show this help message
 	@printf "  make docker/build       # Build Docker image\n"
 	@printf "  make compose/up         # Start Docker Compose services\n"
 	@printf "  make compose/logs       # Follow logs\n"
+	@printf "  make dev/alert-demo     # Kubernetes metrics + webhook alert demo\n"
+	@printf "  make demo/test          # Deterministic compose demo + assertions\n"
+	@printf "  make demo/kind          # kind + cert-manager end-to-end demo\n"

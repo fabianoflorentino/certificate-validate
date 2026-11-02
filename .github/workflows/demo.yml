@@ -1,0 +1,133 @@
+name: Demo
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'docs/**'
+      - 'site/**'
+      - '**/*.md'
+      - '.agents/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'docs/**'
+      - 'site/**'
+      - '**/*.md'
+      - '.agents/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose-demo:
+    name: Compose demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure demo tools
+        run: |
+          docker compose version
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+          jq --version
+
+      - name: Start the compose demo
+        run: make demo/up
+
+      - name: Verify the compose demo
+        env:
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts/compose
+        run: make demo/verify
+
+      - name: Collect diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/compose
+          docker compose -f demo/compose/docker-compose.yml logs --no-color \
+            > artifacts/compose/compose.log 2>&1 || true
+          docker compose -f demo/compose/docker-compose.yml ps \
+            > artifacts/compose/compose-ps.txt 2>&1 || true
+
+      - name: Upload compose demo artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compose-demo
+          path: artifacts/compose
+
+      - name: Stop the compose demo
+        if: always()
+        run: make demo/down || true
+
+  kind-demo:
+    name: Kind demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          version: v0.32.0
+          cluster_name: cert-validate
+          node_image: kindest/node:v1.36.1
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.21.4
+
+      - name: Run kind demo
+        env:
+          REPO_ROOT: ${{ github.workspace }}
+          STATE_DIR: ${{ runner.temp }}/cv-demo
+          KUBECONFIG: ${{ runner.temp }}/cv-demo/kubeconfig
+        run: ./demo/kind/run.sh
+
+      - name: Collect diagnostics
+        if: always()
+        env:
+          KUBECONFIG: ${{ runner.temp }}/cv-demo/kubeconfig
+        run: |
+          mkdir -p artifacts/kind
+          cp /tmp/webhook-alerts.jsonl artifacts/kind/ 2>/dev/null || true
+          cp /tmp/certificate-validate-monitor.log artifacts/kind/ 2>/dev/null || true
+          kubectl -n cert-manager get pods,daemonset -o wide \
+            > artifacts/kind/cluster.txt 2>&1 || true
+          kubectl -n cert-manager logs \
+            -l app.kubernetes.io/name=certificate-validate --tail=200 \
+            > artifacts/kind/monitor.log 2>&1 || true
+
+      - name: Upload kind demo artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kind-demo
+          path: artifacts/kind
+
+      - name: Delete kind cluster
+        if: always()
+        run: kind delete cluster --name cert-validate || true

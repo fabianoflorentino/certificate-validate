@@ -11,14 +11,16 @@ CLUSTER_NAME="${CLUSTER_NAME:-cert-validate}"
 CERT_MANAGER_VERSION="${CERT_MANAGER_VERSION:-v1.21.1}"
 KIND_IMAGE="${KIND_IMAGE:-kindest/node:v1.36.1}"
 
-# Keep kubeconfig and monitor state in the persistent /data volume.
-export KUBECONFIG="${KUBECONFIG:-/data/kubeconfig}"
-mkdir -p /data
+# Keep kubeconfig and monitor state in a persistent state directory. The dev
+# container uses /data; CI overrides this with a temporary directory.
+STATE_DIR="${STATE_DIR:-/data}"
+export KUBECONFIG="${KUBECONFIG:-${STATE_DIR}/kubeconfig}"
+mkdir -p "${STATE_DIR}"
 
 echo "==> Ensuring kind cluster '${CLUSTER_NAME}'"
 if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
   echo "    cluster already exists"
-  # Regenerate the kubeconfig so a fresh/empty /data volume gets a valid one.
+  # Regenerate the kubeconfig so a fresh/empty state directory gets a valid one.
   kind get kubeconfig --name "${CLUSTER_NAME}" > "${KUBECONFIG}"
 else
   # Expose a port for HTTP(S) test apps if needed. Node port 443 is
@@ -78,7 +80,7 @@ apply_manifests() {
   trap 'rm -rf "${workdir}"' RETURN
 
   # /workspace is read-only, so copy manifests and inject the local image.
-  for f in rbac.yml daemonset.yml service.yml servicemonitor.yml; do
+  for f in rbac.yml daemonset.yml service.yml servicemonitor.yml prometheusrule.yml; do
     if [[ -f "${dir}/${f}" ]]; then
       cp "${dir}/${f}" "${workdir}/${f}"
     fi
@@ -91,11 +93,17 @@ apply_manifests() {
   kubectl apply -f "${workdir}/rbac.yml"
   kubectl apply -f "${workdir}/daemonset.yml"
   kubectl apply -f "${workdir}/service.yml"
-  # ServiceMonitor is optional (requires Prometheus Operator CRDs).
+  # ServiceMonitor and PrometheusRule are optional (require Prometheus
+  # Operator CRDs).
   if kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
     kubectl apply -f "${workdir}/servicemonitor.yml"
   else
     echo "    (skipping ServiceMonitor: Prometheus Operator CRDs not present)"
+  fi
+  if kubectl get crd prometheusrules.monitoring.coreos.com >/dev/null 2>&1; then
+    kubectl apply -f "${workdir}/prometheusrule.yml"
+  else
+    echo "    (skipping PrometheusRule: Prometheus Operator CRDs not present)"
   fi
 }
 apply_manifests
@@ -108,5 +116,7 @@ kubectl -n cert-manager get pods,daemonset 2>/dev/null || true
 echo
 echo "Run a scan now:"
 echo "  kubectl -n cert-manager exec daemonset/cert-validate-monitor -- certificate-validate k8s monitor"
+echo "Run the end-to-end metrics + alert demo:"
+echo "  alert-demo.sh"
 echo "Or tail logs:"
 echo "  monitor-logs.sh"
