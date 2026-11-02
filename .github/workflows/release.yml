@@ -197,6 +197,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      # RELEASE_TOKEN is a PAT with the `workflow` scope. The default
+      # GITHUB_TOKEN cannot push tags whose commit contains workflow changes.
       - name: Create and push tag
         run: |
           TAG_NAME="${{ needs.version.outputs.next_version }}"
@@ -204,7 +206,7 @@ jobs:
           git tag "$TAG_NAME"
           git push origin "$TAG_NAME"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
   release:
     name: Release
@@ -223,7 +225,7 @@ jobs:
           name: ${{ needs.version.outputs.next_version }}
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Download binary artifact
         uses: actions/download-artifact@v8
@@ -239,7 +241,7 @@ jobs:
           asset_name: certificate-validate-linux-amd64
           asset_content_type: application/octet-stream
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
   go_proxy:
     name: pkg.go.dev
