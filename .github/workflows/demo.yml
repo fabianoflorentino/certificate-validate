@@ -10,7 +10,6 @@ on:
       - 'site/**'
       - '**/*.md'
       - '.agents/**'
-      - '.*/**'
   pull_request:
     branches: [main]
     paths-ignore:
@@ -20,7 +19,6 @@ on:
       - 'site/**'
       - '**/*.md'
       - '.agents/**'
-      - '.*/**'
   workflow_dispatch:
 
 permissions:
