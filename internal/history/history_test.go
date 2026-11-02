@@ -12,6 +12,20 @@ import (
 	"github.com/fabianoflorentino/certificate-validate/internal/checker"
 )
 
+func TestNilRecorderIsSafe(t *testing.T) {
+	var r *Recorder
+
+	r.Record([]*certificate.Certificate{{Hostname: "example.com", DaysLeft: 10}})
+
+	entries, err := r.GetHistory("example.com")
+	if err != nil {
+		t.Fatalf("GetHistory returned error: %v", err)
+	}
+	if entries != nil {
+		t.Fatalf("GetHistory returned %v; want nil", entries)
+	}
+}
+
 func TestNewWithEmptyConfig(t *testing.T) {
 	r := New(Config{})
 

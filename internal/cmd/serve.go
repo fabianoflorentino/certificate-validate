@@ -182,12 +182,14 @@ func buildDeps(cfg *config.Config) (http.Handler, *serverDeps, error) {
 	c := checker.New(f, fmtter)
 
 	var rec *history.Recorder
+	var recStore history.Store
 	if cfg.History.Enabled {
 		rec = history.New(history.Config{
 			FilePath:   cfg.History.FilePath,
 			MaxEntries: cfg.History.MaxEntries,
 			MaxDays:    cfg.History.MaxDays,
 		})
+		recStore = rec
 		slog.Info("history recording enabled",
 			"file", cfg.History.FilePath,
 			"max_entries", cfg.History.MaxEntries,
@@ -199,7 +201,7 @@ func buildDeps(cfg *config.Config) (http.Handler, *serverDeps, error) {
 	if cfg.Prometheus.Enabled {
 		mUpdater = metrics.Update
 	}
-	svc := service.NewCertService(c, rec, mUpdater)
+	svc := service.NewCertService(c, recStore, mUpdater)
 	// CLI --api-key flag takes precedence over config file api_key.
 	apiToken := apiKeyFlag
 	if apiToken == "" {

@@ -74,7 +74,7 @@ func New(cfg Config) *Recorder {
 // Creates the directory if it doesn't exist. Triggers rotation after recording.
 // Thread-safe for concurrent writes.
 func (r *Recorder) Record(results []*certificate.Certificate) {
-	if len(results) == 0 {
+	if r == nil || len(results) == 0 {
 		return
 	}
 
@@ -117,6 +117,10 @@ func (r *Recorder) Record(results []*certificate.Certificate) {
 // GetHistory returns entries for a given host, newest first.
 // Returns nil if the file doesn't exist or no entries match.
 func (r *Recorder) GetHistory(hostname string) ([]Entry, error) {
+	if r == nil {
+		return nil, nil
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

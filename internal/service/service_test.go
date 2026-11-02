@@ -178,6 +178,28 @@ func TestCheckAll_NilRecorder(t *testing.T) {
 	}
 }
 
+func TestCheckAll_TypedNilRecorder(t *testing.T) {
+	var rec *history.Recorder
+
+	svc := NewCertService(
+		&mockChecker{
+			checkAllFunc: func(_ context.Context, hosts []checker.Host, _ int) ([]*certificate.Certificate, []error) {
+				return []*certificate.Certificate{{Hostname: "a.com"}}, nil
+			},
+		},
+		rec, // typed nil: the interface value is non-nil
+		nil,
+	)
+
+	result := svc.CheckAll(context.Background(), []config.HostConfig{
+		{Name: "a", URL: "a.com", Port: "443"},
+	})
+
+	if len(result.Certificates) != 1 {
+		t.Errorf("got %d certificates; want 1", len(result.Certificates))
+	}
+}
+
 func TestCheckSingle(t *testing.T) {
 	want := &certificate.Certificate{Hostname: "example.com", DaysLeft: 90}
 
