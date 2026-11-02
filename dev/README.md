@@ -1,16 +1,16 @@
-# Ambiente de Desenvolvimento Kubernetes (descartável)
+# Disposable Kubernetes Development Environment
 
-Este ambiente permite testar a integração Kubernetes (`k8s monitor`) com
-**cert-manager** sem instalar nenhuma ferramenta de Kubernetes na sua máquina
-além do Docker.
+This environment lets you test the Kubernetes integration (`k8s monitor`) with
+**cert-manager** without installing any Kubernetes tooling on your machine
+besides Docker.
 
-## Arquitetura
+## Architecture
 
 ```
-Máquina host
-└── Docker engine (único pré-requisito no host)
-    └── Container "dev" (descartável, imagem versionada no repo)
-        ├── kind (cluster Kubernetes)
+Host machine
+└── Docker engine (only host prerequisite)
+    └── disposable "dev" container (image versioned in the repo)
+        ├── kind (Kubernetes cluster)
         │   └── cert-manager (via Helm)
         │   └── certificate-validate k8s monitor (DaemonSet)
         ├── kubectl
@@ -18,73 +18,75 @@ Máquina host
         └── Go toolchain
 ```
 
-- A imagem do container contém **todo** o tooling (kind, kubectl, helm, Go).
-- O container dev usa `network_mode: host` — necessário porque o `kubeconfig` do cluster
-  kind aponta para o API server em `127.0.0.1:<porta>` (bound no loopback do host), e o
-  container precisa da rede do host para alcançá-lo.
-- O cluster kind vive nos containers do Docker do host, mas toda a
-  configuração (`kubeconfig`, estado do cert-manager) fica num **volume
-  nomeado** descartável.
-- Nada é instalado no host além do Docker engine.
+- The container image contains **all** the tooling (kind, kubectl, helm, Go).
+- The dev container uses `network_mode: host` — required because the kind
+  kubeconfig points to the API server at `127.0.0.1:<port>` (bound to the host
+  loopback), and the container needs host networking to reach it.
+- The kind cluster lives in the host's Docker containers, but all configuration
+  (`kubeconfig`, cert-manager state) is stored in a disposable **named volume**.
+- Nothing is installed on the host besides the Docker engine.
 
-## Pré-requisitos
+## Prerequisites
 
-- Docker engine funcionando no host — **inclusive o plugin `docker compose`**
-  (no Arch: `sudo pacman -S docker-compose`).
-- Seu usuário precisa ter permissão no socket do Docker (`sudo usermod -aG docker $USER`
-  + re-login, ou rodar via `newgrp docker`).
-- **DNS funcional no daemon Docker.** Se o host resolver via DNS local (ex. Cloudflare
-  WARP com `127.x`), o daemon pode injetar nameservers inalcançáveis (`8.8.8.8`) nos
-  containers e o `apk add`/respectivas descargas do build falham com `DNS: transient
-  error`. Desative ferramentas de DNS local (WARP) **ou** reinicie o daemon
-  (`sudo systemctl restart docker`) para que ele releia o `/etc/resolv.conf` do host.
+- A working Docker engine on the host — **including the `docker compose`
+  plugin** (on Arch: `sudo pacman -S docker-compose`).
+- Your user must have permission on the Docker socket
+  (`sudo usermod -aG docker $USER` + re-login, or run via `newgrp docker`).
+- **Working DNS in the Docker daemon.** If the host resolves through a local
+  DNS (for example Cloudflare WARP with `127.x`), the daemon may inject
+  unreachable nameservers (`8.8.8.8`) into containers and `apk add`/build
+  downloads fail with `DNS: transient error`. Disable local DNS tools (WARP)
+  **or** restart the daemon (`sudo systemctl restart docker`) so it re-reads the
+  host's `/etc/resolv.conf`.
 
-## Uso
+## Usage
 
-A partir da raiz do repositório:
+From the repository root:
 
 ```bash
-# 1. Subir o container dev (builda a imagem descartável)
+# 1. Start the dev container (builds the disposable image)
 make dev/up
 
-# 2. Entrar no container
+# 2. Open a shell in the container
 make dev/shell
 
-# 3. Dentro do container: criar o cluster kind + cert-manager + deploy do monitor
+# 3. Inside the container: create the kind cluster + cert-manager + deploy the monitor
 setup-cluster.sh
 ```
 
-Todos os comandos Makefile:
+All Makefile targets:
 
-| Alvo | Descrição |
-|------|-----------|
-| `make dev/up` | Builda e inicia o container dev |
-| `make dev/shell` | Abre um shell no container dev |
-| `make dev/setup` | Cria cluster kind + cert-manager + deploy do monitor |
-| `make dev/scan` | Roda um scan único do `k8s monitor` através do DaemonSet |
-| `make dev/logs` | Acompanha os logs do monitor |
-| `make dev/down` | Para o container dev |
-| `make dev/destroy` | Destrói container e todo o estado do cluster |
+| Target | Description |
+|--------|-------------|
+| `make dev/up` | Build and start the dev container |
+| `make dev/shell` | Open a shell in the dev container |
+| `make dev/setup` | Create kind cluster + cert-manager + deploy the monitor |
+| `make dev/scan` | Run a one-off `k8s monitor` scan through the DaemonSet |
+| `make dev/alert-demo` | Run the end-to-end metrics + webhook alert demo |
+| `make dev/logs` | Stream the monitor logs |
+| `make dev/down` | Stop the dev container |
+| `make dev/destroy` | Destroy the container and all cluster state |
 
-## Comandos úteis dentro do container
+## Useful commands inside the container
 
 ```bash
-# Verificar o cluster e o cert-manager
+# Check the cluster and cert-manager
 kubectl get nodes
 kubectl -n cert-manager get pods
 
-# Rodar um scan único do monitor
+# Run a one-off monitor scan
 kubectl -n cert-manager exec daemonset/cert-validate-monitor -- \
     certificate-validate k8s monitor
 
-# Acompanhar logs do monitor
+# Stream the monitor logs
 monitor-logs.sh
 ```
 
-## Exemplo de teste rápido
+## Quick test example
 
-A forma mais simples de o monitor encontrar um certificado é emitir um via **cert-manager**
-(que já vem instalado pelo `setup-cluster.sh`) e referenciá-lo num Ingress:
+The simplest way to make the monitor find a certificate is to issue one via
+**cert-manager** (already installed by `setup-cluster.sh`) and reference it in
+an Ingress:
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -140,47 +142,98 @@ EOF
 kubectl wait --for=condition=Ready certificate/example-tls -n default --timeout=60s
 ```
 
-Depois rode um scan — o monitor deve descobrir o Secret TLS **e** o Ingress:
+Then run a scan — the monitor should discover both the TLS Secret **and** the
+Ingress:
 
 ```bash
 make dev/scan
 ```
 
-> Alternativa sem cert-manager: `kubectl create secret tls example-tls \
-> --cert=/path/to/tls.crt --key=/path/to/tls.key` (precisa de um par de chaves reais).
+> Alternative without cert-manager: `kubectl create secret tls example-tls \
+> --cert=/path/to/tls.crt --key=/path/to/tls.key` (requires a real key pair).
 
-## Limpeza completa
+## End-to-end monitoring and alerting demo
+
+After `make dev/setup` (and after the quick test above, or with the certificate
+created by the demo itself), run:
 
 ```bash
-make dev/down        # para o container
-make dev/destroy     # remove container + volumes (zero resíduo)
+make dev/alert-demo
 ```
 
-## Personalização
+The demo starts a local webhook receiver, runs `k8s monitor` in watch mode with
+`--metrics-addr` and `--webhook-url`, and prints:
 
-Versões via variáveis de ambiente (no `setup-cluster.sh`):
+1. the `certificate_*` metrics exposed by the monitor, and
+2. the JSON alert payload received by the webhook.
 
-- `CLUSTER_NAME` (padrão `cert-validate`)
-- `CERT_MANAGER_VERSION` (padrão `v1.21.1`)
-- `KIND_IMAGE` (padrão `kindest/node:v1.36.1`)
+It uses a deliberately high `--webhook-threshold` (365 days by default) so the
+90-day demo certificate triggers an alert immediately instead of waiting for
+real expiration. Override it with `WEBHOOK_THRESHOLD`, and the ports with
+`WEBHOOK_PORT` / `METRICS_ADDR`.
 
-Imagem base (`Dockerfile` stage `dev`):
+Expected metrics (labels omitted for brevity):
 
-- `KUBECTL_VERSION` (padrão `v1.36.1`)
-- `HELM_VERSION` (padrão `v3.21.4`)
-- `KIND_VERSION` (padrão `v0.32.0`)
+```text
+# HELP certificate_days_left Days remaining before certificate expiration
+# TYPE certificate_days_left gauge
+certificate_days_left{kind="Secret",name="example-tls-secret",namespace="default"} 89
+# HELP certificate_expired Whether the certificate has expired (1=expired, 0=valid)
+# TYPE certificate_expired gauge
+certificate_expired{kind="Secret",name="example-tls-secret",namespace="default"} 0
+```
 
-> **Layout:** a imagem dev é o alvo `dev` do **mesmo** `Dockerfile` de produção, e o
-> serviço `dev` fica no **mesmo** `docker-compose.yml` da raiz (profile `dev`, para não
-> subir por padrão). Os scripts (`setup-cluster.sh`, `teardown.sh`, `monitor-logs.sh`)
-> ficam em `scripts/` na raiz e são copiados para `/usr/local/bin/dev-scripts/` dentro do
-> container — por isso os comandos `setup-cluster.sh` / `monitor-logs.sh` funcionam
-> direto no shell do container.
+Expected alert payload:
 
-## Notas
+```json
+{
+  "namespace": "default",
+  "name": "example-tls-secret",
+  "kind": "Secret",
+  "hostname": "example.com",
+  "commonName": "example.com",
+  "issuer": "cert-manager selfsigned CA",
+  "daysLeft": 89,
+  "threshold": 365,
+  "message": "Certificate default/example-tls-secret (Secret) expires in 89 days"
+}
+```
 
-- O manifesto do monitor (`kubernetes/monitor/`) usa RBAC **read-only**
-  (monitoramento). A permissão `update` em Secrets e a criação de eventos são
-  adicionadas na **Fase 2** (auto-renovação via anotação `cert-manager.io/force-renew`).
-- O `ServiceMonitor` só é aplicado se o Prometheus Operator estiver instalado
-  no cluster.
+## Full cleanup
+
+```bash
+make dev/down        # stop the container
+make dev/destroy     # remove the container + volumes (zero residue)
+```
+
+## Customization
+
+Versions via environment variables (in `setup-cluster.sh`):
+
+- `CLUSTER_NAME` (default `cert-validate`)
+- `CERT_MANAGER_VERSION` (default `v1.21.1`)
+- `KIND_IMAGE` (default `kindest/node:v1.36.1`)
+
+Base image (`Dockerfile` stage `dev`):
+
+- `KUBECTL_VERSION` (default `v1.36.1`)
+- `HELM_VERSION` (default `v3.21.4`)
+- `KIND_VERSION` (default `v0.32.0`)
+
+> **Layout:** the dev image is the `dev` target of the **same** `Dockerfile` used
+> in production, and the `dev` service lives in the **same** root
+> `docker-compose.yml` (profile `dev`, so it does not start by default). The
+> scripts (`setup-cluster.sh`, `teardown.sh`, `monitor-logs.sh`, `alert-demo.sh`)
+> live in `scripts/` at the repository root and are copied to
+> `/usr/local/bin/dev-scripts/` inside the container — that is why
+> `setup-cluster.sh` / `monitor-logs.sh` work directly from the container shell.
+
+## Notes
+
+- The monitor manifest in `kubernetes/monitor/` includes read-only discovery
+  RBAC plus the permissions required by the Phase 2 auto-renewal path
+  (`update` on Secrets and event creation, triggered by the
+  `cert-manager.io/force-renew` annotation). Auto-renewal only runs when
+  `--renew-threshold` is set; the DaemonSet enables it.
+- The `ServiceMonitor` is only applied when the Prometheus Operator is installed
+  in the cluster.
