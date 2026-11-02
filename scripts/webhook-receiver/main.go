@@ -43,6 +43,12 @@ func newHandler(w io.Writer) http.Handler {
 	var mu sync.Mutex
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			rw.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(rw, "ok\n")
+			return
+		}
+
 		body, err := io.ReadAll(io.LimitReader(r.Body, maxBodyBytes))
 		if err != nil {
 			http.Error(rw, "read body", http.StatusBadRequest)

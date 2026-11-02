@@ -42,6 +42,23 @@ func TestNewHandlerRecordsJSONPayload(t *testing.T) {
 	}
 }
 
+func TestNewHandlerHealthDoesNotRecord(t *testing.T) {
+	var out bytes.Buffer
+	handler := newHandler(&out)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("health check wrote %q, want no output", out.String())
+	}
+}
+
 func TestNewHandlerRecordsInvalidPayloadAsString(t *testing.T) {
 	var out bytes.Buffer
 	handler := newHandler(&out)
