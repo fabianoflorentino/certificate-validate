@@ -3,87 +3,254 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Certificate Validate API - Swagger UI" />
-  <title>Certificate Validate API</title>
+  <meta name="description" content="certificate-validate API — Swagger UI" />
+  <meta name="theme-color" content="#080b14" />
+  <title>certificate-validate · API</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
   <style>
+    :root {
+      --bg: #080b14;
+      --surface: #0d1220;
+      --surface-2: #111827;
+      --border: #1e2b3d;
+      --border-2: #2a3b52;
+      --primary: #00e5a8;
+      --primary-dim: rgba(0, 229, 168, 0.12);
+      --secondary: #38bdf8;
+      --text: #e9f1f7;
+      --text-2: #c3d0dc;
+      --muted: #8a9bb0;
+      --muted-2: #62748a;
+      --font-sans: 'DM Sans', system-ui, sans-serif;
+      --font-display: 'Chakra Petch', 'DM Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      color-scheme: dark;
+    }
+
     html { box-sizing: border-box; overflow-y: scroll; }
     *, *:before, *:after { box-sizing: inherit; }
-    body { margin: 0; background: #fafafa; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(900px 520px at 78% -10%, rgba(0, 229, 168, 0.1), transparent 62%),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+    }
+
     .topbar { display: none; }
     .version-stamp { display: none; }
 
-    /* Header */
     .swagger-header {
-      background: #1a1a2e;
-      color: #fff;
-      padding: 16px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 12px;
+      padding: 0.8rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8, 11, 20, 0.85);
+      backdrop-filter: blur(16px);
     }
-    .swagger-header h1 {
-      margin: 0;
-      font-size: 20px;
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .brand img {
+      width: 32px;
+      height: 32px;
+      filter: drop-shadow(0 0 7px rgba(0, 229, 168, 0.5));
+    }
+
+    .brand-name {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .brand-badge {
+      padding: 0.18rem 0.45rem;
+      border: 1px solid rgba(0, 229, 168, 0.3);
+      border-radius: 999px;
+      background: var(--primary-dim);
+      color: var(--primary);
+      font-family: var(--font-mono);
+      font-size: 0.55rem;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .swagger-header .links a {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .swagger-header .links a:hover { color: var(--primary); }
+
+    .swagger-ui {
+      color: var(--text-2);
+      font-family: var(--font-sans);
+    }
+
+    .swagger-ui .info .title,
+    .swagger-ui .info .title small,
+    .swagger-ui .opblock-tag,
+    .swagger-ui .opblock-tag small,
+    .swagger-ui .opblock .opblock-summary-description,
+    .swagger-ui .info a,
+    .swagger-ui .info p,
+    .swagger-ui .info li,
+    .swagger-ui .info table,
+    .swagger-ui .response-col_status,
+    .swagger-ui .response-col_description {
+      color: var(--text);
+    }
+
+    .swagger-ui .info .title {
+      font-family: var(--font-display);
       font-weight: 600;
     }
-    .swagger-header a {
-      color: #80b5ff;
-      text-decoration: none;
-      font-size: 14px;
-    }
-    .swagger-header a:hover { text-decoration: underline; }
 
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-      body { background: #1a1a2e; }
-      .swagger-ui { color: #e0e0e0; }
-      .swagger-ui .scheme-container {
-        background: #16213e;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-      }
-      .swagger-ui .opblock-tag,
-      .swagger-ui .opblock-tag small,
-      .swagger-ui .opblock .opblock-summary-description,
-      .swagger-ui .info .title,
-      .swagger-ui .info a,
-      .swagger-ui .info p,
-      .swagger-ui .info li,
-      .swagger-ui .info table,
-      .swagger-ui .response-col_status,
-      .swagger-ui .response-col_description { color: #e0e0e0; }
-      .swagger-ui .info .description p { color: #c0c0c0; }
-      .swagger-ui .opblock { background: #16213e; border-color: #2a3a5e; }
-      .swagger-ui .opblock .opblock-section-header {
-        background: #1a2a4e;
-        border-color: #2a3a5e;
-      }
-      .swagger-ui .opblock .opblock-section-header h4 { color: #e0e0e0; }
-      .swagger-ui .opblock-body .opblock-description p { color: #c0c0c0; }
-      .swagger-ui table thead tr td, .swagger-ui table thead tr th {
-        color: #e0e0e0;
-        border-bottom: 1px solid #2a3a5e;
-      }
-      .swagger-ui .parameter__name, .swagger-ui .parameter__type, .swagger-ui .parameter__in {
-        color: #c0c0c0;
-      }
-      .swagger-ui .btn { border-color: #3a4a6e; color: #e0e0e0; }
-      .swagger-ui .btn:hover { background: #2a3a5e; }
-      .swagger-ui select { border-color: #3a4a6e; background: #16213e; color: #e0e0e0; }
-      .swagger-ui .model-box { background: #0d1b2a; }
-      .swagger-ui .model { color: #e0e0e0; }
-      .swagger-ui .model-title { color: #e0e0e0; }
-      .swagger-ui .prop-type { color: #80b5ff; }
-      .swagger-ui .model-toggle:after { filter: invert(0.8); }
+    .swagger-ui .info .description p,
+    .swagger-ui .opblock-body .opblock-description p {
+      color: var(--muted);
     }
+
+    .swagger-ui .scheme-container {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: none;
+    }
+
+    .swagger-ui .opblock-tag {
+      border-bottom-color: var(--border);
+    }
+
+    .swagger-ui .opblock {
+      margin-bottom: 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
+    .swagger-ui .opblock .opblock-summary-method {
+      border-radius: 5px;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+    }
+
+    .swagger-ui .opblock .opblock-section-header {
+      background: var(--surface-2);
+      border-color: var(--border);
+    }
+
+    .swagger-ui .opblock .opblock-section-header h4,
+    .swagger-ui .opblock .opblock-summary-path,
+    .swagger-ui .opblock .opblock-summary-path__deprecated {
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    .swagger-ui .opblock .opblock-summary-description,
+    .swagger-ui .parameter__name,
+    .swagger-ui .parameter__type,
+    .swagger-ui .parameter__in {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+    }
+
+    .swagger-ui table thead tr td,
+    .swagger-ui table thead tr th {
+      color: var(--primary);
+      border-bottom-color: var(--border-2);
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .swagger-ui table tbody tr td {
+      border-bottom-color: var(--border);
+    }
+
+    .swagger-ui .btn {
+      border-color: var(--border-2);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--text-2);
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+    }
+
+    .swagger-ui .btn:hover {
+      border-color: var(--primary);
+      background: var(--primary-dim);
+      color: var(--primary);
+    }
+
+    .swagger-ui .btn.authorize {
+      border-color: rgba(0, 229, 168, 0.4);
+      color: var(--primary);
+    }
+
+    .swagger-ui select,
+    .swagger-ui input[type="text"],
+    .swagger-ui input[type="email"],
+    .swagger-ui input[type="password"],
+    .swagger-ui textarea {
+      border-color: var(--border-2);
+      border-radius: 6px;
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    .swagger-ui .model-box,
+    .swagger-ui section.models {
+      border-color: var(--border);
+      background: var(--surface);
+    }
+
+    .swagger-ui .model,
+    .swagger-ui .model-title {
+      color: var(--text-2);
+      font-family: var(--font-mono);
+    }
+
+    .swagger-ui .prop-type { color: var(--secondary); }
+    .swagger-ui .model-toggle:after { filter: invert(0.8); }
+    .swagger-ui .markdown code,
+    .swagger-ui .renderedMarkdown code {
+      color: var(--primary);
+      background: var(--primary-dim);
+      border-radius: 4px;
+    }
+
+    .swagger-ui .copy-to-clipboard { background: var(--surface-2); }
   </style>
 </head>
 <body>
   <div class="swagger-header">
-    <h1>Certificate Validate API</h1>
-    <div>
+    <a class="brand" href="/">
+      <img src="/favicon.svg" alt="" width="32" height="32" />
+      <span class="brand-name">certificate-validate</span>
+      <span class="brand-badge">api</span>
+    </a>
+    <div class="links">
       <a href="/">Dashboard</a>
       &nbsp;·&nbsp;
       <a href="https://github.com/fabianoflorentino/certificate-validate" target="_blank" rel="noopener">GitHub</a>
@@ -93,7 +260,7 @@
   <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
   <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js" crossorigin></script>
   <script>
-    window.onload = function() {
+    window.onload = function () {
       window.ui = SwaggerUIBundle({
         url: '/swagger.yaml',
         dom_id: '#swagger-ui',

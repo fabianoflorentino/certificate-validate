@@ -3,36 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificate Validate</title>
+    <meta name="theme-color" content="#080b14">
+    <meta name="description" content="certificate-validate dashboard — TLS certificate health, expiry, revocation, and history.">
+    <title>certificate-validate · dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body class="dark-mode">
     <nav class="header">
-        <div class="header-left">
-            <h1>Certificate Validate</h1>
-        </div>
-        <div class="header-right">
-            <div class="header-controls">
-                <div id="summaryBadges" class="summary-badges"></div>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search hosts..." oninput="handleSearch()">
-                <select id="sortSelect" class="sort-select" onchange="handleSort()">
-                    <option value="daysLeft-asc">Days ↑</option>
-                    <option value="daysLeft-desc">Days ↓</option>
-                    <option value="hostname">Hostname</option>
-                    <option value="issuer">Issuer</option>
-                </select>
-            </div>
+        <div class="header-main">
+            <a class="brand" href="/">
+                <img class="brand-icon" src="/favicon.svg" alt="" width="32" height="32">
+                <span class="brand-name">certificate-validate</span>
+                <span class="brand-badge">dashboard</span>
+            </a>
+
             <div class="header-actions">
                 <span class="last-updated" id="lastUpdated"></span>
-                <button class="btn" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">Dark</button>
+                <button class="btn btn-ghost" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark theme">Light</button>
                 <label class="toggle-label">
                     <input type="checkbox" id="autoRefreshCheckbox" onchange="toggleAutoRefresh()">
                     <span>Auto-refresh</span>
                 </label>
                 <button class="btn btn-primary" onclick="fetchCertificates()">Refresh</button>
                 <button class="btn" onclick="location.href='/swagger/'">API Docs</button>
-                <button class="btn" onclick="exportJSON()">Export JSON</button>
-                <button class="btn" onclick="exportCSV()">Export CSV</button>
+                <button class="btn" onclick="exportJSON()" title="Export certificates as JSON">JSON</button>
+                <button class="btn" onclick="exportCSV()" title="Export certificates as CSV">CSV</button>
+            </div>
+        </div>
+
+        <div class="header-toolbar">
+            <div id="summaryBadges" class="summary-badges"></div>
+            <div class="header-controls">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search hosts, CN, issuer, SAN..." oninput="handleSearch()">
+                <select id="sortSelect" class="sort-select" onchange="handleSort()">
+                    <option value="daysLeft-asc">Days ↑</option>
+                    <option value="daysLeft-desc">Days ↓</option>
+                    <option value="hostname">Hostname</option>
+                    <option value="issuer">Issuer</option>
+                </select>
             </div>
         </div>
     </nav>
@@ -49,8 +61,11 @@
     <div id="modal" class="modal-overlay hidden" onclick="closeModal(event)">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>Certificate Details</h2>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
+                <div>
+                    <span class="modal-kicker">x509 · tls</span>
+                    <h2>Certificate Details</h2>
+                </div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
             </div>
             <div id="modalBody" class="modal-body"></div>
         </div>

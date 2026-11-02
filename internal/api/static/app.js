@@ -141,6 +141,17 @@ function createCard(cert) {
     const daysLeft = cert.daysLeft;
     const statusClass = daysLeft > 30 ? 'status-good' : daysLeft > 7 ? 'status-warn' : 'status-critical';
     const typeBadge = cert.type.split(' ').slice(0, 2).join(' ');
+    const healthPct = Math.max(3, Math.min(100, Math.round((daysLeft / 365) * 100)));
+
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', 'Certificate details for ' + cert.hostname);
+    card.onkeydown = function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            showModal(cert);
+        }
+    };
 
     card.innerHTML =
         '<div class="card-header">' +
@@ -156,7 +167,8 @@ function createCard(cert) {
         '<div class="card-meta">' +
             '<span class="cert-type-badge">' + esc(typeBadge) + '</span>' +
             '<span class="card-issuer" title="' + escAttr(cert.issuer) + '">' + esc(cert.issuer) + '</span>' +
-        '</div>';
+        '</div>' +
+        '<div class="card-health ' + statusClass + '"><span style="--w: ' + healthPct + '%"></span></div>';
 
     return card;
 }
@@ -493,7 +505,7 @@ function closeModal(event) {
 function getPreferredTheme() {
     var saved = localStorage.getItem('theme');
     if (saved === 'dark' || saved === 'light') return saved;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return 'dark';
 }
 
 function applyTheme(theme) {
@@ -509,12 +521,6 @@ function toggleTheme() {
     applyTheme(next);
 }
 
-var darkModeMedia = window.matchMedia('(prefers-color-scheme: dark)');
-darkModeMedia.addEventListener('change', function () {
-    if (!localStorage.getItem('theme')) {
-        applyTheme(darkModeMedia.matches ? 'dark' : 'light');
-    }
-});
 
 function toggleAutoRefresh() {
     const checkbox = document.getElementById('autoRefreshCheckbox');
