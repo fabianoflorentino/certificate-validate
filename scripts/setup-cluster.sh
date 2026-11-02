@@ -78,7 +78,7 @@ apply_manifests() {
   trap 'rm -rf "${workdir}"' RETURN
 
   # /workspace is read-only, so copy manifests and inject the local image.
-  for f in rbac.yml daemonset.yml service.yml servicemonitor.yml; do
+  for f in rbac.yml daemonset.yml service.yml servicemonitor.yml prometheusrule.yml; do
     if [[ -f "${dir}/${f}" ]]; then
       cp "${dir}/${f}" "${workdir}/${f}"
     fi
@@ -91,11 +91,17 @@ apply_manifests() {
   kubectl apply -f "${workdir}/rbac.yml"
   kubectl apply -f "${workdir}/daemonset.yml"
   kubectl apply -f "${workdir}/service.yml"
-  # ServiceMonitor is optional (requires Prometheus Operator CRDs).
+  # ServiceMonitor and PrometheusRule are optional (require Prometheus
+  # Operator CRDs).
   if kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
     kubectl apply -f "${workdir}/servicemonitor.yml"
   else
     echo "    (skipping ServiceMonitor: Prometheus Operator CRDs not present)"
+  fi
+  if kubectl get crd prometheusrules.monitoring.coreos.com >/dev/null 2>&1; then
+    kubectl apply -f "${workdir}/prometheusrule.yml"
+  else
+    echo "    (skipping PrometheusRule: Prometheus Operator CRDs not present)"
   fi
 }
 apply_manifests
@@ -108,5 +114,7 @@ kubectl -n cert-manager get pods,daemonset 2>/dev/null || true
 echo
 echo "Run a scan now:"
 echo "  kubectl -n cert-manager exec daemonset/cert-validate-monitor -- certificate-validate k8s monitor"
+echo "Run the end-to-end metrics + alert demo:"
+echo "  alert-demo.sh"
 echo "Or tail logs:"
 echo "  monitor-logs.sh"

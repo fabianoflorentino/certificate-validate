@@ -190,6 +190,10 @@ dev/setup: ## Create kind cluster + cert-manager + deploy the monitor
 dev/scan: ## Run a one-off k8s monitor scan
 	$(DEV_COMPOSE) exec dev kubectl -n cert-manager exec daemonset/cert-validate-monitor -- certificate-validate k8s monitor
 
+.PHONY: dev/alert-demo
+dev/alert-demo: ## Run the end-to-end metrics + webhook alert demo
+	$(DEV_COMPOSE) exec dev bash /usr/local/bin/dev-scripts/alert-demo.sh
+
 .PHONY: dev/logs
 dev/logs: ## Stream the deployed monitor logs
 	$(DEV_COMPOSE) exec dev bash /usr/local/bin/dev-scripts/monitor-logs.sh
@@ -218,3 +222,4 @@ help: ## Show this help message
 	@printf "  make docker/build       # Build Docker image\n"
 	@printf "  make compose/up         # Start Docker Compose services\n"
 	@printf "  make compose/logs       # Follow logs\n"
+	@printf "  make dev/alert-demo     # Kubernetes metrics + webhook alert demo\n"
