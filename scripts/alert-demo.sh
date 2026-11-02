@@ -9,7 +9,8 @@
 set -euo pipefail
 
 REPO_ROOT="${REPO_ROOT:-/workspace}"
-export KUBECONFIG="${KUBECONFIG:-/data/kubeconfig}"
+STATE_DIR="${STATE_DIR:-/data}"
+export KUBECONFIG="${KUBECONFIG:-${STATE_DIR}/kubeconfig}"
 CLUSTER_NAME="${CLUSTER_NAME:-cert-validate}"
 NAMESPACE="${NAMESPACE:-default}"
 CERT_NAME="${CERT_NAME:-cert-validate-demo}"

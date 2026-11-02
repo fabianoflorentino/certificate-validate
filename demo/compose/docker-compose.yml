@@ -1,0 +1,99 @@
+name: certificate-validate-demo
+
+services:
+  tls-origin:
+    build:
+      context: ./tls
+    hostname: ${DEMO_HOST:-tls-origin}
+    environment:
+      DEMO_HOST: ${DEMO_HOST:-tls-origin}
+      TLS_DAYS: ${TLS_DAYS:-14}
+    volumes:
+      - tls-data:/tls
+      - ./certs:/certs:ro
+    networks:
+      demo:
+        aliases:
+          - ${DEMO_HOST:-tls-origin}
+    ports:
+      - "${TLS_PORT:-8443}:443"
+    healthcheck:
+      test: ["CMD-SHELL", "openssl s_client -connect 127.0.0.1:443 -servername localhost </dev/null 2>/dev/null | grep -q 'BEGIN CERTIFICATE'"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+    restart: unless-stopped
+
+  certificate-validate:
+    build:
+      context: ../..
+      target: production
+    image: certificate-validate:demo
+    entrypoint: ["/bin/sh", "/demo/app/entrypoint.sh"]
+    environment:
+      DEMO_HOST: ${DEMO_HOST:-tls-origin}
+      DEMO_PORT: ${DEMO_PORT:-443}
+      CHECK_TIME: ${CHECK_TIME:-5}
+      ALERT_THRESHOLD: ${ALERT_THRESHOLD:-30}
+      ALERT_INTERVAL: ${ALERT_INTERVAL:-5}
+    volumes:
+      - ./app/entrypoint.sh:/demo/app/entrypoint.sh:ro
+      - ./config/settings.template.yml:/demo/config/settings.template.yml:ro
+      - tls-data:/tls:ro
+      - ./certs:/certs:ro
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    depends_on:
+      tls-origin:
+        condition: service_healthy
+      webhook-receiver:
+        condition: service_healthy
+    networks:
+      - demo
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 3s
+    restart: unless-stopped
+
+  webhook-receiver:
+    build:
+      context: ../..
+      dockerfile: demo/compose/webhook/Dockerfile
+    image: certificate-validate-demo-webhook:latest
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9099/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+    networks:
+      - demo
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      certificate-validate:
+        condition: service_healthy
+    networks:
+      - demo
+    restart: unless-stopped
+
+volumes:
+  tls-data:
+
+networks:
+  demo:
+    driver: bridge

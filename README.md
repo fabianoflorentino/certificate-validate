@@ -1,5 +1,8 @@
 # Certificate Validate
 
+[![CI](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml/badge.svg)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/ci.yml)
+[![Demo](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/demo.yml/badge.svg)](https://github.com/fabianoflorentino/certificate-validate/actions/workflows/demo.yml)
+
 A modern, extensible SSL/TLS certificate validation tool written in Go. Fetches and inspects certificate information from remote hosts via CLI or HTTP API.
 
 > **For AI agents**: this README is the human-facing usage/feature reference. Project
@@ -52,6 +55,7 @@ docker build -t certificate-validate .
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architecture overview with 13 Mermaid flowcharts |
 | [`docs/K8S_INTEGRATION.md`](docs/K8S_INTEGRATION.md) | Kubernetes integration roadmap + Phases 1–2 `k8s monitor` implementation |
 | [`dev/README.md`](dev/README.md) | Disposable Kubernetes dev environment (kind + cert-manager) |
+| [`demo/README.md`](demo/README.md) | Deterministic compose + kind demos (self-signed, no external DNS) |
 | [`docs/security-audit/security-audit-report.md`](docs/security-audit/security-audit-report.md) | Security audit report and remediated findings |
 | Swagger UI | Interactive API docs at `http://localhost:5000/swagger/` (when server is running) |
 | [`docs/swagger.yaml`](docs/swagger.yaml) | OpenAPI 3.0 specification |
@@ -140,6 +144,10 @@ certificate-validate/
 ├── kubernetes/
 │   └── monitor/                   # K8s monitor deployment (rbac, daemonset, service, servicemonitor, prometheusrule)
 ├── scripts/                       # Dev/demo scripts (setup-cluster, teardown, monitor-logs, alert-demo, webhook-receiver)
+├── demo/
+│   ├── compose/                   # Deterministic TLS/API/Prometheus/webhook demo
+│   ├── kind/                      # kind + cert-manager end-to-end demo wrapper
+│   └── README.md                  # Demo guide (self-signed and real certificates)
 ├── dev/
 │   └── README.md                  # Disposable Kubernetes dev environment guide
 ├── Dockerfile                     # Multi-stage: `production` (default) + `dev`
@@ -545,6 +553,28 @@ mode with `--metrics-addr` and `--webhook-url`, prints the `certificate_*`
 metrics, and prints the alert payload received by the local webhook receiver.
 See [`dev/README.md`](dev/README.md#end-to-end-monitoring-and-alerting-demo).
 
+## Deterministic Demos
+
+Two self-contained demos use only **self-signed certificates** and local
+Docker DNS — no Let's Encrypt, public DNS, or external CA required.
+
+```bash
+make demo/up       # TLS origin + API + Prometheus + webhook receiver
+make demo/verify   # asserts API, metrics, webhook, Prometheus, and CLI
+make demo/down     # stop and remove volumes
+```
+
+The Kubernetes version reuses the kind + cert-manager flow:
+
+```bash
+make demo/kind
+```
+
+To switch the compose demo to real certificates (public or internal CA), drop
+`server.crt`/`server.key` into `demo/compose/certs/` and set `DEMO_HOST` to the
+certificate DNS name. Details: [`demo/README.md`](demo/README.md). The
+`.github/workflows/demo.yml` workflow runs both demos in CI.
+
 ## Self-Signed Certificate Monitoring
 
 Add CA certificates to `trusted_cas` for servers using self-signed or privately-signed certificates:
@@ -605,6 +635,13 @@ make dev/alert-demo      # Metrics + webhook alert demo
 make dev/logs            # Stream the deployed monitor logs
 make dev/down            # Stop the dev container
 make dev/destroy         # Remove container + cluster state (zero residue)
+
+# Deterministic demos (self-signed, no external DNS)
+make demo/up             # Start TLS origin + API + Prometheus + webhook
+make demo/verify         # Verify API, metrics, webhook, Prometheus and CLI
+make demo/test           # Start + verify
+make demo/down           # Stop and remove demo volumes
+make demo/kind           # kind + cert-manager end-to-end demo
 ```
 
 ## Contributing

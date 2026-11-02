@@ -11,14 +11,16 @@ CLUSTER_NAME="${CLUSTER_NAME:-cert-validate}"
 CERT_MANAGER_VERSION="${CERT_MANAGER_VERSION:-v1.21.1}"
 KIND_IMAGE="${KIND_IMAGE:-kindest/node:v1.36.1}"
 
-# Keep kubeconfig and monitor state in the persistent /data volume.
-export KUBECONFIG="${KUBECONFIG:-/data/kubeconfig}"
-mkdir -p /data
+# Keep kubeconfig and monitor state in a persistent state directory. The dev
+# container uses /data; CI overrides this with a temporary directory.
+STATE_DIR="${STATE_DIR:-/data}"
+export KUBECONFIG="${KUBECONFIG:-${STATE_DIR}/kubeconfig}"
+mkdir -p "${STATE_DIR}"
 
 echo "==> Ensuring kind cluster '${CLUSTER_NAME}'"
 if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
   echo "    cluster already exists"
-  # Regenerate the kubeconfig so a fresh/empty /data volume gets a valid one.
+  # Regenerate the kubeconfig so a fresh/empty state directory gets a valid one.
   kind get kubeconfig --name "${CLUSTER_NAME}" > "${KUBECONFIG}"
 else
   # Expose a port for HTTP(S) test apps if needed. Node port 443 is

@@ -105,6 +105,8 @@ Key reference material and where to find it:
   `k8s monitor` design constraints (read-only RBAC, metrics contract)
 - `docs/WHY.md` — project rationale and design decisions
 - `docs/security-audit/` — security review material
+- `demo/README.md` — deterministic compose + kind demos, CI assertions, and
+  switching the compose stack to real certificates
 - `.agents/skills/` — specialized workflow guidance (Go, git, containers,
   Kubernetes, security, site/design). Load a skill when a task matches its
   description
