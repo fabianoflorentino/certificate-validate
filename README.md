@@ -52,10 +52,41 @@ docker build -t certificate-validate .
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architecture overview with 13 Mermaid flowcharts |
 | [`docs/K8S_INTEGRATION.md`](docs/K8S_INTEGRATION.md) | Kubernetes integration roadmap + Phases 1–2 `k8s monitor` implementation |
 | [`dev/README.md`](dev/README.md) | Disposable Kubernetes dev environment (kind + cert-manager) |
+| [`docs/security-audit/security-audit-report.md`](docs/security-audit/security-audit-report.md) | Security audit report and remediated findings |
 | Swagger UI | Interactive API docs at `http://localhost:5000/swagger/` (when server is running) |
 | [`docs/swagger.yaml`](docs/swagger.yaml) | OpenAPI 3.0 specification |
 
 ## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Interfaces
+        CLI["CLI\ncheck | export | serve"]
+        API["HTTP API\n/api/v1/cert/*"]
+        K8S["k8s monitor"]
+    end
+
+    CLI --> CHECKER["checker\norchestration"]
+    API --> SERVICE["service\nfacade"]
+    SERVICE --> CHECKER
+    K8S --> K8SMON["k8smonitor\ndiscovery + analysis"]
+
+    CHECKER --> FETCHER["fetcher\nTLS dial"]
+    CHECKER --> FORMATTER["formatter\nJSON | table | CSV"]
+    FETCHER --> CERT["certificate\ndomain model"]
+    FETCHER --> REVOC["revocation\nOCSP + CRL"]
+
+    K8SMON --> K8SAPI[("Kubernetes API\nSecrets + Ingresses")]
+    K8SMON --> K8SMETRICS["Prometheus metrics"]
+    K8SMON --> WEBHOOK["Webhook alerts"]
+    K8SMON --> RENEWER["cert-manager\nrenewal (opt-in)"]
+
+    SERVICE --> HISTORY["history\nJSONL"]
+    SERVICE --> METRICS["metrics\nPrometheus"]
+```
+
+For the detailed request flows, sequence diagrams, and dependency-injection
+pipeline, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ```bash
 certificate-validate/
@@ -107,8 +138,8 @@ certificate-validate/
 │   └── service/                   # Facade layer
 │       └── service.go             # CertService
 ├── kubernetes/
-│   └── monitor/                   # K8s monitor deployment (rbac, daemonset, service, servicemonitor)
-├── scripts/                       # Dev environment helper scripts (setup-cluster, teardown, monitor-logs)
+│   └── monitor/                   # K8s monitor deployment (rbac, daemonset, service, servicemonitor, prometheusrule)
+├── scripts/                       # Dev/demo scripts (setup-cluster, teardown, monitor-logs, alert-demo, webhook-receiver)
 ├── dev/
 │   └── README.md                  # Disposable Kubernetes dev environment guide
 ├── Dockerfile                     # Multi-stage: `production` (default) + `dev`
@@ -404,6 +435,116 @@ curl http://localhost:5000/api/v1/cert/info/all
 curl http://localhost:5000/swagger/
 ```
 
+## Observability
+
+### Metrics
+
+With `prometheus.enabled: true`, the API server exposes metrics at `/metrics`
+(labels `host`, `port`):
+
+| Metric | Type | Meaning |
+| --- | --- | --- |
+| `certificate_days_left` | Gauge | Days remaining before expiration |
+| `certificate_expired` | Gauge | `1` if expired, `0` if valid |
+
+`k8s monitor --metrics-addr=:9102` exposes the same metric names on a dedicated
+registry, labelled by Kubernetes resource (`namespace`, `name`, `kind`), plus
+`certificate_revoked` and the Phase 2 renewal metrics. See
+[`docs/K8S_INTEGRATION.md`](docs/K8S_INTEGRATION.md#9-metrics-and-alerts).
+
+Example `/metrics` output from the core server:
+
+```text
+# HELP certificate_days_left Days remaining before certificate expiration
+# TYPE certificate_days_left gauge
+certificate_days_left{host="github.com",port="443"} 87
+# HELP certificate_expired Whether the certificate has expired (1=expired, 0=valid)
+# TYPE certificate_expired gauge
+certificate_expired{host="github.com",port="443"} 0
+```
+
+Example `/metrics` output from `k8s monitor`:
+
+```text
+# HELP certificate_days_left Days remaining before certificate expiration
+# TYPE certificate_days_left gauge
+certificate_days_left{kind="Secret",name="example-tls-secret",namespace="default"} 89
+# HELP certificate_expired Whether the certificate has expired (1=expired, 0=valid)
+# TYPE certificate_expired gauge
+certificate_expired{kind="Secret",name="example-tls-secret",namespace="default"} 0
+```
+
+Useful PromQL queries:
+
+```promql
+# Certificates expiring within 15 days
+certificate_days_left < 15
+
+# Expired certificates
+certificate_expired == 1
+
+# Revoked Kubernetes certificates
+certificate_revoked == 1
+
+# Lowest days-left per Kubernetes namespace
+min by (namespace) (certificate_days_left)
+```
+
+A ready-to-apply `PrometheusRule` with these alerts lives in
+[`kubernetes/monitor/prometheusrule.yml`](kubernetes/monitor/prometheusrule.yml).
+
+### Alert webhook payload
+
+When `webhook.url` is set (core) or `--webhook-url` is passed (`k8s monitor`),
+certificates at or below the threshold produce a JSON POST. Core payload:
+
+```json
+{
+  "hostname": "github.com",
+  "port": 443,
+  "commonName": "github.com",
+  "issuer": "Sectigo Public Server Authentication CA DV E36",
+  "daysLeft": 12,
+  "threshold": 15,
+  "message": "Certificate for github.com expires in 12 days"
+}
+```
+
+Kubernetes payload:
+
+```json
+{
+  "namespace": "default",
+  "name": "example-tls-secret",
+  "kind": "Secret",
+  "hostname": "example.com",
+  "commonName": "example.com",
+  "issuer": "cert-manager selfsigned CA",
+  "daysLeft": 12,
+  "threshold": 15,
+  "message": "Certificate default/example-tls-secret (Secret) expires in 12 days"
+}
+```
+
+Alerts are rate-limited per certificate so the same resource is not re-alerted
+on every scan.
+
+### End-to-end demo
+
+The disposable Kubernetes environment includes a runnable monitoring and
+alerting scenario (kind + cert-manager + webhook receiver):
+
+```bash
+make dev/up          # build and start the dev container
+make dev/setup       # kind cluster + cert-manager + monitor manifests
+make dev/alert-demo  # metrics + webhook alert demo
+```
+
+`make dev/alert-demo` creates a 90-day certificate, runs `k8s monitor` in watch
+mode with `--metrics-addr` and `--webhook-url`, prints the `certificate_*`
+metrics, and prints the alert payload received by the local webhook receiver.
+See [`dev/README.md`](dev/README.md#end-to-end-monitoring-and-alerting-demo).
+
 ## Self-Signed Certificate Monitoring
 
 Add CA certificates to `trusted_cas` for servers using self-signed or privately-signed certificates:
@@ -460,6 +601,7 @@ make dev/up              # Build + start the disposable dev container
 make dev/shell           # Open a shell in the dev container
 make dev/setup           # Create kind cluster + cert-manager + deploy monitor
 make dev/scan            # One-off `k8s monitor` scan via the DaemonSet
+make dev/alert-demo      # Metrics + webhook alert demo
 make dev/logs            # Stream the deployed monitor logs
 make dev/down            # Stop the dev container
 make dev/destroy         # Remove container + cluster state (zero residue)

@@ -92,6 +92,31 @@ certificate-validate k8s monitor --renew-threshold=15
 | GET | `/api/v1/cert/history/{hostname}` | Check history |
 | GET | `/metrics` | Prometheus metrics |
 
+### Observability
+
+Prometheus metrics are exposed at `/metrics` (core server) or on the
+`k8s monitor` metrics address, using the `certificate_` prefix:
+
+| Metric | Labels | Meaning |
+|--------|--------|---------|
+| `certificate_days_left` | `host`, `port` (core); `namespace`, `name`, `kind` (K8s) | Days remaining before expiration |
+| `certificate_expired` | same | `1` if expired, `0` if valid |
+| `certificate_revoked` | `namespace`, `name`, `kind` | `1` if OCSP/CRL reports revoked |
+| `certificate_renewal_total` | `namespace`, `name`, `status` | Renewal attempts (`success`/`failure`) |
+
+```promql
+# Certificates expiring within 15 days
+certificate_days_left < 15
+
+# Expired certificates
+certificate_expired == 1
+```
+
+Expiring certificates POST a JSON alert to the configured webhook. A runnable
+end-to-end demo (kind + cert-manager + webhook receiver) is available through
+`make dev/up`, `make dev/setup`, and `make dev/alert-demo`; see the
+[development guide](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md#end-to-end-monitoring-and-alerting-demo).
+
 ### Configuration
 
 ```yaml
