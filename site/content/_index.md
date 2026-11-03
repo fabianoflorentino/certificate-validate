@@ -3,21 +3,78 @@ title: "certificate-validate"
 description: "Monitor SSL/TLS certificates from the CLI, HTTP API, or Kubernetes with OCSP/CRL checks, Prometheus metrics, and webhook alerts."
 ---
 
+<a id="problems"></a>
+## What breaks without validation
+
+<div class="problem-grid">
+    <article class="problem-card">
+        <span class="problem-kicker">01 · Expiry</span>
+        <h3>The outage with a known date</h3>
+        <p>A certificate reaches zero days and TLS starts failing. Validate days-left continuously and alert before the deadline, not after the incident.</p>
+    </article>
+    <article class="problem-card">
+        <span class="problem-kicker">02 · Revocation</span>
+        <h3>Revoked, but still trusted</h3>
+        <p>A certificate can be revoked and still look valid. OCSP and CRL checks catch what an expiry date alone cannot.</p>
+    </article>
+    <article class="problem-card">
+        <span class="problem-kicker">03 · Kubernetes</span>
+        <h3>TLS sprawl across namespaces</h3>
+        <p>Secrets and Ingresses multiply across teams. Discover every TLS resource in one scan, with labels and metrics attached.</p>
+    </article>
+    <article class="problem-card">
+        <span class="problem-kicker">04 · Trust</span>
+        <h3>Internal chains fail silently</h3>
+        <p>Private CAs, self-signed certificates, and incomplete chains break in ways uptime checks miss. Inspect the chain and the trust path.</p>
+    </article>
+    <article class="problem-card">
+        <span class="problem-kicker">05 · Observability</span>
+        <h3>No signal for on-call</h3>
+        <p>A dashboard nobody watches is not monitoring. Export Prometheus metrics and fire rate-limited webhook alerts to the tools your team already uses.</p>
+    </article>
+    <article class="problem-card">
+        <span class="problem-kicker">06 · Operations</span>
+        <h3>Renewals and audits are manual</h3>
+        <p>History, JSONL rotation, and opt-in cert-manager renewal turn recurring certificate toil into a repeatable process.</p>
+    </article>
+</div>
+
 ## Quickstart
 
-Install via Go:
+Install the binary:
 
 ```bash
 go install github.com/fabianoflorentino/certificate-validate/cmd/certificate-validate@latest
-certificate-validate --help
 ```
 
-Or use the Docker image:
+Check any public host without a config file:
 
 ```bash
-docker pull fabianoflorentino/certificate-validate:latest
-docker run --rm fabianoflorentino/certificate-validate --help
+certificate-validate check --host github.com --port 443 -o table
 ```
+
+Then choose your path:
+
+<div class="quick-paths">
+    <a href="#cli-usage">
+        <span>CLI</span>
+        <strong>Script a one-off check</strong>
+        <em>Table, JSON, and CSV output</em>
+    </a>
+    <a href="#api-endpoints">
+        <span>API</span>
+        <strong>Run the dashboard</strong>
+        <em>REST, Swagger, and /metrics</em>
+    </a>
+    <a href="#docker--kubernetes">
+        <span>K8S</span>
+        <strong>Monitor a cluster</strong>
+        <em>Secrets, Ingresses, and renewal</em>
+    </a>
+</div>
+
+Prefer containers? The same binary ships in a ~10 MB image:
+`docker pull fabianoflorentino/certificate-validate:latest`.
 
 ## Features
 
@@ -84,6 +141,26 @@ docker run --rm fabianoflorentino/certificate-validate --help
     </article>
 </div>
 
+## How it works
+
+<div class="steps-grid">
+    <div class="step-card">
+        <span class="step-number">01</span>
+        <h3>Discover</h3>
+        <p>Read hosts from a YAML file or scan Kubernetes Secrets and Ingresses across namespaces.</p>
+    </div>
+    <div class="step-card">
+        <span class="step-number">02</span>
+        <h3>Validate</h3>
+        <p>Complete the TLS handshake, inspect the chain, calculate days left, and check OCSP/CRL revocation.</p>
+    </div>
+    <div class="step-card">
+        <span class="step-number">03</span>
+        <h3>Act</h3>
+        <p>Print tables or JSON, serve the API and dashboard, expose metrics, send webhooks, and renew via cert-manager.</p>
+    </div>
+</div>
+
 ## Demo
 
 Real output from live runs of the tool.
@@ -108,6 +185,26 @@ Real output from live runs of the tool.
             </div>
             <figcaption><strong>Kubernetes</strong> — TLS Secret and Ingress discovery, Prometheus metrics, and structured webhook alerts.</figcaption>
         </figure>
+    </div>
+</div>
+
+## Who it is for
+
+<div class="use-case-grid">
+    <div class="use-case-card">
+        <span class="use-case-label">SRE / On-call</span>
+        <h3>Stop expiry pages</h3>
+        <p>See the next deadline, alert on your thresholds, and keep a check history you can inspect after an incident.</p>
+    </div>
+    <div class="use-case-card">
+        <span class="use-case-label">Platform / Kubernetes</span>
+        <h3>See every TLS resource</h3>
+        <p>Inventory Secrets and Ingresses across namespaces, label metrics by resource, and opt into cert-manager renewal.</p>
+    </div>
+    <div class="use-case-card">
+        <span class="use-case-label">Security / Compliance</span>
+        <h3>Prove revocation and trust</h3>
+        <p>Validate OCSP/CRL status and certificate chains, including private CAs, then export evidence as JSON or CSV.</p>
     </div>
 </div>
 

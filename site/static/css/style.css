@@ -905,6 +905,197 @@ kbd {
     font-weight: 600;
 }
 
+/* Problems */
+.problem-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.problem-card {
+    position: relative;
+    overflow: hidden;
+    padding: 1.35rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0.7), rgba(13, 18, 32, 0.88));
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.problem-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.9), transparent 72%);
+}
+
+.problem-card:hover {
+    border-color: rgba(251, 191, 36, 0.32);
+    box-shadow: 0 18px 44px -30px #000, 0 0 26px rgba(251, 191, 36, 0.06);
+    transform: translateY(-3px);
+}
+
+.problem-kicker {
+    display: block;
+    margin-bottom: 0.55rem;
+    color: var(--warning);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.problem-card h3 {
+    margin: 0 0 0.45rem;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.problem-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.65;
+}
+
+/* Quick paths */
+.quick-paths {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin: 1.25rem 0 1.5rem;
+}
+
+.quick-paths a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    text-decoration: none;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-paths a:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: 0 14px 34px -26px #000, 0 0 22px rgba(0, 229, 168, 0.05);
+    transform: translateY(-2px);
+}
+
+.quick-paths span {
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.quick-paths strong {
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.quick-paths em {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-style: normal;
+}
+
+/* How it works */
+.steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.step-card {
+    padding: 1.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0.7), rgba(13, 18, 32, 0.88));
+}
+
+.step-number {
+    display: block;
+    margin-bottom: 0.7rem;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--primary), var(--secondary) 58%, var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+.step-card h3 {
+    margin: 0 0 0.4rem;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.step-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.65;
+}
+
+/* Use cases */
+.use-case-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.use-case-card {
+    padding: 1.35rem;
+    border: 1px solid var(--border);
+    border-left: 2px solid rgba(0, 229, 168, 0.55);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.use-case-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.use-case-card h3 {
+    margin: 0 0 0.4rem;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 1.08rem;
+    font-weight: 600;
+}
+
+.use-case-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.65;
+}
+
 /* Tables */
 .content table {
     width: 100%;
@@ -1078,7 +1269,11 @@ pre:hover .copy-btn,
         margin-top: 0.75rem;
     }
 
-    .feature-grid {
+    .feature-grid,
+    .problem-grid,
+    .quick-paths,
+    .steps-grid,
+    .use-case-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -1150,7 +1345,11 @@ pre:hover .copy-btn,
 
     .feature-grid,
     .content > ul,
-    .demo-grid {
+    .demo-grid,
+    .problem-grid,
+    .quick-paths,
+    .steps-grid,
+    .use-case-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 

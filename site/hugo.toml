@@ -22,17 +22,21 @@ title = "certificate-validate"
     url    = "/#quickstart"
     weight = 1
   [[menu.main]]
+    name   = "Why"
+    url    = "/#problems"
+    weight = 2
+  [[menu.main]]
     name   = "Features"
     url    = "/#features"
-    weight = 2
+    weight = 3
   [[menu.main]]
     name   = "Demo"
     url    = "/#demo"
-    weight = 3
+    weight = 4
   [[menu.main]]
     name   = "Docs"
     url    = "https://pkg.go.dev/github.com/fabianoflorentino/certificate-validate"
-    weight = 4
+    weight = 5
 
 [markup]
   [markup.highlight]

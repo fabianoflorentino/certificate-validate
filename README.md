@@ -27,11 +27,25 @@ A modern, extensible SSL/TLS certificate validation tool written in Go. Fetches 
 - **Minimal Dependencies** — Small Docker image (~10MB)
 - **Extensible Architecture** — SOLID principles with clean interfaces
 
+## Problems It Solves
+
+| Problem | What certificate-validate does |
+| --- | --- |
+| A certificate expires and takes a service down | Continuously checks days-left and alerts before the deadline |
+| A revoked certificate still looks valid | Verifies OCSP first and falls back to CRL distribution points |
+| TLS Secrets and Ingresses sprawl across Kubernetes | Discovers every TLS resource, labels metrics by namespace/name/kind, and can renew via cert-manager |
+| Internal CAs and self-signed chains fail silently | Validates chains against global or per-host CA bundles |
+| Nobody sees certificate health until an incident | Exposes Prometheus metrics, a dashboard, JSONL history, and webhook alerts |
+| Renewals and audits depend on manual work | Runs as a CLI, API, or cluster agent and exports JSON/CSV evidence |
+
 ## Quick Start
 
 ```bash
 # From source
 go install github.com/fabianoflorentino/certificate-validate/cmd/certificate-validate@latest
+
+# Check one host without a config file
+certificate-validate check --host github.com -o table
 
 # Build locally
 git clone https://github.com/fabianoflorentino/certificate-validate.git
@@ -41,12 +55,15 @@ go build -o certificate-validate ./cmd/certificate-validate
 # Docker
 docker build -t certificate-validate .
 
-# Run CLI check
+# Run CLI check against config/settings.yml
 ./certificate-validate check
 
-# Run API server
+# Run API server + dashboard
 ./certificate-validate serve
 ```
+
+Want a reproducible end-to-end example? Run `make demo/test` or see
+[`demo/README.md`](demo/README.md).
 
 ## Documentation
 
