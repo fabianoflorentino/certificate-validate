@@ -266,6 +266,60 @@ body:not(.dark-mode) .header {
     color: var(--status-good-text);
 }
 
+/* Status filters */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.filter-chip span {
+    color: var(--text-2);
+    font-weight: 600;
+}
+
+.filter-chip:hover {
+    border-color: var(--border-2);
+    color: var(--text);
+}
+
+.filter-chip.active {
+    border-color: rgba(0, 229, 168, 0.4);
+    background: var(--primary-dim);
+    color: var(--primary);
+}
+
+.filter-chip.filter-good.active {
+    border-color: rgba(52, 211, 153, 0.35);
+    background: var(--status-good-bg);
+    color: var(--status-good-text);
+}
+
+.filter-chip.filter-warn.active {
+    border-color: rgba(251, 191, 36, 0.35);
+    background: var(--status-warn-bg);
+    color: var(--status-warn-text);
+}
+
+.filter-chip.filter-critical.active {
+    border-color: rgba(251, 113, 133, 0.35);
+    background: var(--status-critical-bg);
+    color: var(--status-critical-text);
+}
+
 /* Search + sort */
 .search-input,
 .sort-select {
@@ -403,6 +457,61 @@ body:not(.dark-mode) .header {
     border-radius: 4px;
     background: var(--primary-dim);
     color: var(--primary);
+}
+
+.empty-kicker {
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.empty-state h3 {
+    margin: 0.35rem 0 0.5rem;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+}
+
+.empty-state p {
+    margin-bottom: 0.8rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.empty-command {
+    display: inline-block;
+    margin: 0 0 0.9rem;
+    padding: 0.55rem 0.75rem;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.empty-actions a {
+    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    text-decoration: none;
+}
+
+.empty-actions a:hover {
+    text-decoration: underline;
 }
 
 .hidden {

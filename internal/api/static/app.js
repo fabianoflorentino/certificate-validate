@@ -5,7 +5,8 @@ const state = {
     certificates: [],
     errors: [],
     searchTerm: '',
-    sortBy: 'daysLeft-asc'
+    sortBy: 'daysLeft-asc',
+    filter: 'all'
 };
 
 async function fetchCertificates() {
@@ -59,6 +60,13 @@ function render() {
         });
     }
 
+    // Filter by status
+    if (state.filter !== 'all') {
+        filtered = filtered.filter(function (cert) {
+            return statusFor(cert.daysLeft) === state.filter;
+        });
+    }
+
     // Sort
     var sortBy = state.sortBy;
     filtered = filtered.slice().sort(function (a, b) {
@@ -92,8 +100,18 @@ function render() {
     if (filtered.length === 0) {
         if (term) {
             empty.textContent = 'No hosts match "' + state.searchTerm + '"';
+        } else if (state.filter !== 'all') {
+            empty.textContent = 'No certificates match this filter.';
         } else {
-            empty.innerHTML = 'No certificates found. Add hosts to <code>config/settings.yml</code>.';
+            empty.innerHTML =
+                '<div class="empty-kicker">get started</div>' +
+                '<h3>No certificates yet</h3>' +
+                '<p>Add hosts to <code>config/settings.yml</code> or check a single host:</p>' +
+                '<pre class="empty-command">certificate-validate check --host github.com -o table</pre>' +
+                '<div class="empty-actions">' +
+                    '<a href="https://github.com/fabianoflorentino/certificate-validate/blob/main/README.md#configuration" target="_blank" rel="noopener">Configuration guide</a>' +
+                    '<a href="https://github.com/fabianoflorentino/certificate-validate/blob/main/README.md#quick-start" target="_blank" rel="noopener">Quickstart</a>' +
+                '</div>';
         }
         empty.classList.remove('hidden');
         return;
@@ -115,22 +133,36 @@ function handleSort() {
     render();
 }
 
+function statusFor(daysLeft) {
+    if (daysLeft > 30) return 'good';
+    if (daysLeft > 7) return 'warn';
+    return 'critical';
+}
+
+function setFilter(filter) {
+    state.filter = filter;
+    render();
+}
+
 function updateSummary(certs) {
     var container = document.getElementById('summaryBadges');
-    var critical = 0;
-    var warning = 0;
-    var good = 0;
+    var counts = { all: certs.length, good: 0, warn: 0, critical: 0 };
     for (var i = 0; i < certs.length; i++) {
-        var d = certs[i].daysLeft;
-        if (d <= 7) critical++;
-        else if (d <= 30) warning++;
-        else good++;
+        counts[statusFor(certs[i].daysLeft)]++;
     }
-    var parts = [];
-    if (critical) parts.push('<span class="badge-summary badge-critical">\u25CF ' + critical + '</span>');
-    if (warning) parts.push('<span class="badge-summary badge-warning">\u25CF ' + warning + '</span>');
-    if (good) parts.push('<span class="badge-summary badge-good">\u25CF ' + good + '</span>');
-    container.innerHTML = parts.join('') || '<span class="badge-summary">0 hosts</span>';
+
+    function chip(filter, label, className) {
+        var active = state.filter === filter;
+        return '<button type="button" class="filter-chip ' + className + (active ? ' active' : '') + '" ' +
+            'aria-pressed="' + active + '" onclick="setFilter(\'' + filter + '\')">' +
+            label + ' <span>' + counts[filter] + '</span></button>';
+    }
+
+    container.innerHTML =
+        chip('all', 'All', '') +
+        chip('good', 'Healthy', 'filter-good') +
+        chip('warn', 'Expiring', 'filter-warn') +
+        chip('critical', 'Critical', 'filter-critical');
 }
 
 function createCard(cert) {
@@ -139,7 +171,7 @@ function createCard(cert) {
     card.onclick = function () { showModal(cert); };
 
     const daysLeft = cert.daysLeft;
-    const statusClass = daysLeft > 30 ? 'status-good' : daysLeft > 7 ? 'status-warn' : 'status-critical';
+    const statusClass = 'status-' + statusFor(daysLeft);
     const typeBadge = cert.type.split(' ').slice(0, 2).join(' ');
     const healthPct = Math.max(3, Math.min(100, Math.round((daysLeft / 365) * 100)));
 
@@ -178,7 +210,7 @@ function showModal(cert) {
     const body = document.getElementById('modalBody');
 
     const daysLeft = cert.daysLeft;
-    const statusClass = daysLeft > 30 ? 'status-good' : daysLeft > 7 ? 'status-warn' : 'status-critical';
+    const statusClass = 'status-' + statusFor(daysLeft);
     const statusLabel = daysLeft > 30 ? 'Healthy' : daysLeft > 7 ? 'Expiring Soon' : 'Critical';
 
     var sansHtml = '';
