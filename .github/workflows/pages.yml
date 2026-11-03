@@ -3,6 +3,8 @@ name: Site Build & Deploy
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
     paths:
       - 'site/**'
       - '.github/workflows/pages.yml'

@@ -230,7 +230,6 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v3
         with:
-          token: ${{ secrets.RELEASE_TOKEN }}
           tag_name: ${{ needs.version.outputs.next_version }}
           name: ${{ needs.version.outputs.next_version }}
           generate_release_notes: true
