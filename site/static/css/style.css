@@ -224,6 +224,32 @@ kbd {
     color: var(--text);
 }
 
+.nav-lang {
+    display: flex;
+    align-items: center;
+    list-style: none;
+}
+
+.nav-lang a {
+    display: block;
+    padding: 0.42rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.nav-lang a:hover {
+    border-color: var(--primary);
+    background: var(--primary-dim);
+    color: var(--primary);
+}
+
 .nav-cta {
     padding: 0.55rem 1.05rem;
     border: 1px solid var(--border-2);
@@ -1228,6 +1254,45 @@ pre:hover .copy-btn,
 
 .site-footer a:hover {
     color: var(--primary);
+}
+
+/* Back to top */
+.back-to-top {
+    position: fixed;
+    right: clamp(1rem, 4vw, 2rem);
+    bottom: clamp(1rem, 4vw, 2rem);
+    z-index: 90;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border-2);
+    border-radius: 50%;
+    background: rgba(8, 11, 20, 0.82);
+    color: var(--muted);
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(12px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease,
+        border-color 0.2s ease, visibility 0.2s ease;
+}
+
+.back-to-top.is-visible {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.back-to-top:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.back-to-top svg {
+    width: 18px;
+    height: 18px;
 }
 
 /* Motion */

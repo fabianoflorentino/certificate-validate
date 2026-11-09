@@ -168,20 +168,20 @@ Real output from live runs of the tool.
 <div class="demo-gallery">
     <figure class="demo-shot demo-shot-wide">
         <div class="demo-frame">
-            <img src="demo/dashboard.png" alt="certificate-validate dashboard showing ten TLS certificates with days remaining and validation status" loading="lazy">
+            {{< img src="demo/dashboard.png" alt="certificate-validate dashboard showing ten TLS certificates with days remaining and validation status" >}}
         </div>
         <figcaption><strong>Dashboard</strong> — search, sort, expiry badges, revocation status, and history in the embedded web UI.</figcaption>
     </figure>
     <div class="demo-grid">
         <figure class="demo-shot">
             <div class="demo-frame">
-                <img src="demo/cli.png" alt="certificate-validate CLI table showing ten hosts, days remaining, status, revocation, issuer, and TLS version" loading="lazy">
+                {{< img src="demo/cli.png" alt="certificate-validate CLI table showing ten hosts, days remaining, status, revocation, issuer, and TLS version" >}}
             </div>
             <figcaption><strong>CLI</strong> — one command, a full table of hosts, expiry, revocation, issuer, and TLS version.</figcaption>
         </figure>
         <figure class="demo-shot">
             <div class="demo-frame">
-                <img src="demo/kubernetes.png" alt="certificate-validate k8s monitor showing Prometheus metrics and a webhook alert payload" loading="lazy">
+                {{< img src="demo/kubernetes.png" alt="certificate-validate k8s monitor showing Prometheus metrics and a webhook alert payload" >}}
             </div>
             <figcaption><strong>Kubernetes</strong> — TLS Secret and Ingress discovery, Prometheus metrics, and structured webhook alerts.</figcaption>
         </figure>

@@ -1,4 +1,11 @@
 (() => {
+    const root = document.documentElement;
+    const labels = {
+        copy: root.dataset.copyLabel || 'copy',
+        copied: root.dataset.copiedLabel || 'copied',
+        copyCode: root.dataset.copyCodeLabel || 'Copy code to clipboard',
+    };
+
     const copyText = async (value) => {
         if (!navigator.clipboard) {
             return false;
@@ -19,7 +26,7 @@
             }
             if (await copyText(value)) {
                 const original = button.textContent;
-                button.textContent = 'copied';
+                button.textContent = labels.copied;
                 button.classList.add('is-copied');
                 window.setTimeout(() => {
                     button.textContent = original;
@@ -38,14 +45,14 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'copy-btn';
-        button.textContent = 'copy';
-        button.setAttribute('aria-label', 'Copy code to clipboard');
+        button.textContent = labels.copy;
+        button.setAttribute('aria-label', labels.copyCode);
 
         button.addEventListener('click', async () => {
             if (await copyText(code.innerText)) {
-                button.textContent = 'copied';
+                button.textContent = labels.copied;
                 window.setTimeout(() => {
-                    button.textContent = 'copy';
+                    button.textContent = labels.copy;
                 }, 1600);
             }
         });
@@ -58,6 +65,20 @@
         const updateHeader = () => header.classList.toggle('scrolled', window.scrollY > 8);
         updateHeader();
         window.addEventListener('scroll', updateHeader, { passive: true });
+    }
+
+    const backToTop = document.querySelector('.back-to-top');
+    if (backToTop) {
+        const updateBackToTop = () => {
+            backToTop.classList.toggle('is-visible', window.scrollY > 600);
+        };
+        updateBackToTop();
+        window.addEventListener('scroll', updateBackToTop, { passive: true });
+
+        backToTop.addEventListener('click', () => {
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+        });
     }
 
     const canvas = document.getElementById('particle-canvas');
