@@ -43,20 +43,18 @@
 
             <div class="nav-actions">
                 {{ if gt (len .Site.Languages) 1 }}
-                <ul class="nav-lang" aria-label="{{ i18n "language_switcher" }}">
-                    {{ range .Site.Languages }}
-                    {{ $lang := . }}
-                    {{ if ne $lang.Lang $.Site.Language.Lang }}
-                    {{ $href := $.Site.Home.RelPermalink }}
-                    {{ range $.AllTranslations }}
-                    {{ if eq .Language.Lang $lang.Lang }}{{ $href = .RelPermalink }}{{ end }}
-                    {{ end }}
-                    <li>
-                        <a href="{{ $href }}" hreflang="{{ $lang.LanguageCode }}" lang="{{ $lang.LanguageCode }}">{{ $lang.LanguageName }}</a>
-                    </li>
-                    {{ end }}
-                    {{ end }}
-                </ul>
+                {{ $current := .Site.Language.Lang }}
+                {{ $other := .Site.Home }}
+                {{ range .Site.Home.AllTranslations }}
+                {{ if ne .Language.Lang $current }}{{ $other = . }}{{ end }}
+                {{ end }}
+                <a class="lang-switch{{ if eq $current "en" }} is-en{{ end }}" href="{{ $other.RelPermalink }}" hreflang="{{ $other.Language.LanguageCode }}" lang="{{ $other.Language.LanguageCode }}" aria-label="{{ i18n "language_switcher" }}">
+                    <span class="lang-switch-track">
+                        <span class="lang-switch-knob" aria-hidden="true"></span>
+                        <span class="lang-switch-label lang-switch-pt">PT</span>
+                        <span class="lang-switch-label lang-switch-en">EN</span>
+                    </span>
+                </a>
                 {{ end }}
                 <a class="nav-github" href="{{ .Site.Params.github }}" aria-label="{{ i18n "github_repository" }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
