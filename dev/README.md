@@ -67,6 +67,13 @@ All Makefile targets:
 | `make dev/down` | Stop the dev container |
 | `make dev/destroy` | Destroy the container and all cluster state |
 
+> For the complete deploy example (dashboard + monitor + ingress/TLS +
+> Prometheus/Grafana), run `make demo/kind-full` inside the dev container; it
+> reuses this environment's cluster setup and is documented in
+> [`demo/README.md`](../demo/README.md#full-kubernetes-example-kind). The script
+> falls back to a writable state directory because the repo is mounted
+> read-only.
+
 ## Useful commands inside the container
 
 ```bash

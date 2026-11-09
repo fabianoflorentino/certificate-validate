@@ -87,5 +87,8 @@ validate manifests end-to-end before applying to a real cluster. The dev compose
 profile relies on `network_mode: host` and a `KUBECONFIG` pointing at the host
 kind cluster — preserve both when changing the dev setup.
 
+For the complete stack (dashboard, ingress/TLS, monitor, in-cluster webhook, and
+optional Prometheus/Grafana) use `make demo/kind-full` (`scripts/kind-full.sh`).
+
 **Remember**: least-privilege RBAC, DaemonSet for coverage, ServiceMonitor-driven
 scraping, and a stable, documented metric contract.

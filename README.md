@@ -572,13 +572,14 @@ See [`dev/README.md`](dev/README.md#end-to-end-monitoring-and-alerting-demo).
 
 ## Deterministic Demos
 
-Two self-contained demos use only **self-signed certificates** and local
+Three self-contained demos use only **self-signed certificates** and local
 Docker DNS — no Let's Encrypt, public DNS, or external CA required.
 
 | Demo | Command | What it proves |
 | --- | --- | --- |
 | Compose | `make demo/test` | CLI, API, metrics, webhook, Prometheus scraping |
 | Kubernetes | `make demo/kind` | kind deploy, Secret/Ingress discovery, metrics, webhook |
+| Full Kubernetes | `make demo/kind-full` | Dashboard + monitor + ingress/TLS + in-cluster webhook (+ Prometheus/Grafana) |
 
 ```bash
 make demo/up       # TLS origin + API + Prometheus + webhook receiver
@@ -589,8 +590,15 @@ make demo/down     # stop and remove volumes
 The Kubernetes version reuses the kind + cert-manager flow:
 
 ```bash
-make demo/kind
+make demo/kind       # monitor only (fast)
+make demo/kind-full  # dashboard + monitor + ingress/TLS + Prometheus + Grafana
 ```
+
+The full example deploys the dashboard through ingress-nginx with a
+cert-manager-issued certificate, the `k8s monitor` DaemonSet, and an in-cluster
+webhook receiver. Set `WITH_PROMETHEUS=false` to skip the monitoring stack.
+Step-by-step instructions, access commands, variables, and troubleshooting live
+in [`demo/README.md`](demo/README.md#full-kubernetes-example-kind).
 
 To switch the compose demo to real certificates (public or internal CA), drop
 `server.crt`/`server.key` into `demo/compose/certs/` and set `DEMO_HOST` to the
@@ -664,6 +672,7 @@ make demo/verify         # Verify API, metrics, webhook, Prometheus and CLI
 make demo/test           # Start + verify
 make demo/down           # Stop and remove demo volumes
 make demo/kind           # kind + cert-manager end-to-end demo
+make demo/kind-full      # Full kind example (dashboard + monitor + TLS + Prometheus)
 ```
 
 ## Contributing

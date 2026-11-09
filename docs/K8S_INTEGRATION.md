@@ -1097,3 +1097,30 @@ internal/k8smonitor/
 unchanged → timeout), validation failures (too-short validity, revoked), annotate
 errors, and missing previous serial, using the client-go fake clientset with injected
 reactors — no live cluster required.
+
+---
+
+## 13. Local Full-Stack Example (kind)
+
+`make demo/kind-full` (`scripts/kind-full.sh`) deploys the whole project into a
+local kind cluster and is the reference end-to-end deployment example:
+
+1. kind cluster with the `ingress-ready` label and host ports 8080/8443.
+2. cert-manager, then ingress-nginx bound to the control-plane host ports.
+3. optional kube-prometheus-stack (Prometheus + Grafana) with the project's
+   `ServiceMonitor` and `PrometheusRule`.
+4. the dashboard (Helm chart `chart/` + `chart/values-kind.yaml`) exposed over
+   HTTPS through the Ingress with a cert-manager-issued certificate.
+5. the `k8s monitor` DaemonSet pointed at an in-cluster webhook receiver.
+6. a 30-day demo `Certificate` + `Ingress` that the monitor discovers and alerts on.
+
+The script asserts the dashboard (`/health`, `/`, `/metrics`), monitor discovery
+and metrics, the webhook payload, and — when the monitoring stack is enabled —
+that Prometheus scrapes `certificate_days_left` through the `ServiceMonitor`.
+Set `WITH_PROMETHEUS=false` to skip the monitoring stack. CI runs the example on
+pushes to `main` and manual dispatch (`kind-full-demo` in
+`.github/workflows/demo.yml`).
+
+Phase 3 items that remain are the predictive/trend features and
+project-specific Grafana dashboards; the deployment path itself is now covered.
+
