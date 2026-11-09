@@ -289,6 +289,8 @@ configurado. Uma demonstração ponta a ponta executável (kind + cert-manager +
 receptor de webhook) está disponível com `make dev/up`, `make dev/setup` e
 `make dev/alert-demo`; veja o
 [guia de desenvolvimento](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md#end-to-end-monitoring-and-alerting-demo).
+Para o deploy local completo no kind — dashboard, ingress/TLS, monitor e
+Prometheus/Grafana — execute `make demo/kind-full`.
 
 ## Configuração
 
@@ -347,6 +349,30 @@ ServiceMonitor) ficam em [`kubernetes/monitor/`](https://github.com/fabianoflore
 Um ambiente de desenvolvimento descartável (kind + cert-manager) está documentado em
 [`dev/README.md`](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md)
 e é acionado pelos alvos `make dev/*`.
+
+### Demonstração local no Kubernetes (kind)
+
+Quer o stack completo rodando localmente? Com Docker, `kind`, `kubectl`, `helm`
+e Go instalados:
+
+```bash
+make demo/kind-full
+```
+
+Isso cria um cluster kind descartável com cert-manager e ingress-nginx, faz o
+deploy do dashboard via HTTPS (TLS emitido pelo cert-manager), executa o
+DaemonSet `k8s monitor` e entrega alertas a um receptor de webhook no cluster.
+Prometheus e Grafana são instalados por padrão; use `WITH_PROMETHEUS=false` para
+uma execução mais rápida sem o stack de monitoramento.
+
+```bash
+# Dashboard (TLS autoassinado)
+curl -k --resolve certificate-validate.localhost:8443:127.0.0.1 \
+  https://certificate-validate.localhost:8443/health
+```
+
+Passo a passo completo (pré-requisitos, acesso, variáveis e troubleshooting):
+[`demo/README.md`](https://github.com/fabianoflorentino/certificate-validate/blob/main/demo/README.md#full-kubernetes-example-kind).
 
 ## Saiba mais
 

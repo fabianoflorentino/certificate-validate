@@ -283,6 +283,8 @@ Expiring certificates POST a JSON alert to the configured webhook. A runnable
 end-to-end demo (kind + cert-manager + webhook receiver) is available through
 `make dev/up`, `make dev/setup`, and `make dev/alert-demo`; see the
 [development guide](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md#end-to-end-monitoring-and-alerting-demo).
+For the complete local deployment on kind — dashboard, ingress/TLS, monitor, and
+Prometheus/Grafana — run `make demo/kind-full`.
 
 ## Configuration
 
@@ -340,6 +342,30 @@ ServiceMonitor) live in [`kubernetes/monitor/`](https://github.com/fabianofloren
 A disposable dev environment (kind + cert-manager) is documented in
 [`dev/README.md`](https://github.com/fabianoflorentino/certificate-validate/blob/main/dev/README.md)
 and driven by the `make dev/*` targets.
+
+### Local Kubernetes demo (kind)
+
+Want the whole stack running locally? With Docker, `kind`, `kubectl`, `helm`, and
+Go installed:
+
+```bash
+make demo/kind-full
+```
+
+This creates a disposable kind cluster with cert-manager and ingress-nginx,
+deploys the dashboard over HTTPS (TLS issued by cert-manager), runs the
+`k8s monitor` DaemonSet, and delivers alerts to an in-cluster webhook receiver.
+Prometheus and Grafana are installed by default; set `WITH_PROMETHEUS=false` for
+a faster run without the monitoring stack.
+
+```bash
+# Dashboard (self-signed TLS)
+curl -k --resolve certificate-validate.localhost:8443:127.0.0.1 \
+  https://certificate-validate.localhost:8443/health
+```
+
+Full step-by-step (prerequisites, access, variables, troubleshooting):
+[`demo/README.md`](https://github.com/fabianoflorentino/certificate-validate/blob/main/demo/README.md#full-kubernetes-example-kind).
 
 ## Learn more
 
