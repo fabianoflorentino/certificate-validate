@@ -19,9 +19,10 @@ Idiomatic Go patterns and best practices for building robust, efficient, and mai
 
 These apply to all work in this repository and are enforced by CI/git hooks.
 
-1. **English only.** All code (identifiers, comments), commit messages, docs, and
-   site content must be written in English. No Portuguese or other languages in
-   any file.
+1. **English in code.** All code (identifiers, comments), commit messages, and
+   technical docs must be written in English. No Portuguese or other languages in
+   source files. The public site is the exception: it is bilingual, with English
+   as default and Brazilian Portuguese under `/pt-br/`; keep both in sync.
 
 2. **SOLID, applied lightly.** Keep responsibilities focused, depend on
    abstractions, and compose small pieces. Do not over-engineer; state this style
@@ -947,7 +948,7 @@ issues:
 
 | Idiom | Description |
 |-------|-------------|
-| English everywhere | All code, comments, commits, and docs in English |
+| English in code | Code, comments, commits, and technical docs in English; site is EN + PT-BR |
 | SOLID lightly | Focused responsibilities + abstractions, without over-engineering |
 | Accept interfaces, return structs | Functions accept interface params, return concrete types |
 | Errors are values | Treat errors as first-class values, not exceptions |
@@ -996,4 +997,4 @@ func (c *Counter) Increment() { c.n++ }        // Pointer receiver
 // Pick one style and be consistent
 ```
 
-**Remember**: Go code should be boring in the best way - predictable, consistent, and easy to understand. When in doubt, keep it simple. Keep everything in English, apply SOLID lightly, and always validate with lefthook before committing or pushing.
+**Remember**: Go code should be boring in the best way - predictable, consistent, and easy to understand. When in doubt, keep it simple. Keep the code in English, apply SOLID lightly, and always validate with lefthook before committing or pushing.

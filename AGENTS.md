@@ -8,11 +8,16 @@ skills under `.agents/skills/`.
 See [`README.md`](README.md) for features, architecture, configuration, and usage.
 This file covers working conventions for AI agents.
 
-## 1. English Only
+## 1. English in Code, Bilingual Site
 
-Keep the entire project in English: identifiers, comments, commit messages,
-documentation, and site content. Do not use Portuguese or any other language in
-repository files.
+Keep the code and engineering artifacts in English: identifiers, comments,
+commit messages, technical documentation, configuration, and scripts. Do not use
+Portuguese or any other language in source files.
+
+The public website is the deliberate exception. It promotes the project in two
+languages: English (default) and Brazilian Portuguese at `/pt-br/`. When site
+content changes, update both `site/content/_index.md` and
+`site/content/_index.pt-br.md`, plus the matching `site/i18n/*.toml` strings.
 
 ## 2. SOLID, Applied Lightly
 
@@ -43,7 +48,10 @@ production code without tests. See `.agents/skills/golang-testing/SKILL.md`.
 
 These shape the architecture; changes that break them need explicit discussion:
 
-1. **English everywhere** — no Portuguese or other language in any file.
+1. **English in code** — identifiers, comments, commit messages, and technical
+   docs stay in English. The public site is the exception: it ships English
+   (default) and Brazilian Portuguese at `/pt-br/`, and both must be kept in
+   sync.
 2. **Metrics do not collide.** The `k8s monitor` uses a **dedicated
    Prometheus registry** (`internal/k8smonitor/metrics.go`) with `namespace`,
    `name`, `kind` labels to avoid clashing with the core `internal/metrics`

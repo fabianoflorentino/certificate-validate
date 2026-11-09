@@ -6,7 +6,7 @@
 A modern, extensible SSL/TLS certificate validation tool written in Go. Fetches and inspects certificate information from remote hosts via CLI or HTTP API.
 
 > **For AI agents**: this README is the human-facing usage/feature reference. Project
-> **working conventions** (English, SOLID, coverage, lefthook, invariants) live in
+> **working conventions** (English in code, SOLID, coverage, lefthook, invariants) live in
 > [`AGENTS.md`](AGENTS.md), which is the canonical instruction file for AI coding agents.
 
 ## Features
@@ -670,7 +670,7 @@ make demo/kind           # kind + cert-manager end-to-end demo
 
 This project follows specific conventions to maintain code quality and consistency:
 
-- **Language**: All code, comments, commits, and documentation must be in English
+- **Language**: All code, comments, commits, and technical documentation must be in English. The public site is bilingual (English default, Brazilian Portuguese at `/pt-br/`)
 - **Architecture**: Follow SOLID principles lightly — focused responsibilities, dependency injection, clean interfaces
 - **Testing**: Maintain ≥80% test coverage; never add production code without tests
 - **Validation**: All changes must pass lefthook hooks (`pre-commit`: lint + vet; `pre-push`: full test suite + coverage gate)

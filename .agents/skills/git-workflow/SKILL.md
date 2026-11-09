@@ -7,7 +7,7 @@ origin: ECC
 # Git Workflow
 
 Healthy git habits that keep history readable, atomic, and safe. These complement
-the validation rules in the project `AGENTS.md` (English only, lefthook hooks).
+the validation rules in the project `AGENTS.md` (English in code, lefthook hooks).
 
 ## When to Activate
 

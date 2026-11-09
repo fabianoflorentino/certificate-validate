@@ -21,7 +21,7 @@ These apply to every test written in this repository and are enforced by CI/git 
    `lefthook run pre-push` (which include `go test -race` and the coverage gate)
    before finishing any change. Do not push if coverage or tests fail.
 
-3. **English only.** Test names, comments, error messages, and commit messages
+3. **English in code.** Test names, comments, error messages, and commit messages
    must be written in English.
 
 ## When to Activate
