@@ -236,6 +236,10 @@ demo/down: ## Stop the demo and remove its volumes
 demo/kind: ## Run the kind + cert-manager end-to-end demo
 	./demo/kind/run.sh
 
+.PHONY: demo/kind-full
+demo/kind-full: ## Full kind example: dashboard + monitor + ingress/TLS + Prometheus
+	./scripts/kind-full.sh
+
 # ---- Help ------------------------------------------------------------------
 
 .PHONY: help
@@ -255,3 +259,4 @@ help: ## Show this help message
 	@printf "  make dev/alert-demo     # Kubernetes metrics + webhook alert demo\n"
 	@printf "  make demo/test          # Deterministic compose demo + assertions\n"
 	@printf "  make demo/kind          # kind + cert-manager end-to-end demo\n"
+	@printf "  make demo/kind-full     # Full kind example (dashboard + monitor + TLS)\n"

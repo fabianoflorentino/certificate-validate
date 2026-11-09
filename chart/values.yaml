@@ -59,6 +59,7 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
+  tls: []
 
 nodeSelector: {}
 tolerations: []

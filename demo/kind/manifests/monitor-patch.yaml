@@ -1,0 +1,18 @@
+---
+# Kind demo tuning for the monitor DaemonSet:
+#   - shorter watch interval so metrics/alerts appear quickly;
+#   - higher webhook threshold so the 30-day demo cert alerts immediately;
+#   - renewal disabled, because the demo cert is intentionally below the gate.
+spec:
+  template:
+    spec:
+      containers:
+        - name: monitor
+          args:
+            - k8s
+            - monitor
+            - --watch-interval=30
+            - --webhook-url=$(ALERT_WEBHOOK_URL)
+            - --webhook-threshold=45
+            - --renew-threshold=0
+            - --metrics-addr=:9102

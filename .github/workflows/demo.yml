@@ -20,6 +20,15 @@ on:
       - '**/*.md'
       - '.agents/**'
   workflow_dispatch:
+    inputs:
+      with_prometheus:
+        description: "Install kube-prometheus-stack in the full kind demo"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 permissions:
   contents: read
@@ -158,6 +167,82 @@ jobs:
         with:
           name: kind-demo
           path: artifacts/kind
+
+      - name: Delete kind cluster
+        if: always()
+        run: kind delete cluster --name cert-validate || true
+
+  kind-full-demo:
+    name: Full kind demo
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.21.4
+
+      - name: Install kind
+        run: |
+          curl -fsSL -o kind "https://kind.sigs.k8s.io/dl/v0.32.0/kind-linux-amd64"
+          chmod +x kind
+          sudo mv kind /usr/local/bin/kind
+          kind version
+
+      - name: Run full kind demo
+        env:
+          REPO_ROOT: ${{ github.workspace }}
+          STATE_DIR: ${{ runner.temp }}/cv-kind-full
+          KUBECONFIG: ${{ runner.temp }}/cv-kind-full/kubeconfig
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts/kind-full
+          WITH_PROMETHEUS: ${{ github.event.inputs.with_prometheus || 'false' }}
+        run: ./scripts/kind-full.sh
+
+      - name: Publish full kind demo summary
+        if: always()
+        run: |
+          mkdir -p artifacts/kind-full
+          if [ -f artifacts/kind-full/summary.md ]; then
+            cat artifacts/kind-full/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '## Full Kubernetes demo\n\n❌ Demo did not complete. See the logs and uploaded artifacts.\n' \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Collect diagnostics
+        if: always()
+        env:
+          KUBECONFIG: ${{ runner.temp }}/cv-kind-full/kubeconfig
+        run: |
+          mkdir -p artifacts/kind-full
+          kubectl get all -A > artifacts/kind-full/all.txt 2>&1 || true
+          kubectl -n certificate-validate get ingress,deploy,svc -o wide \
+            > artifacts/kind-full/app.txt 2>&1 || true
+          kubectl -n cert-manager get daemonset,pods -o wide \
+            > artifacts/kind-full/monitor.txt 2>&1 || true
+          kubectl -n certificate-validate logs deploy/certificate-validate --tail=200 \
+            > artifacts/kind-full/app.log 2>&1 || true
+          kubectl -n cert-manager logs -l app.kubernetes.io/name=certificate-validate --tail=200 \
+            > artifacts/kind-full/monitor.log 2>&1 || true
+          kubectl -n certificate-validate logs deploy/cert-validate-webhook --tail=200 \
+            > artifacts/kind-full/webhook.log 2>&1 || true
+
+      - name: Upload full kind demo artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kind-full-demo
+          path: artifacts/kind-full
 
       - name: Delete kind cluster
         if: always()

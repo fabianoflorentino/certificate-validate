@@ -1,0 +1,71 @@
+---
+# In-cluster webhook receiver used by both `serve` and the `k8s monitor` agent.
+# The image is built and loaded by scripts/kind-full.sh (the tag is patched).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-validate-webhook
+  namespace: certificate-validate
+  labels:
+    app.kubernetes.io/name: cert-validate-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-validate-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cert-validate-webhook
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: receiver
+          image: certificate-validate-webhook:dev
+          imagePullPolicy: IfNotPresent
+          args: ["-addr", "0.0.0.0:9099", "-out", "/data/alerts.jsonl"]
+          ports:
+            - name: http
+              containerPort: 9099
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cert-validate-webhook
+  namespace: certificate-validate
+  labels:
+    app.kubernetes.io/name: cert-validate-webhook
+spec:
+  selector:
+    app.kubernetes.io/name: cert-validate-webhook
+  ports:
+    - name: http
+      port: 9099
+      targetPort: http

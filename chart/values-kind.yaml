@@ -1,0 +1,65 @@
+# Values for the local kind example (scripts/kind-full.sh).
+#
+# The dashboard is exposed through ingress-nginx and gets a certificate from
+# cert-manager using the selfsigned ClusterIssuer created by the same script.
+replicaCount: 1
+
+image:
+  repository: certificate-validate
+  tag: dev
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 5000
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+config:
+  check_time: 60
+  hosts:
+    - name: "GitHub"
+      url: "github.com"
+      port: "443"
+  history:
+    enabled: false
+    filePath: "/tmp/history.jsonl"
+    maxEntries: 1000
+    maxDays: 7
+  prometheus:
+    enabled: true
+  webhook:
+    url: "http://cert-validate-webhook.certificate-validate.svc.cluster.local:9099/alert"
+    threshold: 30
+    interval: 60
+
+# kind has no default storage provisioner, so the history volume is disabled.
+persistence:
+  enabled: false
+  size: 1Gi
+  accessMode: ReadWriteOnce
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned
+  hosts:
+    - host: certificate-validate.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: certificate-validate-dashboard-tls
+      hosts:
+        - certificate-validate.localhost
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

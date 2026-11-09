@@ -1,0 +1,12 @@
+.git
+.github
+.agents
+.omo
+.opencode
+.specify
+.demo-state
+site/public
+site/resources
+bin
+coverage.out
+*.log

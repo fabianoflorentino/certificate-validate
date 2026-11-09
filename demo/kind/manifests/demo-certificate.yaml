@@ -1,0 +1,53 @@
+---
+# cert-manager-issued certificate + Ingress for the monitor to discover. The
+# 30-day lifetime is deliberate: it stays below the demo webhook threshold but
+# above the 15-day renewal gate, so the example exercises alerts without
+# triggering auto-renewal. The Ingress backend is intentionally a stub — the
+# monitor only reads the referenced TLS Secret.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: cert-validate-demo
+  namespace: default
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-validate-demo
+  namespace: default
+spec:
+  secretName: cert-validate-demo-tls
+  duration: 720h
+  renewBefore: 168h
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  dnsNames:
+    - demo.certificate-validate.localhost
+  issuerRef:
+    name: cert-validate-demo
+    kind: Issuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cert-validate-demo
+  namespace: default
+spec:
+  tls:
+    - hosts: [demo.certificate-validate.localhost]
+      secretName: cert-validate-demo-tls
+  rules:
+    - host: demo.certificate-validate.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cert-validate-demo
+                port:
+                  number: 80
